@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Sans Reels</string>
+    <string name="accessibility_service_description">Détecte l\'onglet Reels et la page Explore dans Instagram, et revient en arrière. Ne lit aucun texte et n\'envoie rien sur le réseau.</string>
+</resources>

@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "reelsoff"
 include(":detection")
+include(":app")
