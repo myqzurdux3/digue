@@ -1,4 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.ReelsOff" parent="@android:style/Theme.Material.Light.NoActionBar" />
+    <!--
+      Deliberately parented on the platform theme, not on Material Components:
+      com.google.android.material is absent from this project and must stay absent.
+
+      This theme only paints the window before Compose draws. The cream background
+      matters: without it the launch window flashes the platform's white, which
+      reads as a stutter against the app's warmer paper.
+    -->
+    <style name="Theme.ReelsOff" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/papier</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
 </resources>
