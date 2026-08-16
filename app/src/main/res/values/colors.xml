@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Single source of truth for the palette. Duplicated in Kotlin (ui/Theme.kt) because
+  Compose cannot read these at compile time, but the XML side is what the launcher
+  icon and the pre-Compose window background use, so the two must stay in step.
+-->
+<resources>
+    <color name="papier">#FFF4F1EA</color>
+    <color name="encre">#FF14100C</color>
+    <color name="accent">#FF2E6F6A</color>
+</resources>
