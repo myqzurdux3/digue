@@ -11,13 +11,15 @@ import androidx.core.content.ContextCompat
 import com.insta.detection.RuleSet
 import com.insta.detection.ScreenClassifier
 import com.insta.detection.ScreenSnapshot
-import com.insta.detection.Surface
 import com.insta.reelsoff.data.AppDatabase
 import com.insta.reelsoff.data.BlockEvent
+import com.insta.reelsoff.data.BlockSettings
+import com.insta.reelsoff.data.SettingsStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -33,6 +35,9 @@ class InstagramWatcherService : AccessibilityService() {
     private val blocker = Blocker(clock)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var classifier: ScreenClassifier
+
+    @Volatile
+    private var settings = BlockSettings()
 
     private var captureIndex = 0
     private var sessionStamp = 0L
@@ -67,6 +72,9 @@ class InstagramWatcherService : AccessibilityService() {
         }
         classifier = ScreenClassifier(loaded.ruleSet)
         Log.i(TAG, "rules loaded from ${loaded.source}${loaded.error?.let { " ($it)" } ?: ""}")
+        scope.launch {
+            SettingsStore(applicationContext).settings.collectLatest { settings = it }
+        }
         Log.i(TAG, "service connected")
     }
 
@@ -106,7 +114,7 @@ class InstagramWatcherService : AccessibilityService() {
         if (captureSession.shouldCapture()) writeCapture(snapshot)
 
         val classification = classifier.classify(snapshot)
-        val decision = blocker.decide(classification, BLOCKED_SURFACES)
+        val decision = blocker.decide(classification, settings.blockedSurfaces)
 
         when (decision.action) {
             BlockAction.BACK -> performGlobalAction(GLOBAL_ACTION_BACK)
@@ -141,8 +149,5 @@ class InstagramWatcherService : AccessibilityService() {
         const val ACTION_START_CAPTURE = "com.insta.reelsoff.START_CAPTURE"
         private const val INSTAGRAM_PACKAGE = "com.instagram.android"
         private const val TAG = "ReelsOff"
-
-        // Task 10 replaces this constant with a user-configurable setting.
-        private val BLOCKED_SURFACES = setOf(Surface.REELS, Surface.EXPLORE)
     }
 }
