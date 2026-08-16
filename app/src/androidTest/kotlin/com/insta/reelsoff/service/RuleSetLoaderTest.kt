@@ -66,4 +66,18 @@ class RuleSetLoaderTest {
         assertNotNull(loaded.error)
         assertTrue(loaded.ruleSet.surfaces.containsKey(Surface.REELS))
     }
+
+    // Regression test for the Task 8 review finding: a rules.json that exists but
+    // cannot be read as a file (here, because it is actually a directory) must not
+    // throw out of load() — it must degrade to the bundled rules with an error,
+    // the same as any other unreadable override.
+    @Test
+    fun fallsBackWithoutThrowingWhenTheOverridePathIsUnreadable() {
+        override.mkdirs()
+
+        val loaded = RuleSetLoader(context).load()
+
+        assertEquals(RuleSource.BUNDLED, loaded.source)
+        assertNotNull(loaded.error)
+    }
 }

@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import androidx.core.content.ContextCompat
+import com.insta.detection.RuleSet
 import com.insta.detection.ScreenClassifier
 import com.insta.detection.ScreenSnapshot
 import com.insta.detection.Surface
@@ -45,7 +46,17 @@ class InstagramWatcherService : AccessibilityService() {
             IntentFilter(ACTION_START_CAPTURE),
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
-        val loaded = RuleSetLoader(this).load()
+        // RuleSetLoader.load() is designed to never throw, but this callback has no
+        // caller-side try/catch the way onAccessibilityEvent() does — an uncaught throw
+        // here crashes the service, and Android may then disable it for good, leaving the
+        // user believing they are still protected. Belt and braces: fall back to an empty
+        // rule set (blocks nothing, but stays alive) rather than let anything escape.
+        val loaded = try {
+            RuleSetLoader(this).load()
+        } catch (e: Throwable) {
+            Log.e(TAG, "rule loading failed unexpectedly", e)
+            LoadedRules(RuleSet(version = 0, surfaces = emptyMap()), RuleSource.BUNDLED, "rule loading failed unexpectedly: ${e.message}")
+        }
         classifier = ScreenClassifier(loaded.ruleSet)
         Log.i(TAG, "rules loaded from ${loaded.source}${loaded.error?.let { " ($it)" } ?: ""}")
         Log.i(TAG, "service connected")

@@ -34,15 +34,34 @@ class RuleSetLoader(private val context: Context) {
     }
 
     private fun bundled(error: String?): LoadedRules {
-        val raw = context.assets.open(FILE_NAME).bufferedReader().use { it.readText() }
+        val raw = runCatching {
+            context.assets.open(FILE_NAME).bufferedReader().use { it.readText() }
+        }.getOrElse {
+            return LoadedRules(
+                EMPTY_RULE_SET,
+                RuleSource.BUNDLED,
+                combine(error, "bundled rules asset could not be read: ${it.message}"),
+            )
+        }
         return when (val result = RuleSetParser.parse(raw)) {
             is ParseResult.Success -> LoadedRules(result.ruleSet, RuleSource.BUNDLED, error)
-            // Caught by RealFixtureTest before shipping; if it happens here the build is broken.
-            is ParseResult.Failure -> error("bundled rules are invalid: ${result.message}")
+            // Should be caught by RealFixtureTest before shipping; if it happens here the
+            // asset itself is malformed. Never throw — fall back to blocking nothing rather
+            // than crashing the service and having Android disable it for good.
+            is ParseResult.Failure ->
+                LoadedRules(
+                    EMPTY_RULE_SET,
+                    RuleSource.BUNDLED,
+                    combine(error, "bundled rules are invalid: ${result.message}"),
+                )
         }
     }
 
+    private fun combine(overrideError: String?, bundledError: String) =
+        if (overrideError != null) "$overrideError; $bundledError" else bundledError
+
     private companion object {
         const val FILE_NAME = "rules.json"
+        val EMPTY_RULE_SET = RuleSet(version = 0, surfaces = emptyMap())
     }
 }

@@ -163,6 +163,24 @@ class ScreenClassifierTest {
         assertEquals(Surface.REELS, result.surface)
     }
 
+    /**
+     * The degraded-mode guarantee: when rule loading fails entirely (see
+     * RuleSetLoader), the app falls back to an empty rule set rather than
+     * crashing the service. That fallback must be genuinely non-blocking —
+     * a classifier with no rules must never report anything but OTHER.
+     */
+    @Test
+    fun `empty rule set never classifies anything but OTHER`() {
+        val classifier = ScreenClassifier(RuleSet(version = 0, surfaces = emptyMap()))
+
+        val result = classifier.classify(
+            snapshot(screenWithNavBar(selectedTab = 2, tabViewIds = allTabViewIds, tabDescriptions = allTabDescriptions)),
+        )
+
+        assertEquals(Surface.OTHER, result.surface)
+        assertNull(result.tier)
+    }
+
     /** The bar is picked geometrically, so a higher row of buttons must not win. */
     @Test
     fun `nav bar detection picks the lowest row of clickable siblings`() {
