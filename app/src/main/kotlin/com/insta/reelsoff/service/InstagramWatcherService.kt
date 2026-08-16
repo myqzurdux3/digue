@@ -22,9 +22,12 @@ class InstagramWatcherService : AccessibilityService() {
     private val json = Json { prettyPrint = true }
 
     private var captureIndex = 0
+    private var sessionStamp = 0L
 
     private val captureReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
+            sessionStamp = System.currentTimeMillis()
+            captureIndex = 0
             captureSession.start()
             Log.i(TAG, "capture session started")
         }
@@ -78,7 +81,7 @@ class InstagramWatcherService : AccessibilityService() {
 
     private fun writeCapture(snapshot: ScreenSnapshot) {
         val directory = File(getExternalFilesDir(null), "captures").apply { mkdirs() }
-        val file = File(directory, "snapshot-%03d.json".format(captureIndex++))
+        val file = File(directory, "capture-%d-%03d.json".format(sessionStamp, captureIndex++))
         file.writeText(json.encodeToString(snapshot))
         Log.i(TAG, "wrote ${file.absolutePath} (${snapshot.nodes.size} nodes)")
     }
