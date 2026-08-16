@@ -12,6 +12,13 @@ import com.insta.detection.RuleSet
 import com.insta.detection.ScreenClassifier
 import com.insta.detection.ScreenSnapshot
 import com.insta.detection.Surface
+import com.insta.reelsoff.data.AppDatabase
+import com.insta.reelsoff.data.BlockEvent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -24,6 +31,7 @@ class InstagramWatcherService : AccessibilityService() {
     private val captureSession = CaptureSession(clock)
     private val json = Json { prettyPrint = true }
     private val blocker = Blocker(clock)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var classifier: ScreenClassifier
 
     private var captureIndex = 0
@@ -64,6 +72,7 @@ class InstagramWatcherService : AccessibilityService() {
 
     override fun onDestroy() {
         runCatching { unregisterReceiver(captureReceiver) }
+        scope.cancel()
         super.onDestroy()
     }
 
@@ -106,6 +115,17 @@ class InstagramWatcherService : AccessibilityService() {
         }
 
         if (decision.recordEpisode) {
+            val event = BlockEvent(
+                epochMillis = System.currentTimeMillis(),
+                surface = classification.surface.name,
+                ruleTier = decision.tier?.name ?: "UNKNOWN",
+            )
+            // Off the main thread: onAccessibilityEvent runs on it, and a disk
+            // write in the hot path would show up as jank in Instagram itself.
+            scope.launch {
+                runCatching { AppDatabase.get(applicationContext).blockEventDao().insert(event) }
+                    .onFailure { Log.e(TAG, "could not record episode", it) }
+            }
             Log.i(TAG, "blocked ${classification.surface} via ${decision.tier}")
         }
     }
