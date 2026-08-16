@@ -5,4 +5,14 @@
     <string name="open_accessibility_settings">Ouvrir les réglages d\'accessibilité</string>
     <string name="start_capture">Capturer 60 secondes</string>
     <string name="capture_hint">Appuie, puis bascule vers Instagram et navigue : fil, Reels, Explore, profil, messages. Un instantané est enregistré toutes les 3 secondes.</string>
+    <string name="service_on">Service actif</string>
+    <string name="service_off">Service inactif — rien n\'est bloqué</string>
+    <string name="battery_hint">Si le service se désactive tout seul, exempte l\'app de l\'optimisation de batterie dans les réglages Android.</string>
+    <string name="today">Aujourd\'hui</string>
+    <string name="reels">Reels</string>
+    <string name="explore">Explore</string>
+    <string name="block_reels">Bloquer l\'onglet Reels</string>
+    <string name="block_explore">Bloquer Explore</string>
+    <string name="history_title">14 derniers jours</string>
+    <string name="degraded_warning">Détection dégradée : Instagram a probablement changé. Vérifie rules.json.</string>
 </resources>

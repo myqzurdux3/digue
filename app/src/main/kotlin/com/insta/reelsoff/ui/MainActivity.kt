@@ -5,58 +5,47 @@ import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
-import com.insta.reelsoff.R
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.insta.reelsoff.service.InstagramWatcherService
 
 class MainActivity : ComponentActivity() {
+
+    private val viewModel: HomeViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    CaptureScreen()
+                    val state by viewModel.uiState.collectAsStateWithLifecycle()
+                    HomeScreen(
+                        state = state,
+                        onOpenAccessibilitySettings = {
+                            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                        },
+                        onStartCapture = {
+                            sendBroadcast(
+                                Intent(InstagramWatcherService.ACTION_START_CAPTURE)
+                                    .setPackage(packageName),
+                            )
+                        },
+                        onBlockReelsChanged = viewModel::setBlockReels,
+                        onBlockExploreChanged = viewModel::setBlockExplore,
+                    )
                 }
             }
         }
     }
-}
 
-@Composable
-private fun CaptureScreen() {
-    val context = LocalContext.current
-
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Button(onClick = {
-            context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-        }) {
-            Text(stringResource(R.string.open_accessibility_settings))
-        }
-
-        Text(stringResource(R.string.capture_hint), style = MaterialTheme.typography.bodyMedium)
-
-        Button(onClick = {
-            context.sendBroadcast(
-                Intent(InstagramWatcherService.ACTION_START_CAPTURE)
-                    .setPackage(context.packageName),
-            )
-        }) {
-            Text(stringResource(R.string.start_capture))
-        }
+    /** The accessibility toggle lives in system settings, so re-read on return. */
+    override fun onResume() {
+        super.onResume()
+        viewModel.refreshServiceStatus()
     }
 }
