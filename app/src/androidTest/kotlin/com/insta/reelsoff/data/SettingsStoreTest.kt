@@ -50,4 +50,44 @@ class SettingsStoreTest {
 
         assertTrue(store.settings.first().blockedSurfaces.isEmpty())
     }
+
+    @Test
+    fun captureStatusIsEmptyUntilTheServiceWritesOne() = runBlocking {
+        val status = store.captureStatus.first()
+
+        // Zero is what makes the screen say IDLE, so this default is load-bearing:
+        // any other value would show a phantom capture on first launch.
+        assertEquals(0L, status.armedAtEpochMillis)
+        assertEquals(0L, status.startedAtEpochMillis)
+        assertEquals(0, status.count)
+    }
+
+    @Test
+    fun captureStatusSurvivesTheRoundTrip() = runBlocking {
+        store.setCaptureStatus(
+            CaptureStatus(armedAtEpochMillis = 111L, startedAtEpochMillis = 222L, count = 7),
+        )
+
+        val status = store.captureStatus.first()
+
+        assertEquals(111L, status.armedAtEpochMillis)
+        assertEquals(222L, status.startedAtEpochMillis)
+        assertEquals(7, status.count)
+    }
+
+    @Test
+    fun armingAgainClearsTheEarlierWindow() = runBlocking {
+        store.setCaptureStatus(
+            CaptureStatus(armedAtEpochMillis = 111L, startedAtEpochMillis = 222L, count = 7),
+        )
+
+        store.setCaptureStatus(CaptureStatus(armedAtEpochMillis = 999L))
+
+        // A re-arm must not leave the previous run's start and count behind, or the
+        // screen would show a finished session while the new one is still waiting.
+        val status = store.captureStatus.first()
+        assertEquals(999L, status.armedAtEpochMillis)
+        assertEquals(0L, status.startedAtEpochMillis)
+        assertEquals(0, status.count)
+    }
 }

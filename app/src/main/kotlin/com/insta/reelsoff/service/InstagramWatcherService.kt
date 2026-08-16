@@ -14,6 +14,7 @@ import com.insta.detection.ScreenSnapshot
 import com.insta.reelsoff.data.AppDatabase
 import com.insta.reelsoff.data.BlockEvent
 import com.insta.reelsoff.data.BlockSettings
+import com.insta.reelsoff.data.CaptureStatus
 import com.insta.reelsoff.data.SettingsStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -45,12 +46,35 @@ class InstagramWatcherService : AccessibilityService() {
     private var captureIndex = 0
     private var sessionStamp = 0L
 
+    /**
+     * Wall-clock instant the capture window opened, or 0 while still armed.
+     * Kept separately from [CaptureSession.startedAtMillis] because that one runs
+     * on elapsed real time, which the UI cannot compare against its own clock.
+     */
+    private var captureStartedWallMillis = 0L
+
     private val captureReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             sessionStamp = System.currentTimeMillis()
             captureIndex = 0
-            captureSession.start()
-            Log.i(TAG, "capture session started")
+            captureStartedWallMillis = 0L
+            captureSession.arm()
+            publishCaptureStatus(CaptureStatus(armedAtEpochMillis = sessionStamp))
+            Log.i(TAG, "capture session armed")
+        }
+    }
+
+    /**
+     * Mirrors capture progress to the UI. Failing to publish must never take the
+     * service down — the capture itself is unaffected, only its display.
+     */
+    private fun publishCaptureStatus(status: CaptureStatus) {
+        scope.launch {
+            runCatching { SettingsStore(applicationContext).setCaptureStatus(status) }
+                .onFailure {
+                    if (it is CancellationException) throw it
+                    Log.e(TAG, "could not publish capture status", it)
+                }
         }
     }
 
@@ -182,7 +206,17 @@ class InstagramWatcherService : AccessibilityService() {
             capturedAtMillis = System.currentTimeMillis(),
         )
 
-        if (captureSession.shouldCapture()) writeCapture(snapshot)
+        if (captureSession.shouldCapture()) {
+            writeCapture(snapshot)
+            if (captureStartedWallMillis == 0L) captureStartedWallMillis = System.currentTimeMillis()
+            publishCaptureStatus(
+                CaptureStatus(
+                    armedAtEpochMillis = sessionStamp,
+                    startedAtEpochMillis = captureStartedWallMillis,
+                    count = captureSession.capturedCount,
+                ),
+            )
+        }
 
         val classification = classifier.classify(snapshot)
         val decision = blocker.decide(classification, settings.blockedSurfaces)
