@@ -1,4 +1,4 @@
-# Sans Reels — état du projet
+# Digue — état du projet
 
 App Android qui **bloque l'onglet Reels et la page Explore dans l'app Instagram officielle**.
 Ce n'est pas un client alternatif : Instagram n'expose aucune API de fil d'actualité. L'app
@@ -6,23 +6,37 @@ observe l'arbre de vues d'Instagram via un `AccessibilityService`, reconnaît l'
 et déclenche un retour arrière quand c'est un écran bloqué.
 
 **Statut : v1 terminée et fusionnée dans `main` (2026-08-16).** 27 commits, 76 tests JVM,
-10 tests instrumentés, recette passée sur appareil réel.
+10 tests instrumentés, recette passée sur appareil réel. **Passe esthétique faite ensuite**
+(nom, logo, écran), branche `feat/digue-aesthetics`.
 
-## Prochain chantier demandé par l'utilisateur
+## Identité et interface
 
-**Esthétique.** L'utilisateur veut que l'app soit très belle, avec un beau logo et un nom cool.
-L'interface actuelle est fonctionnelle et volontairement brute (Material 3 par défaut, barres
-d'histogramme rectangulaires, aucune icône personnalisée). Le nom provisoire est « Sans Reels »
-(`app_name` dans `strings.xml`), l'identifiant applicatif est `com.insta.reelsoff`.
+Le nom affiché est **« Digue »** (`app_name`). L'identifiant applicatif reste
+`com.insta.reelsoff` : **le changer casserait le composant enregistré dans les réglages
+d'accessibilité** et l'utilisateur devrait réactiver le service à la main. Changer `app_name`
+seul est sans risque — c'est ce qui a été fait.
 
-Points à savoir avant de toucher à l'UI :
-- Un seul écran : `app/src/main/kotlin/com/insta/reelsoff/ui/HomeScreen.kt`
+Direction visuelle : **encre sur papier**. Fond crème mat, encre noir chaud, un seul accent
+bleu-vert, filets d'un pixel à la place des cartes. Verrouillée en clair.
+
+- Un seul écran : `ui/HomeScreen.kt`. Palette, typo et formes : `ui/Theme.kt`.
+- La palette existe en double, `ui/Theme.kt` et `res/values/colors.xml` : Compose ne peut pas
+  lire les ressources XML à la compilation, et le XML sert au fond de fenêtre et à l'icône.
+  **Les deux doivent bouger ensemble.**
+- **Aucune police n'est embarquée ni téléchargée.** Les polices téléchargeables passent par le
+  réseau, ce que les invariants interdisent. Le caractère éditorial vient du poids, de la taille
+  et de l'interlettrage sur la famille système.
 - L'app est **100 % Compose**. `com.google.android.material` est délibérément absent et doit
-  le rester. Le thème XML `Theme.ReelsOff` (`res/values/themes.xml`) ne sert qu'à peindre la
-  fenêtre avant que Compose ne dessine.
-- Aucune icône de lanceur personnalisée n'existe encore (pas de `mipmap` custom).
-- Changer `applicationId` casserait le composant enregistré dans les réglages d'accessibilité —
-  l'utilisateur devrait réactiver le service à la main. Changer `app_name` seul est sans risque.
+  le rester. Le thème XML `Theme.ReelsOff` ne fait que peindre la fenêtre en crème avant que
+  Compose ne dessine, pour supprimer le flash blanc au lancement.
+- **Les formes de boutons ne suivent pas `MaterialTheme.shapes`** : `ButtonDefaults.shape`
+  vient des tokens Material et vaut `CornerFull`. Il faut passer `shape =` explicitement à
+  chaque bouton, sinon ils restent en gélules alors que tout le reste est à angles vifs.
+- Logo : `res/drawable/ic_digue.xml`, dessiné dans une boîte 48×48. L'icône de lanceur
+  (`ic_launcher_foreground.xml`) reprend la même géométrie via un `<group>` mis à l'échelle.
+  **Toute retouche du dessin doit être reportée dans les trois fichiers** (marque, avant-plan,
+  monochrome) et la demi-diagonale de l'encombrement doit rester **sous 33** dans le repère
+  108×108, sinon les lanceurs à masque circulaire rognent la marque.
 
 ## Commandes
 
@@ -100,6 +114,26 @@ le fil de l'utilisateur. **Ne jamais réintroduire ce palier.**
   de paquets n'a pas fini d'enregistrer le composant, et `settings put` retourne 0 quand même.
   **Toujours relire avec `settings get` et réessayer si ça renvoie `null`.** Une passe de tests
   lancée avec le service désactivé ressemble à un succès et ne mesure rien.
+- **Piège : `adb shell am force-stop com.insta.reelsoff` désactive le service.** Android retire
+  de `enabled_accessibility_services` le service d'un paquet arrêté de force, et le réglage
+  repasse à `null` quelques secondes plus tard. Une relecture immédiate renvoie encore la bonne
+  valeur, donc la vérification standard ne voit rien. **Toujours activer le service en dernier,
+  après le dernier redémarrage de l'app, et relire au moins 5 s après.** Pour relancer l'écran
+  sans casser le service, utiliser `KEYCODE_HOME` puis `am start`, jamais `force-stop`.
+- **Piège : une réinstallation remet le drapeau « réglages restreints » du paquet.** Android
+  refuse alors l'accessibilité pour une app installée hors magasin et révoque le réglage.
+  À relancer après chaque `installDebug` :
+  ```bash
+  adb shell appops set com.insta.reelsoff ACCESS_RESTRICTED_SETTINGS allow
+  ```
+- **La source de vérité est `dumpsys`, pas `settings get`.** Le service tourne réellement
+  quand cette commande renvoie une ligne :
+  ```bash
+  adb shell dumpsys accessibility | grep -A1 "Bound services"
+  ```
+  L'écran d'accueil de l'app peut afficher « Service inactif » alors que le service est lié :
+  le statut n'est relu qu'au `onResume`, donc un lancement concomitant de l'activation lit une
+  valeur périmée. Repasser par l'accueil et rouvrir l'app suffit à rafraîchir.
 - Couper le service (noter les guillemets, sinon « Bad arguments ») :
   ```bash
   adb shell "settings put secure enabled_accessibility_services ''"
@@ -136,7 +170,7 @@ Leçons :
 
 ## Chantiers de suite, par priorité
 
-1. **Esthétique, logo, nom** — demande explicite de l'utilisateur, prochain sujet.
+1. ~~Esthétique, logo, nom~~ — **fait.** Voir « Identité et interface » plus haut.
 2. **Heuristique de la barre de navigation (F9, différée).** `ScreenClassifier.findNavBar`
    retient « ≥4 frères cliquables, la rangée la plus basse ». Sur les captures réelles cela
    laisse 3-4 rangées candidates par écran, départagées par la seule géométrie. Un panneau ou
