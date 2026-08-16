@@ -20,8 +20,7 @@ class SettingsStoreTest {
 
     @Before
     fun reset() = runBlocking {
-        store.setBlockReels(true)
-        store.setBlockExplore(true)
+        store.clear()
     }
 
     @Test
@@ -34,7 +33,7 @@ class SettingsStoreTest {
     }
 
     @Test
-    fun disablingExploreLeelsReelsBlocked() = runBlocking {
+    fun disablingExploreLeavesReelsBlocked() = runBlocking {
         store.setBlockExplore(false)
 
         val settings = store.settings.first()

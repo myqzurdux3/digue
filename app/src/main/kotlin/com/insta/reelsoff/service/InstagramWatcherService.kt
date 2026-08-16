@@ -19,6 +19,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
@@ -72,8 +73,15 @@ class InstagramWatcherService : AccessibilityService() {
         }
         classifier = ScreenClassifier(loaded.ruleSet)
         Log.i(TAG, "rules loaded from ${loaded.source}${loaded.error?.let { " ($it)" } ?: ""}")
+        // Collect settings changes on IO scope. If collection fails (e.g., corrupted
+        // DataStore file), the service keeps the last known settings, which default to
+        // blocking both surfaces — fail-closed, which is the intended bias.
         scope.launch {
-            SettingsStore(applicationContext).settings.collectLatest { settings = it }
+            runCatching {
+                SettingsStore(applicationContext).settings
+                    .catch { e -> Log.e(TAG, "settings collection failed", e) }
+                    .collectLatest { settings = it }
+            }.onFailure { Log.e(TAG, "settings collection launch failed", it) }
         }
         Log.i(TAG, "service connected")
     }

@@ -38,6 +38,10 @@ class SettingsStore(private val context: Context) {
         context.dataStore.edit { it[BLOCK_EXPLORE] = enabled }
     }
 
+    suspend fun clear() {
+        context.dataStore.edit { it.clear() }
+    }
+
     private companion object {
         val BLOCK_REELS = booleanPreferencesKey("block_reels")
         val BLOCK_EXPLORE = booleanPreferencesKey("block_explore")
