@@ -90,6 +90,8 @@ class BlockerTest {
         clock.advance(700)
         assertEquals(BlockAction.BACK, blocker.decide(reels, blocked).action)
         clock.advance(700)
+        assertEquals(BlockAction.BACK, blocker.decide(reels, blocked).action)
+        clock.advance(700)
 
         assertEquals(BlockAction.HOME, blocker.decide(reels, blocked).action)
     }
@@ -118,30 +120,28 @@ class BlockerTest {
 
     @Test
     fun `home is rate limited to once every thirty seconds`() {
-        fun escalate() {
-            repeat(3) {
-                blocker.decide(reels, blocked)
+        // Three backs then a fourth decision (HOME, or NONE if home is rate
+        // limited) — see the F7 fix in Blocker.decide.
+        fun escalate(): BlockAction {
+            var last = BlockAction.NONE
+            repeat(4) {
+                last = blocker.decide(reels, blocked).action
                 clock.advance(700)
             }
+            return last
         }
 
-        escalate()
+        assertEquals(BlockAction.HOME, escalate())
         clock.advance(2_000)
         blocker.decide(other, blocked)
         clock.advance(700)
 
-        blocker.decide(reels, blocked)
-        clock.advance(700)
-        blocker.decide(reels, blocked)
-        clock.advance(700)
-        val secondEscalation = blocker.decide(reels, blocked)
-
-        assertEquals(BlockAction.NONE, secondEscalation.action)
+        assertEquals(BlockAction.NONE, escalate())
     }
 
     @Test
     fun `home becomes available again after the rate limit expires`() {
-        repeat(3) {
+        repeat(4) {
             blocker.decide(reels, blocked)
             clock.advance(700)
         }
@@ -149,6 +149,8 @@ class BlockerTest {
         blocker.decide(other, blocked)
         clock.advance(700)
 
+        blocker.decide(reels, blocked)
+        clock.advance(700)
         blocker.decide(reels, blocked)
         clock.advance(700)
         blocker.decide(reels, blocked)
@@ -171,43 +173,50 @@ class BlockerTest {
         clock.advance(700)
         blocker.decide(explore, blocked)
         clock.advance(700)
+        blocker.decide(reels, blocked)
+        clock.advance(700)
 
         assertEquals(BlockAction.HOME, blocker.decide(reels, blocked).action)
     }
 
     @Test
-    fun `records an episode even when home is rate limited and nothing happens`() {
+    fun `a fresh attempt is recorded as a new episode even while home is still rate limited from the previous escalation`() {
         // Episodes measure the user's reflex, decoupled from whether the blocker
         // acted. While the user sits on Reels, classifications keep arriving and
         // refresh lastBlockedAtMillis, so the 2-second episode gap never elapses.
-        // Reaching recordEpisode=true with action=NONE requires a real gap in
-        // blocked classifications — meaning the user left and came back. That is
-        // a NEW attempt, and we count it: episodes track distinct user efforts.
+        // Reaching recordEpisode=true requires a real gap in blocked
+        // classifications — meaning the user left and came back. That is a NEW
+        // attempt, and we count it: episodes track distinct user efforts, not
+        // the blocker's success.
+        //
+        // NOTE (F7 follow-up): before the escalation fix, this test drove the
+        // *same* decision to both recordEpisode=true and action=NONE (rate
+        // limited), by timing a >2000ms gap as the third of three back presses
+        // inside the 3000ms escalation window. That specific combination is no
+        // longer reachable: reaching the rate-limit/HOME branch now takes three
+        // BACKs (four total decisions), and three cooldown-spaced gaps (>600ms
+        // each) plus one episode-gap-sized gap (>2000ms) sum to at least
+        // ~3202ms — over escalationWindowMillis (3000ms) by construction, no
+        // matter which of the three gaps is the big one. Per the review's
+        // instruction not to silently widen the window, this is left as-is and
+        // reported rather than forced; what remains provable is the weaker (and
+        // still meaningful) property below.
 
-        // Escalate to HOME (finishes at 1400 ms)
+        // Escalate to HOME: three backs, then home.
+        assertEquals(BlockAction.BACK, blocker.decide(reels, blocked).action)
+        clock.advance(700)
         assertEquals(BlockAction.BACK, blocker.decide(reels, blocked).action)
         clock.advance(700)
         assertEquals(BlockAction.BACK, blocker.decide(reels, blocked).action)
         clock.advance(700)
         assertEquals(BlockAction.HOME, blocker.decide(reels, blocked).action)
 
-        // Advance past the 2-second episode gap (now at 3900 ms, inside 30-second home rate limit)
-        clock.advance(2_500)
+        // The user leaves Reels and comes back well past the 2-second episode
+        // gap, but well inside the 30-second home rate limit.
+        clock.advance(5_000)
 
-        // Back #1 with new episode (recordEpisode=true, escalationWindowStartMillis=3900)
-        assertEquals(BlockAction.BACK, blocker.decide(reels, blocked).action)
-        clock.advance(700)
-
-        // Back #2 within the escalation window (now at 4600 ms)
-        assertEquals(BlockAction.BACK, blocker.decide(reels, blocked).action)
-
-        // Create a 2+ second gap before back #3, but stay within the 3-second escalation
-        // window (3900 + 2900 = 6800; window expires at 3900 + 3000 = 6900)
-        clock.advance(2_200)
-
-        // Back #3 triggers rate-limited HOME with recordEpisode=true
         val decision = blocker.decide(reels, blocked)
-        assertEquals(BlockAction.NONE, decision.action)
+        assertEquals(BlockAction.BACK, decision.action)
         assertTrue(decision.recordEpisode)
     }
 

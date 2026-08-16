@@ -74,7 +74,11 @@ class Blocker(
         consecutiveBacks++
 
         val action = when {
-            consecutiveBacks < config.escalateAfterBacks -> BlockAction.BACK
+            // <= rather than <: escalateAfterBacks=3 must mean three BACK presses
+            // (BACK, BACK, BACK) before the fourth decision escalates to HOME, per
+            // the spec ("à trois échecs en trois secondes, escalade vers
+            // GLOBAL_ACTION_HOME") — not two BACKs then HOME on the third.
+            consecutiveBacks <= config.escalateAfterBacks -> BlockAction.BACK
             now - lastHomeAtMillis >= config.homeRateLimitMillis -> {
                 lastHomeAtMillis = now
                 consecutiveBacks = 0
