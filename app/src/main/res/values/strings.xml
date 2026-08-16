@@ -5,6 +5,12 @@
     <string name="accessibility_service_description">Détecte l\'onglet Reels et la page Explore dans Instagram, et revient en arrière. Ne lit aucun texte et n\'envoie rien sur le réseau.</string>
     <string name="open_accessibility_settings">Ouvrir les réglages d\'accessibilité</string>
     <string name="start_capture">Capturer 60 secondes</string>
+    <string name="restart_capture">Relancer une capture</string>
+    <string name="capture_waiting">En attente — bascule vers Instagram, le chronomètre démarre là-bas.</string>
+    <string name="capture_running">Capture en cours — %1$d s restantes, %2$d instantanés</string>
+    <string name="capture_done">Terminé : %1$d instantanés enregistrés.</string>
+    <string name="capture_missed">Aucun instantané : Instagram n\'est jamais passé au premier plan.</string>
+    <string name="capture_needs_service">Le service est éteint : la capture ne peut pas démarrer.</string>
     <string name="capture_hint">Appuie, puis bascule vers Instagram et navigue : fil, Reels, Explore, profil, messages. Un instantané est enregistré toutes les 3 secondes.</string>
     <string name="service_on">Service actif</string>
     <string name="service_off">Service inactif</string>

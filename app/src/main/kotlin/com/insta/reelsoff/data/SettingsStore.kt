@@ -3,6 +3,8 @@ package com.insta.reelsoff.data
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.insta.detection.Surface
@@ -33,6 +35,28 @@ data class RuleLoadStatus(
     val error: String? = null,
 )
 
+/**
+ * What the service's capture session is doing, mirrored into DataStore so the home
+ * screen can show it. Before this existed the capture button's only feedback was a
+ * line in logcat, so pressing it looked identical to pressing nothing.
+ *
+ * Timestamps are wall-clock epoch millis, not the service's elapsed-time clock:
+ * the UI has to render a countdown against its own `System.currentTimeMillis()`,
+ * and only wall clock is comparable across the two.
+ *
+ * Zero means "not set" — epoch 0 is 1970, never a real value here.
+ *
+ * The phase is derived rather than stored, so the UI cannot disagree with the
+ * numbers it is drawn from: armed but not started means the service is still
+ * waiting for Instagram to come forward, and a window whose deadline has passed
+ * is finished whether or not the service got a last event to say so.
+ */
+data class CaptureStatus(
+    val armedAtEpochMillis: Long = 0,
+    val startedAtEpochMillis: Long = 0,
+    val count: Int = 0,
+)
+
 private val Context.dataStore by preferencesDataStore(name = "settings")
 
 class SettingsStore(private val context: Context) {
@@ -48,6 +72,14 @@ class SettingsStore(private val context: Context) {
         RuleLoadStatus(
             source = preferences[RULE_SOURCE] ?: "BUNDLED",
             error = preferences[RULE_LOAD_ERROR],
+        )
+    }
+
+    val captureStatus: Flow<CaptureStatus> = context.dataStore.data.map { preferences ->
+        CaptureStatus(
+            armedAtEpochMillis = preferences[CAPTURE_ARMED_AT] ?: 0,
+            startedAtEpochMillis = preferences[CAPTURE_STARTED_AT] ?: 0,
+            count = preferences[CAPTURE_COUNT] ?: 0,
         )
     }
 
@@ -71,6 +103,15 @@ class SettingsStore(private val context: Context) {
         }
     }
 
+    /** Written by the service as a capture session progresses, read by the UI. */
+    suspend fun setCaptureStatus(status: CaptureStatus) {
+        context.dataStore.edit { preferences ->
+            preferences[CAPTURE_ARMED_AT] = status.armedAtEpochMillis
+            preferences[CAPTURE_STARTED_AT] = status.startedAtEpochMillis
+            preferences[CAPTURE_COUNT] = status.count
+        }
+    }
+
     suspend fun clear() {
         context.dataStore.edit { it.clear() }
     }
@@ -80,5 +121,8 @@ class SettingsStore(private val context: Context) {
         val BLOCK_EXPLORE = booleanPreferencesKey("block_explore")
         val RULE_SOURCE = stringPreferencesKey("rule_source")
         val RULE_LOAD_ERROR = stringPreferencesKey("rule_load_error")
+        val CAPTURE_ARMED_AT = longPreferencesKey("capture_armed_at")
+        val CAPTURE_STARTED_AT = longPreferencesKey("capture_started_at")
+        val CAPTURE_COUNT = intPreferencesKey("capture_count")
     }
 }

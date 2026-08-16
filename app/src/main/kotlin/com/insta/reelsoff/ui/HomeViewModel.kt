@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.insta.reelsoff.data.AppDatabase
 import com.insta.reelsoff.data.BlockSettings
+import com.insta.reelsoff.data.CaptureStatus
 import com.insta.reelsoff.data.DailyCount
 import com.insta.reelsoff.data.SettingsStore
 import com.insta.reelsoff.data.dailyCounts
@@ -41,6 +42,7 @@ data class HomeUiState(
     val degraded: Boolean = false,
     /** Non-null when the service is running on fallback rules; see F1. */
     val ruleLoadError: String? = null,
+    val captureStatus: CaptureStatus = CaptureStatus(),
 ) {
     val todayReels: Int get() = history.lastOrNull()?.reels ?: 0
     val todayExplore: Int get() = history.lastOrNull()?.explore ?: 0
@@ -87,13 +89,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         settingsStore.settings,
         events,
         settingsStore.ruleLoadStatus,
-    ) { enabled, settings, dayEvents, ruleLoadStatus ->
+        settingsStore.captureStatus,
+    ) { enabled, settings, dayEvents, ruleLoadStatus, captureStatus ->
         HomeUiState(
             serviceEnabled = enabled,
             settings = settings,
             history = dailyCounts(dayEvents, zone, LocalDate.now(zone), HISTORY_DAYS),
             degraded = isDegraded(dayEvents) || ruleLoadStatus.error != null,
             ruleLoadError = ruleLoadStatus.error,
+            captureStatus = captureStatus,
         )
     }
         // Both DataStore (IOException) and Room (SQLiteException) can throw out of this
