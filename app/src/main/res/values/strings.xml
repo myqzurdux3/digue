@@ -15,4 +15,5 @@
     <string name="block_explore">Bloquer Explore</string>
     <string name="history_title">14 derniers jours</string>
     <string name="degraded_warning">Détection dégradée : Instagram a probablement changé. Vérifie rules.json.</string>
+    <string name="rules_load_warning">Règles illisibles : %1$s. L\'app utilise les règles par défaut.</string>
 </resources>

@@ -15,12 +15,15 @@ import com.insta.reelsoff.data.AppDatabase
 import com.insta.reelsoff.data.BlockEvent
 import com.insta.reelsoff.data.BlockSettings
 import com.insta.reelsoff.data.SettingsStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.retry
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -52,38 +55,80 @@ class InstagramWatcherService : AccessibilityService() {
         }
     }
 
+    /**
+     * Wholly wrapped (F6): registerReceiver used to sit above the try block whose
+     * comment claimed the whole method never throws. If it had thrown, `classifier`
+     * (a `lateinit`) would never get assigned, and every later accessibility event
+     * would throw UninitializedPropertyAccessException into onAccessibilityEvent's
+     * own catch — logging forever, blocking nothing, with a healthy-looking service.
+     * Now the entire body is covered, and the catch guarantees classifier ends up
+     * initialized either way.
+     */
     override fun onServiceConnected() {
         super.onServiceConnected()
-        ContextCompat.registerReceiver(
-            this,
-            captureReceiver,
-            IntentFilter(ACTION_START_CAPTURE),
-            ContextCompat.RECEIVER_NOT_EXPORTED,
-        )
-        // RuleSetLoader.load() is designed to never throw, but this callback has no
-        // caller-side try/catch the way onAccessibilityEvent() does — an uncaught throw
-        // here crashes the service, and Android may then disable it for good, leaving the
-        // user believing they are still protected. Belt and braces: fall back to an empty
-        // rule set (blocks nothing, but stays alive) rather than let anything escape.
-        val loaded = try {
-            RuleSetLoader(this).load()
+        try {
+            ContextCompat.registerReceiver(
+                this,
+                captureReceiver,
+                IntentFilter(ACTION_START_CAPTURE),
+                ContextCompat.RECEIVER_NOT_EXPORTED,
+            )
+            // RuleSetLoader.load() is designed to never throw, but this callback has no
+            // caller-side try/catch the way onAccessibilityEvent() does — an uncaught throw
+            // here crashes the service, and Android may then disable it for good, leaving the
+            // user believing they are still protected. Belt and braces: fall back to an empty
+            // rule set (blocks nothing, but stays alive) rather than let anything escape.
+            val loaded = try {
+                RuleSetLoader(this).load()
+            } catch (e: Throwable) {
+                if (e is CancellationException) throw e
+                Log.e(TAG, "rule loading failed unexpectedly", e)
+                LoadedRules(RuleSet(version = 0, surfaces = emptyMap()), RuleSource.BUNDLED, "rule loading failed unexpectedly: ${e.message}")
+            }
+            classifier = ScreenClassifier(loaded.ruleSet)
+            Log.i(TAG, "rules loaded from ${loaded.source}${loaded.error?.let { " ($it)" } ?: ""}")
+
+            // Mirror the load outcome into DataStore (F1): the home screen has no other
+            // way to learn the service fell back to bundled rules, or that even those
+            // failed to parse — both of which mean the app can be blocking nothing while
+            // showing "Service actif".
+            scope.launch {
+                runCatching {
+                    SettingsStore(applicationContext).setRuleLoadStatus(loaded.source.name, loaded.error)
+                }.onFailure {
+                    if (it is CancellationException) throw it
+                    Log.e(TAG, "could not persist rule load status", it)
+                }
+            }
+
+            // Collect settings changes on IO scope. A DataStore read can fail with an
+            // IOException; retry rather than give up, since completing the flow here
+            // would freeze `settings` at whatever it last held — including a stale
+            // "enabled" value the UI has since disagreed with (F2). If retries are
+            // exhausted, fail closed: block both surfaces rather than trust a stale
+            // permissive value.
+            scope.launch {
+                runCatching {
+                    SettingsStore(applicationContext).settings
+                        .retry { delay(1_000); true }
+                        .catch { e ->
+                            Log.e(TAG, "settings collection failed", e)
+                            settings = BlockSettings()
+                        }
+                        .collectLatest { settings = it }
+                }.onFailure {
+                    if (it is CancellationException) throw it
+                    Log.e(TAG, "settings collection launch failed", it)
+                }
+            }
+            Log.i(TAG, "service connected")
         } catch (e: Throwable) {
-            Log.e(TAG, "rule loading failed unexpectedly", e)
-            LoadedRules(RuleSet(version = 0, surfaces = emptyMap()), RuleSource.BUNDLED, "rule loading failed unexpectedly: ${e.message}")
+            if (e is CancellationException) throw e
+            Log.e(TAG, "onServiceConnected failed unexpectedly", e)
+            if (!::classifier.isInitialized) {
+                classifier = ScreenClassifier(RuleSet(version = 0, surfaces = emptyMap()))
+            }
         }
-        classifier = ScreenClassifier(loaded.ruleSet)
-        Log.i(TAG, "rules loaded from ${loaded.source}${loaded.error?.let { " ($it)" } ?: ""}")
-        // Collect settings changes on IO scope. If collection fails (e.g., corrupted
-        // DataStore file), the service keeps the last known settings, which default to
-        // blocking both surfaces — fail-closed, which is the intended bias.
-        scope.launch {
-            runCatching {
-                SettingsStore(applicationContext).settings
-                    .catch { e -> Log.e(TAG, "settings collection failed", e) }
-                    .collectLatest { settings = it }
-            }.onFailure { Log.e(TAG, "settings collection launch failed", it) }
-        }
-        Log.i(TAG, "service connected")
     }
 
     override fun onDestroy() {
@@ -109,7 +154,13 @@ class InstagramWatcherService : AccessibilityService() {
 
     private fun handle(event: AccessibilityEvent?) {
         if (event?.packageName != INSTAGRAM_PACKAGE) return
-        if (!captureSession.isActive() && !throttle.shouldProcess()) return
+        // Always consult the throttle (F8): it used to be short-circuited away
+        // whenever a capture session was active, which meant a content-changed
+        // event walked the tree unthrottled — on the main thread — for the whole
+        // 60-second capture window. Snapshots are still only written every 3s by
+        // captureSession.shouldCapture() below, so the extra walks bought nothing
+        // but jank.
+        if (!throttle.shouldProcess()) return
 
         // Frequently null during screen transitions. Nothing to do but skip.
         val root = rootInActiveWindow ?: return
@@ -140,7 +191,10 @@ class InstagramWatcherService : AccessibilityService() {
             // write in the hot path would show up as jank in Instagram itself.
             scope.launch {
                 runCatching { AppDatabase.get(applicationContext).blockEventDao().insert(event) }
-                    .onFailure { Log.e(TAG, "could not record episode", it) }
+                    .onFailure {
+                        if (it is CancellationException) throw it
+                        Log.e(TAG, "could not record episode", it)
+                    }
             }
             Log.i(TAG, "blocked ${classification.surface} via ${decision.tier}")
         }

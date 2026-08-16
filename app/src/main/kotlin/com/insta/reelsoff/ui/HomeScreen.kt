@@ -45,18 +45,14 @@ fun HomeScreen(
     ) {
         ServiceCard(state.serviceEnabled, onOpenAccessibilitySettings)
 
-        if (state.degraded) {
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                ),
-            ) {
-                Text(
-                    text = stringResource(R.string.degraded_warning),
-                    modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
+        // The two causes need different user actions, so they get different wording:
+        // a rule-load failure names the reason and points at rules.json; a run of
+        // fallback-tier blocks is Instagram having drifted and needing new rules.
+        val ruleLoadError = state.ruleLoadError
+        if (ruleLoadError != null) {
+            WarningCard(stringResource(R.string.rules_load_warning, ruleLoadError))
+        } else if (state.degraded) {
+            WarningCard(stringResource(R.string.degraded_warning))
         }
 
         TodayCard(state.todayReels, state.todayExplore)
@@ -79,6 +75,21 @@ fun HomeScreen(
             Text(stringResource(R.string.start_capture))
         }
         Text(stringResource(R.string.capture_hint), style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+private fun WarningCard(text: String) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+        ),
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(16.dp),
+            style = MaterialTheme.typography.bodyMedium,
+        )
     }
 }
 
