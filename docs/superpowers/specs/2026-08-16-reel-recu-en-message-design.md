@@ -52,6 +52,28 @@ arbre stable à 108 nœuds du premier au dernier.
 **Fait 4 — le carrousel ne publie pas sa position.** `clips_viewer_view_pager`
 n'a qu'un `RecyclerView` pour enfant, sans index exploitable dans l'arbre.
 
+**Fait 5 — le carrousel de reels traîne dans des écrans qui n'en sont pas.**
+Découvert en confrontant la règle envisagée aux fixtures de v1, avant toute
+implémentation. Instagram ne démonte pas l'écran précédent : `ViewPager` reste
+dans l'arbre du fil, du profil et des conversations. C'est le **même mécanisme
+que le nœud résiduel « Reels »** qui avait failli faire bloquer le fil en v1.
+
+Les résidus sont mesurablement dégénérés :
+
+| Écran | `bounds` du pager | Largeur |
+|---|---|---|
+| fil d'actualité | `left=1080, right=1080` | **0** |
+| profil | `left=0, right=-2160` | **−2160** |
+| conversation | `left=0, right=0` | **0** |
+| onglet Reels | `left=0, right=1080` | 1080 |
+| reel reçu | `left=0, right=1080` | 1080 |
+| reel suggéré | `left=0, right=1080` | 1080 |
+
+Une règle fondée sur la seule présence de `clips_viewer_view_pager` aurait donc
+bloqué **le fil, le profil et les conversations**. La géométrie sépare les deux
+cas sans ambiguïté et sans seuil arbitraire : aire nulle ou négative contre aire
+pleine.
+
 ## Signaux écartés
 
 | Signal | Raison du rejet |
@@ -81,10 +103,13 @@ pour un cas rare — écarté par YAGNI, révisable.
 
 ## Extension du moteur de règles
 
-La règle nécessaire est « ce nœud est présent **et** ceux-là sont absents ». Le
-moteur ne sait aujourd'hui exprimer que la présence.
+Il manque deux choses au moteur, une par piège mesuré.
 
-Ajout d'un champ unique à `Signal` :
+**`absentViewIds`** — exprimer « ce nœud est présent **et** ceux-là sont
+absents ». Le moteur ne sait aujourd'hui dire que la présence (fait 2).
+
+**`requireOnScreen`** — ne compter que les nœuds réellement affichés, pour ne pas
+se faire piéger par les résidus de l'écran précédent (fait 5).
 
 ```kotlin
 data class Signal(
@@ -93,18 +118,32 @@ data class Signal(
     val value: String? = null,
     val anyOf: List<String> = emptyList(),
     val requireSelected: Boolean = true,
-    /** Le signal ne compte que si AUCUN de ces identifiants n'est dans l'arbre. */
+    /** Le signal ne compte que si AUCUN de ces identifiants n'est visible. */
     val absentViewIds: List<String> = emptyList(),
+    /** N'accepte que les nœuds d'aire strictement positive. */
+    val requireOnScreen: Boolean = false,
 )
 ```
 
-Sémantique : un signal correspond si sa condition propre est vraie **et**
-qu'aucun `absentViewIds` n'apparaît dans l'instantané. Liste vide — le cas de
-toutes les règles existantes — se comporte exactement comme aujourd'hui.
+Sémantique :
 
-Le test d'absence est une **pure présence dans l'instantané**, indépendante de
-`requireSelected` : un nœud de garde compte qu'il soit sélectionné ou non, ce qui
-est le comportement voulu — la barre de réponse existe, ou elle n'existe pas.
+- `requireOnScreen = true` restreint le signal aux nœuds **d'aire strictement
+  positive** (`right > left` et `bottom > top`). Pas de seuil arbitraire, pas de
+  taille d'écran à connaître : les résidus mesurés sont à zéro ou en négatif, les
+  vrais nœuds font toute la largeur.
+- Le test d'absence porte sur **le même ensemble de nœuds** que le test de
+  présence. Si le signal exige des nœuds affichés, une barre de réponse résiduelle
+  et dégénérée ne comptera pas comme présente — sinon le piège du fait 5 se
+  retournerait à l'envers et supprimerait un blocage légitime.
+- Le test d'absence ignore `requireSelected` : la barre de réponse existe ou
+  n'existe pas, elle n'est jamais « sélectionnée ».
+- Valeurs par défaut (`emptyList()`, `false`) : comportement **identique** à
+  aujourd'hui pour toutes les règles existantes.
+
+`requireOnScreen` est défini comme une option générale plutôt que comme un
+correctif local, parce que le même piège s'est produit deux fois sur deux
+identifiants différents. Il reste **désactivé par défaut** : l'activer partout
+changerait le sens de règles calibrées et validées sur appareil.
 
 Délibérément pas d'algèbre booléenne générale (`not`, `and`, `or` imbriqués) :
 un seul cas d'usage est connu, et un langage de règles complet est du coût de
@@ -124,6 +163,7 @@ surface `REELS` existante, en second signal HIGH.
   "type": "VIEW_ID",
   "value": "com.instagram.android:id/clips_viewer_view_pager",
   "requireSelected": false,
+  "requireOnScreen": true,
   "absentViewIds": [
     "com.instagram.android:id/reel_viewer_message_composer",
     "com.instagram.android:id/reply_bar_container",
@@ -175,12 +215,18 @@ Aucun nouveau compteur, aucune nouvelle section, aucun nouveau réglage.
 
 **JVM, `:detection`**
 
-- `RuleSetParser` : `absentViewIds` lu, absent par défaut, tolérant à un champ
-  inconnu ou mal typé comme le reste de l'analyseur.
-- `ScreenClassifier` : un signal avec `absentViewIds` correspond quand aucun
-  garde n'est présent, et ne correspond pas dès qu'un seul l'est.
+- `RuleSetParser` : `absentViewIds` et `requireOnScreen` lus, absents par défaut,
+  tolérants à un champ inconnu ou mal typé comme le reste de l'analyseur.
+- `ScreenClassifier`, `absentViewIds` : correspond quand aucun garde n'est
+  présent, ne correspond pas dès qu'un seul l'est.
+- `ScreenClassifier`, `requireOnScreen` : un nœud de largeur nulle, de largeur
+  négative ou de hauteur nulle ne correspond pas ; le même nœud d'aire pleine
+  correspond. Sans le drapeau, le nœud dégénéré correspond toujours — c'est le
+  comportement actuel et il ne doit pas changer.
+- Interaction des deux : un garde dégénéré **ne supprime pas** un signal qui
+  exige des nœuds affichés.
 - `SignalType.VIEW_ID` avec `anyOf`.
-- Non-régression : les règles existantes, sans `absentViewIds`, classent comme
+- Non-régression : les règles existantes, sans ces deux champs, classent comme
   avant.
 
 **JVM, contre fixtures réelles nettoyées**
@@ -191,6 +237,12 @@ Aucun nouveau compteur, aucune nouvelle section, aucun nouveau réglage.
 | `dm_reel.json` (le reel reçu) | **`OTHER`** — le test qui compte |
 | `suggested_reel.json` (après glissement) | `REELS`, palier `HIGH` |
 | fixtures v1 (`feed`, `reels`, `explore`, `profile`, `direct`) | inchangées |
+
+**Les fixtures v1 sont le garde-fou principal, pas une formalité.** `feed`,
+`profile` et `direct` portent toutes un `clips_viewer_view_pager` résiduel : ce
+sont elles qui ont révélé le fait 5 avant qu'une ligne soit écrite. Elles doivent
+rester à `OTHER` **avec la nouvelle règle active**, et un test doit échouer si
+`requireOnScreen` disparaît de la règle.
 
 **Sur appareil**
 
@@ -211,6 +263,15 @@ Aucun nouveau compteur, aucune nouvelle section, aucun nouveau réglage.
    l'utilisateur verra le reel suivant environ une seconde. Irréductible avec un
    service d'accessibilité, qui ne peut pas annuler un geste. À constater, pas à
    corriger.
+
+## Interdit explicitement
+
+`requireOnScreen` rend techniquement viable un palier MEDIUM pour REELS — le
+nœud résiduel « Reels » qui l'avait fait retirer en v1 est lui aussi hors écran.
+**Ne pas le réintroduire dans ce chantier.** Ce serait un changement de
+comportement non demandé, sur le chemin le plus dangereux de l'app (bloquer le
+fil de l'utilisateur), justifié par une seule capture d'un seul appareil. La
+règle de `CLAUDE.md` reste en vigueur.
 
 ## Hors périmètre
 
