@@ -120,5 +120,9 @@ class TreeWalkerTest {
         val nodes = walker.walk(root, "com.instagram.android", 0L).nodes
 
         assertEquals(listOf("root", "child-0", "child-2"), nodes.map { it.viewId })
+        val child0 = nodes.single { it.viewId == "child-0" }
+        val child2 = nodes.single { it.viewId == "child-2" }
+        assertEquals(0, child0.indexInParent)
+        assertEquals(2, child2.indexInParent)
     }
 }
