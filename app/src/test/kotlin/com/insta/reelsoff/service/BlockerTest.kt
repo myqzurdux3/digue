@@ -180,44 +180,69 @@ class BlockerTest {
     }
 
     @Test
-    fun `a fresh attempt is recorded as a new episode even while home is still rate limited from the previous escalation`() {
+    fun `only the opening back of a rate limited burst records an episode`() {
         // Episodes measure the user's reflex, decoupled from whether the blocker
-        // acted. While the user sits on Reels, classifications keep arriving and
-        // refresh lastBlockedAtMillis, so the 2-second episode gap never elapses.
-        // Reaching recordEpisode=true requires a real gap in blocked
-        // classifications — meaning the user left and came back. That is a NEW
-        // attempt, and we count it: episodes track distinct user efforts, not
-        // the blocker's success.
+        // acted: within one rate-limited burst, the opening BACK — a genuinely
+        // new attempt, since it follows an episode-gap-sized silence — carries
+        // recordEpisode=true, while every decision after it in the same burst
+        // (BACK while still under the three-strikes threshold, then NONE once
+        // HOME is rate limited) carries recordEpisode=false. It is the same
+        // episode, still being handled.
         //
-        // NOTE (F7 follow-up): before the escalation fix, this test drove the
-        // *same* decision to both recordEpisode=true and action=NONE (rate
-        // limited), by timing a >2000ms gap as the third of three back presses
-        // inside the 3000ms escalation window. That specific combination is no
-        // longer reachable: reaching the rate-limit/HOME branch now takes three
-        // BACKs (four total decisions), and three cooldown-spaced gaps (>600ms
-        // each) plus one episode-gap-sized gap (>2000ms) sum to at least
-        // ~3202ms — over escalationWindowMillis (3000ms) by construction, no
-        // matter which of the three gaps is the big one. Per the review's
-        // instruction not to silently widen the window, this is left as-is and
-        // reported rather than forced; what remains provable is the weaker (and
-        // still meaningful) property below.
+        // NOTE (F7 follow-up): an earlier version of this test drove a single
+        // decision to both recordEpisode=true and action=NONE, by timing a
+        // >2000ms episode gap as the third of three back presses inside the
+        // 3000ms escalation window. That specific combination became unreachable
+        // once escalation moved from two back presses to three: reaching the
+        // rate-limit/HOME branch now takes three BACKs (four total decisions),
+        // and three cooldown-spaced gaps (>600ms each) plus one episode-gap-sized
+        // gap (>2000ms) sum to at least ~3202ms — over escalationWindowMillis
+        // (3000ms) by construction, no matter which of the three gaps is the big
+        // one. Do not try to reinstate it; this test asserts the property that
+        // still holds instead.
 
-        // Escalate to HOME: three backs, then home.
-        assertEquals(BlockAction.BACK, blocker.decide(reels, blocked).action)
+        // Get HOME onto its 30-second rate limit, then reset the escalation
+        // counter via a non-blocked surface, same as the setup for the
+        // `home is rate limited to once every thirty seconds` test above.
+        lateinit var setup: BlockDecision
+        repeat(4) {
+            setup = blocker.decide(reels, blocked)
+            clock.advance(700)
+        }
+        assertEquals(BlockAction.HOME, setup.action)
+        clock.advance(2_000)
+        blocker.decide(other, blocked)
         clock.advance(700)
-        assertEquals(BlockAction.BACK, blocker.decide(reels, blocked).action)
-        clock.advance(700)
-        assertEquals(BlockAction.BACK, blocker.decide(reels, blocked).action)
-        clock.advance(700)
-        assertEquals(BlockAction.HOME, blocker.decide(reels, blocked).action)
 
-        // The user leaves Reels and comes back well past the 2-second episode
-        // gap, but well inside the 30-second home rate limit.
-        clock.advance(5_000)
+        // A fresh attempt: past the 2-second episode gap, so it opens a new
+        // episode, and not yet rate limited, so it still gets a BACK.
+        val opening = blocker.decide(reels, blocked)
+        assertEquals(BlockAction.BACK, opening.action)
+        assertTrue(opening.recordEpisode)
 
-        val decision = blocker.decide(reels, blocked)
-        assertEquals(BlockAction.BACK, decision.action)
-        assertTrue(decision.recordEpisode)
+        // The rest of the burst, still inside the 3-second escalation window
+        // and the 30-second HOME rate limit: BACK while under the
+        // three-strikes threshold, then NONE once it is exceeded — none of it
+        // a new episode.
+        clock.advance(700)
+        val second = blocker.decide(reels, blocked)
+        assertEquals(BlockAction.BACK, second.action)
+        assertFalse(second.recordEpisode)
+
+        clock.advance(700)
+        val third = blocker.decide(reels, blocked)
+        assertEquals(BlockAction.BACK, third.action)
+        assertFalse(third.recordEpisode)
+
+        clock.advance(700)
+        val fourth = blocker.decide(reels, blocked)
+        assertEquals(BlockAction.NONE, fourth.action)
+        assertFalse(fourth.recordEpisode)
+
+        clock.advance(700)
+        val fifth = blocker.decide(reels, blocked)
+        assertEquals(BlockAction.NONE, fifth.action)
+        assertFalse(fifth.recordEpisode)
     }
 
     @Test

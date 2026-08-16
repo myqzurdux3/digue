@@ -21,7 +21,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.retry
 import kotlinx.coroutines.launch
@@ -104,16 +103,24 @@ class InstagramWatcherService : AccessibilityService() {
             // Collect settings changes on IO scope. A DataStore read can fail with an
             // IOException; retry rather than give up, since completing the flow here
             // would freeze `settings` at whatever it last held — including a stale
-            // "enabled" value the UI has since disagreed with (F2). If retries are
-            // exhausted, fail closed: block both surfaces rather than trust a stale
-            // permissive value.
+            // "enabled" value the UI has since disagreed with (F2). Retries never stop
+            // — the service must keep trying to pick up the user's settings for as
+            // long as it runs — which also means this flow never completes
+            // exceptionally, so a `.catch` after this `retry` would be unreachable
+            // dead code (deleted; see below for what serves its fail-closed intent
+            // instead). Log from the retry predicate itself, on every attempt, so a
+            // permanently broken DataStore stays visible instead of failing silently
+            // forever. While retries are ongoing, `settings` simply stays at the
+            // `@Volatile` default declared above — `BlockSettings()`, i.e.
+            // blockReels = true, blockExplore = true — which is already the
+            // fail-closed value (both surfaces blocked), not a stale permissive one.
             scope.launch {
                 runCatching {
                     SettingsStore(applicationContext).settings
-                        .retry { delay(1_000); true }
-                        .catch { e ->
-                            Log.e(TAG, "settings collection failed", e)
-                            settings = BlockSettings()
+                        .retry { e ->
+                            Log.e(TAG, "settings read failed, retrying", e)
+                            delay(1_000)
+                            true
                         }
                         .collectLatest { settings = it }
                 }.onFailure {
@@ -123,7 +130,12 @@ class InstagramWatcherService : AccessibilityService() {
             }
             Log.i(TAG, "service connected")
         } catch (e: Throwable) {
-            if (e is CancellationException) throw e
+            // Unlike the scope.launch blocks above, this catch guards a lifecycle
+            // callback body, not a coroutine — there is no suspending code here for
+            // CancellationException to correctly propagate through, and rethrowing it
+            // would let an exception escape onServiceConnected, risking Android
+            // disabling the service for good while the user believes it is still
+            // protected. So, unlike those blocks, this one does not rethrow.
             Log.e(TAG, "onServiceConnected failed unexpectedly", e)
             if (!::classifier.isInitialized) {
                 classifier = ScreenClassifier(RuleSet(version = 0, surfaces = emptyMap()))
