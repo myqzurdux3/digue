@@ -174,4 +174,48 @@ class BlockerTest {
 
         assertEquals(BlockAction.HOME, blocker.decide(reels, blocked).action)
     }
+
+    @Test
+    fun `records an episode even when home is rate limited and nothing happens`() {
+        // Episodes measure the user's reflex, decoupled from whether the blocker
+        // acted. While the user sits on Reels, classifications keep arriving and
+        // refresh lastBlockedAtMillis, so the 2-second episode gap never elapses.
+        // Reaching recordEpisode=true with action=NONE requires a real gap in
+        // blocked classifications — meaning the user left and came back. That is
+        // a NEW attempt, and we count it: episodes track distinct user efforts.
+
+        // Escalate to HOME (finishes at 1400 ms)
+        assertEquals(BlockAction.BACK, blocker.decide(reels, blocked).action)
+        clock.advance(700)
+        assertEquals(BlockAction.BACK, blocker.decide(reels, blocked).action)
+        clock.advance(700)
+        assertEquals(BlockAction.HOME, blocker.decide(reels, blocked).action)
+
+        // Advance past the 2-second episode gap (now at 3900 ms, inside 30-second home rate limit)
+        clock.advance(2_500)
+
+        // Back #1 with new episode (recordEpisode=true, escalationWindowStartMillis=3900)
+        assertEquals(BlockAction.BACK, blocker.decide(reels, blocked).action)
+        clock.advance(700)
+
+        // Back #2 within the escalation window (now at 4600 ms)
+        assertEquals(BlockAction.BACK, blocker.decide(reels, blocked).action)
+
+        // Create a 2+ second gap before back #3, but stay within the 3-second escalation
+        // window (3900 + 2900 = 6800; window expires at 3900 + 3000 = 6900)
+        clock.advance(2_200)
+
+        // Back #3 triggers rate-limited HOME with recordEpisode=true
+        val decision = blocker.decide(reels, blocked)
+        assertEquals(BlockAction.NONE, decision.action)
+        assertTrue(decision.recordEpisode)
+    }
+
+    @Test
+    fun `does nothing when blockedSurfaces is empty`() {
+        val decision = blocker.decide(reels, emptySet())
+
+        assertEquals(BlockAction.NONE, decision.action)
+        assertFalse(decision.recordEpisode)
+    }
 }
