@@ -15,8 +15,14 @@ retour arrière la plupart du temps, ou un appui sur un nœud précis pour Explo
 | Snapchat | `SPOTLIGHT` | `spotlight_container` |
 | Snapchat | `DISCOVER` | la colonne d'actions `context_vertical_actions/...` |
 
-**Statut au 2026-08-17 — tout est dans `main`, aucune branche en attente.** 250 tests JVM,
-24 tests instrumentés, arbre propre. Dépôt distant : `github.com/myqzurdux3/digue`, **privé**
+**Statut au 2026-08-17 — tout est dans `main`, aucune branche en attente.** 256 tests JVM
+verts. **24 tests instrumentés qui compilent — et c'est tout ce qu'on en sait.** Ils ne
+compilaient plus du tout : `BlockEventDaoTest` appelait `dao.since(...)`, une requête retirée
+du DAO quand l'écran est passé aux `Flow`, et personne n'avait relancé
+`compileDebugAndroidTestKotlin` depuis. Un `@Test` qui ne compile pas se compte exactement
+comme un `@Test` qui passe. Le test lit maintenant la première émission de `observeSince`,
+mais **il n'a pas été exécuté** : il faut l'appareil, et l'appareil est partagé.
+Arbre propre. Dépôt distant : `github.com/myqzurdux3/digue`, **privé**
 (le dépôt documente les habitudes de l'utilisateur, et les commits antérieurs au 2026-08-17
 portent encore le numéro de série de son téléphone — une ouverture demanderait une réécriture
 d'historique).
@@ -69,7 +75,7 @@ bleu-vert, filets d'un pixel à la place des cartes. Verrouillée en clair.
 
 ```bash
 ./gradlew build                                   # tout
-./gradlew :detection:test :app:testDebugUnitTest  # 250 tests JVM
+./gradlew :detection:test :app:testDebugUnitTest  # 256 tests JVM
 ./gradlew :app:installDebug                       # installe sur l'appareil
 # tests instrumentés : --tests ne marche PAS sur cette version d'AGP, utiliser :
 ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=<fqcn>
@@ -86,19 +92,25 @@ bleu-vert, filets d'un pixel à la place des cartes. Verrouillée en clair.
                        Blocker, Clock, NEVER, EventThrottle, CaptureSession, RuleSetLoader,
                        DeclaredPackages (declaredPackages, packageNamesFor),
                        Allowance      (AllowanceSettings, AllowanceState, windowContains,
+                                       minuteOfDay, epochDayOf, consumedMillisAt,
                                        remainingMillis, passIsOpen, canOpenPass, openPass,
-                                       closePass, settle)
+                                       closePass, settle, PassClosure, closureOf,
+                                       forcedClosureOf)
                        AllowanceLock  (LockedSettings, PendingChange, isLoosening, armChange,
                                        hasMatured, effectiveSettings,
                                        effectiveBlockedSurfaces)
              data/     BlockEvent, BlockEventDao, AppDatabase (+ MIGRATION_1_2),
+                       DayBuckets     (bucketByDay — le fenêtrage en jours locaux,
+                                       partagé, ce qui fait que les deux séries du
+                                       graphique s'alignent index pour index)
                        DailyCount, dailyCounts, PassEvent, PassEventDao,
                        DailyWatched, dailyWatched,
                        SettingsStore, BlockSettings, RuleLoadStatus, CaptureStatus
              ui/       MainActivity, HomeScreen, HomeViewModel, ServiceStatus, Theme,
                        CaptureProgress, SurfaceGroups, TodayBreakdown, HistoryChart,
                        MaintenancePanel, AllowanceUiState, AllowancePanel,
-                       AllowanceEditors
+                       AllowanceEditors, Format (formatDuration, formatChoice,
+                       formatMinuteOfDay)
 ```
 
 **Le service ne s'appelle plus que par habitude `InstagramWatcherService`** — il couvre
@@ -108,6 +120,13 @@ les réglages d'accessibilité, exactement comme l'identifiant applicatif. Ne pa
 `:detection` ne connaît jamais `AccessibilityNodeInfo`. Le service traduit l'arbre Android en
 `ScreenSnapshot` neutre, puis appelle une fonction pure. C'est ce qui rend la détection testable
 sur JVM contre de vrais arbres capturés.
+
+**`:detection` lit les assets de `:app`, et c'est invisible depuis `:app`.**
+`detection/build.gradle.kts` ajoute `app/src/main/assets` aux ressources de **test** de
+`:detection`, pour que `RealFixtureTest` lise le `rules.json` réellement livré plutôt qu'une
+copie. C'est ce qui fait qu'un `rules.json` cassé est attrapé par un test JVM avant d'atterrir
+sur le téléphone. Le couplage est voulu ; déplacer le fichier de règles demande de toucher les
+deux modules.
 
 **`Allowance` et `AllowanceLock` sont purs mais vivent dans `:app`, pas dans `:detection`** —
 comme `Blocker`. Ils ne reconnaissent aucun écran ; les mettre dans `:detection` élargirait ce
@@ -159,6 +178,16 @@ Un signal porte quatre options, toutes payées par un défaut trouvé sur du vra
 - **`absentViewIds`.** Le signal ne compte que si aucun de ces identifiants n'est visible.
 - **`clickViewId`** (au niveau de la surface). Appuie sur ce nœud au lieu de quitter l'écran.
 
+### Quelle surface gagne quand deux répondent
+
+Dans un palier donné, `ScreenClassifier` essaie les surfaces **dans l'ordre de l'énumération
+`Surface`**, pas dans celui du fichier de règles. Ce n'est pas un détail d'implémentation : un
+écran peut satisfaire deux surfaces de la même app au même palier — un Spotlight qui porterait
+une colonne d'actions verticale répondrait à `SPOTLIGHT` **et** à `DISCOVER` — et la gagnante
+décide quel interrupteur le gouverne. Adosser ça à l'ordre des clés d'un objet JSON, qu'une
+édition à la main réordonne sans y penser, ferait taire un interrupteur sans un mot. Un test le
+vérifie en construisant la même carte dans les deux ordres.
+
 ### Le piège qui s'est produit trois fois : les nœuds résiduels
 
 **Ces apps ne démontent pas l'écran précédent.** Ses nœuds restent dans l'arbre avec des
@@ -196,15 +225,37 @@ n'a pas été touchée : la colonne d'actions marche dans les deux lectures. À 
 d'autres captures avant d'y toucher — et se souvenir que l'analyse d'origine tronquait les
 identifiants après le dernier `/`, ce qui a déjà produit une conclusion fausse ici.
 
-**`reel_progress_bar` n'apparaît pas** dans la capture Shorts du 2026-08-17, alors que la
-règle YouTube le porte comme second signal. Le premier (`reel_player_page_container`) suffit
-et la fixture le couvre ; mais le second est moins fiable qu'annoncé, et ne doit pas être
-considéré comme un filet.
+**`reel_progress_bar` n'apparaît pas** dans la capture Shorts du 2026-08-17 — `youtube_shorts.json`
+porte treize identifiants `reel_*` distincts, pas celui-là. Le premier signal
+(`reel_player_page_container`) suffit et la fixture le couvre ; le second est donc moins fiable
+qu'annoncé, et ne doit pas être considéré comme un filet.
+
+**Il a néanmoins été gardé, et le raisonnement qui a failli le supprimer mérite d'être écrit**,
+parce qu'il est faux et qu'il reviendra. Un audit l'a listé comme « code mort » : il ne
+correspond à rien dans les deux fixtures. Mais un signal de détection n'est pas du code — il
+n'apparaît dans **aucune** des deux captures, donc il ne peut produire **aucun** faux positif,
+et il ne coûte qu'une comparaison de chaînes par marche. Il ne peut qu'**ajouter** une
+détection. Or SHORTS n'a ni palier MEDIUM ni LOW : le retirer aurait laissé la surface sur un
+seul identifiant, sans filet, le jour où Google renomme `reel_player_page_container`. C'est un
+changement de comportement dans le sens **moins sûr**, et la doctrine de ce fichier vaut ici
+aussi : un échantillon ne renverse pas une mesure antérieure.
+
+**Le remplaçant évident, lui, est bel et bien disqualifié.** `reel_time_bar` est le seul autre
+candidat de la capture Shorts, et il est **aussi présent sur l'accueil YouTube**, avec des
+bornes plein écran `{0, 0, 1080, 2424}` — vérifiable dans `youtube_home.json`. `requireOnScreen`
+ne le filtrerait donc pas, et le poser en signal bloquerait le fil YouTube. Un test l'interdit
+désormais comme propriété, pas comme cas particulier : aucun signal SHORTS ne peut nommer un
+identifiant que l'accueil YouTube affiche aussi.
 
 ### Identifiants : deux pièges de nommage
 
-- **Snapchat obfusque ~60 % de ses identifiants** (`0_resource_name_obfuscated`). Les règles
-  Snapchat tiennent sur une poignée de survivants et sont les plus fragiles du projet.
+- **Snapchat obfusque 70 % de ses identifiants** (`0_resource_name_obfuscated`) : 241 nœuds
+  obfusqués sur 343 en portant un, mesuré sur les trois fixtures Snapchat
+  (`snapchat_spotlight`, `snapchat_discover`, `snapchat_story`). Refaisable en comptant les
+  `viewId` **ni nuls ni vides** — 7 nœuds portent la chaîne vide, et les inclure au
+  dénominateur donne 69 %, ce qui est la même chose dite moins proprement. Il ne reste que 38
+  identifiants distincts lisibles, dont trois d'Android. Les règles Snapchat tiennent sur cette
+  poignée de survivants et sont les plus fragiles du projet.
 - **Snapchat expose une partie de son arbre hors du `<paquet>:id/` habituel** :
   `context_vertical_actions/context_vertical_action_comment`. La règle Discover a été livrée
   cassée une fois pour cette raison. **En analysant une capture, ne jamais tronquer
@@ -291,6 +342,12 @@ observer. Recette, pour chaque cible :
 Les fichiers sortent dans `/sdcard/Android/data/com.insta.reelsoff/files/captures/`, lisibles
 sans `run-as`. **Ils contiennent de vraies données personnelles** — les nettoyer avant tout
 usage, et ne jamais les commiter.
+
+**Armer une capture efface celles d'avant.** Le dossier n'était jamais vidé, donc chaque capture
+jamais prise s'y accumulait, en clair, dans le stockage externe que le gestionnaire de fichiers
+du téléphone sait ouvrir. C'est borné à une session maintenant. Le stockage externe est conservé
+délibérément — passer à `filesDir` supprimerait l'exposition mais imposerait `run-as` à cette
+recette-ci. **Récupérer les fichiers avant de relancer une capture.**
 
 ## Méthode de vérification qui marche
 
@@ -437,10 +494,18 @@ regardé quand même — c'est le chiffre que le quota existe pour faire baisser
   téléphone posé continue d'accumuler de l'horloge murale. Le blocage, lui, était juste :
   `passIsOpen` passe à faux dès l'épuisement. C'est le **chiffre affiché** qui mentait.
   Mesuré sur l'appareil : **48 min 36 s annoncées contre un quota de 30 min**.
-- **Défaut connu, non corrigé** : si tu appuies sur « Fermer maintenant » dans les
-  millisecondes où le pass expire, le service et l'interface peuvent chacun inscrire une
-  ligne, et la journée compte le pass deux fois. Fenêtre minuscule, et l'erreur va dans le
-  sens prudent — elle affiche **plus** de temps regardé, jamais moins.
+- **Défaut connu, non corrigé** : si tu appuies sur « Fermer maintenant » — ou sur
+  « Ouvrir », qui settle d'abord — dans les millisecondes où le pass expire, le service et
+  l'interface peuvent chacun inscrire une ligne, et la journée compte le pass deux fois.
+  Fenêtre minuscule, et l'erreur va dans le sens prudent : elle affiche **plus** de temps
+  regardé, jamais moins.
+- **« Ouvrir » enregistre aussi le pass qu'il vient de fermer.** Il settlait par `settle`,
+  qui banque le temps dans l'état et ne rend rien d'autre : les minutes étaient bien
+  décomptées du quota et disparaissaient du graphique. Le service couvre le cas ordinaire —
+  il constate l'expiration à son événement suivant — mais pas celui-là : quitter l'app
+  surveillée avant l'expiration ne lui envoie plus aucun événement, et c'est alors l'écran
+  qui settle en premier. Le chiffre que le quota existe pour faire baisser était celui
+  sous-estimé.
 - **Le bandeau de règles illisibles porte maintenant un bouton « Recharger les règles »**
   (`ACTION_RELOAD_RULES`). Avant, le statut n'était écrit qu'au `onServiceConnected` : on
   réparait `rules.json` et le bandeau restait, pendant que le service tournait toujours sur le
@@ -472,12 +537,20 @@ regardé quand même — c'est le chiffre que le quota existe pour faire baisser
 
 ## Chantiers de suite, par priorité
 
-1. **Aucune fixture pour YouTube ni Snapchat.** Leurs règles marchent, mais rien ne préviendra
-   quand un identifiant sera renommé : l'utilisateur le découvrira. Capturer les deux apps et
-   en tirer des fixtures nettoyées est le vrai reste à faire.
-2. **Le tag `ReelsOff` ne remonte plus dans logcat** sur cet appareil, alors que la recette du
+1. **Le tag `ReelsOff` ne remonte plus dans logcat** sur cet appareil, alors que la recette du
    projet s'appuie dessus. La base `block_event` a servi de preuve à la place — la lire ainsi :
    `adb shell run-as com.insta.reelsoff cat databases/reelsoff.db > x.sqlite`.
+2. **Les nœuds d'accessibilité ne sont pas recyclés, et c'est une décision, pas un oubli.**
+   `recycle()` est un no-op à partir de l'API 33 ; `minSdk` vaut 26, donc la fuite n'existe
+   que de l'API 26 à 32 — précisément les versions dont ce projet n'a aucun appareil. Le
+   recyclage a été écrit puis **retiré** : il n'aurait jamais tourné là où on peut l'observer,
+   et n'aurait tourné que là où on ne peut pas. Et il échoue mal — recycler un nœud que
+   `AccessibilityCache` détient encore lève plus tard, depuis le framework, sur un appel sans
+   rapport ; avalé par le garde de `onAccessibilityEvent`, ça donne un service lié qui ne
+   bloque rien. Bénéfice mesuré : aucun, aucune fuite n'a jamais été constatée.
+   **Deux sorties, toutes deux à ton choix** : un appareil sous Android 8-12 pour éprouver le
+   mécanisme, ou remonter `minSdk` à 33 — ce qui supprime la classe entière de problème sans
+   une ligne de code, au prix d'Android 8 à 12.
 3. **Heuristique de la barre de navigation (F9, différée).** `ScreenClassifier.findNavBar`
    retient « ≥4 frères cliquables, la rangée la plus basse ». Sur les captures réelles cela
    laisse 3-4 rangées candidates par écran, départagées par la seule géométrie. Un panneau ou
@@ -485,10 +558,11 @@ regardé quand même — c'est le chiffre que le quota existe pour faire baisser
    REELS après la suppression du palier MEDIUM. Resserrer demande des seuils qui pourraient
    casser sur d'autres géométries d'écran : à faire avec des captures sur plus d'un appareil,
    plus un départage déterministe en cas d'égalité.
-4. **Résiduels connus, non bloquants** : le statut de chargement des règles n'est écrit qu'au
-   `onServiceConnected`, donc le bandeau persiste après réparation jusqu'à reconnexion du
-   service ; la cause interpolée est du texte anglais dans une phrase française ;
-   `isServiceEnabled` n'a pas de test car le code n'a pas de couture pure pour `Settings.Secure`.
+4. **Résiduels connus, non bloquants** : la cause interpolée dans le bandeau de règles est du
+   texte anglais dans une phrase française ; `isServiceEnabled` n'a pas de test car le code n'a
+   pas de couture pure pour `Settings.Secure` ; et `HomeViewModel` n'a aucun test du tout — ses
+   fonctions pures le sont, mais le fait qu'il les appelle dans le bon ordre ne l'est pas, ce
+   qui est précisément par où un défaut de comptage du temps regardé était passé.
 5. **Non vérifié** : persistance sur 24 h ; côté quota, le resserrement pendant qu'un
    changement est en attente, et la maturation réelle d'un délai d'une heure.
 
