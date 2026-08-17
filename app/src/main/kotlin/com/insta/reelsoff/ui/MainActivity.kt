@@ -49,6 +49,10 @@ class MainActivity : ComponentActivity() {
                         onSurfaceBlockedChanged = { surface, blocked ->
                             viewModel.setSurfaceBlocked(surface, blocked)
                         },
+                        onOpenPass = viewModel::openPass,
+                        onClosePass = viewModel::closePass,
+                        onCancelPendingChange = viewModel::cancelPendingChange,
+                        onProposeAllowance = viewModel::proposeAllowanceSettings,
                     )
                 }
             }

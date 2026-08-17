@@ -45,6 +45,7 @@ import com.insta.detection.Surface
 import com.insta.reelsoff.R
 import com.insta.reelsoff.data.CaptureStatus
 import com.insta.reelsoff.data.DailyCount
+import com.insta.reelsoff.service.AllowanceSettings
 import kotlinx.coroutines.delay
 import java.util.Locale
 import java.time.format.TextStyle as JavaTextStyle
@@ -57,6 +58,10 @@ fun HomeScreen(
     onOpenAccessibilitySettings: () -> Unit,
     onStartCapture: () -> Unit,
     onSurfaceBlockedChanged: (Surface, Boolean) -> Unit,
+    onOpenPass: () -> Unit,
+    onClosePass: () -> Unit,
+    onCancelPendingChange: () -> Unit,
+    onProposeAllowance: (AllowanceSettings) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -83,6 +88,19 @@ fun HomeScreen(
         } else if (state.degraded) {
             Spacer(Modifier.height(20.dp))
             Callout(stringResource(R.string.degraded_warning))
+        }
+
+        // Above the counters: it is the one thing on this screen that is acted
+        // on rather than read, and its countdown is time-critical.
+        Section(title = stringResource(R.string.allowance_title)) {
+            AllowancePanel(
+                state = state.allowance,
+                serviceEnabled = state.serviceEnabled,
+                onOpen = onOpenPass,
+                onClose = onClosePass,
+                onCancelPending = onCancelPendingChange,
+                onPropose = onProposeAllowance,
+            )
         }
 
         Section(title = stringResource(R.string.today)) {

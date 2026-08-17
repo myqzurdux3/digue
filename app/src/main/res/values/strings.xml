@@ -37,4 +37,27 @@
     <string name="block_discover">Bloquer les vidéos Discover</string>
     <string name="today_total">Retenu %1$d fois</string>
     <string name="declared_packages">Applications observées : %1$s</string>
+    <string name="allowance_title">Quota</string>
+    <string name="allowance_off">Quota éteint : les surfaces cochées sont bloquées sans exception.</string>
+    <string name="allowance_remaining">%1$s restantes sur %2$s aujourd\'hui</string>
+    <string name="allowance_window">Ouvrable de %1$s à %2$s</string>
+    <string name="allowance_outside_window">Hors plage — ouvrable de %1$s à %2$s</string>
+    <string name="allowance_exhausted">Quota épuisé pour aujourd\'hui</string>
+    <string name="allowance_running">Pass ouvert — %1$s</string>
+    <string name="allowance_open">Ouvrir</string>
+    <string name="allowance_close">Fermer maintenant</string>
+    <string name="allowance_needs_service">Le service est inactif : un pass ne changerait rien.</string>
+    <string name="allowance_pending">Nouveau réglage actif dans %1$s</string>
+    <string name="allowance_cancel_pending">Annuler</string>
+    <string name="allowance_lock_hint">Tout assouplissement attend %1$s. Un resserrement s\'applique tout de suite.</string>
+    <string name="allowance_unlocked">Aucun délai : les réglages se changent librement. Choisir un délai verrouille tout assouplissement à venir — et ce choix-là est immédiat.</string>
+    <string name="allowance_enable">Activer le quota</string>
+    <string name="allowance_quota_label">Durée par jour</string>
+    <string name="allowance_window_label">Plage horaire</string>
+    <string name="allowance_cooldown_label">Délai avant tout assouplissement</string>
+    <string name="allowance_cooldown_none">aucun</string>
+    <string name="allowance_window_from">de %1$s</string>
+    <string name="allowance_window_to">à %1$s</string>
+    <string name="allowance_earlier">Reculer de quinze minutes</string>
+    <string name="allowance_later">Avancer de quinze minutes</string>
 </resources>
