@@ -2,6 +2,7 @@ package com.insta.detection
 
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -105,5 +106,38 @@ class RealFixtureTest {
         }
 
         assertEquals(Surface.OTHER, classifier.classify(stripped).surface)
+    }
+
+    @Test
+    fun `a reel someone sent is not blocked`() {
+        // The one that matters: if this ever returns REELS, the feature does the
+        // opposite of what was asked.
+        assertEquals(Surface.OTHER, classifier.classify(fixture("dm_reel")).surface)
+    }
+
+    @Test
+    fun `the conversation itself is not blocked`() {
+        assertEquals(Surface.OTHER, classifier.classify(fixture("direct_thread")).surface)
+    }
+
+    @Test
+    fun `the suggested reel that follows is blocked at the high tier`() {
+        val result = classifier.classify(fixture("suggested_reel"))
+
+        assertEquals(Surface.REELS, result.surface)
+        assertEquals(Tier.HIGH, result.tier)
+    }
+
+    @Test
+    fun `the shipped reel-viewer rule requires an on-screen node`() {
+        // feed, profile and direct all carry a leftover clips_viewer_view_pager.
+        // Drop requireOnScreen from rules.json and this fails — which is the
+        // point: the failure is what stops the feed being blocked.
+        val signal = ruleSet.surfaces.getValue(Surface.REELS).signals
+            .single { it.value?.endsWith("clips_viewer_view_pager") == true }
+
+        assertTrue("the reel-viewer rule must require an on-screen node", signal.requireOnScreen)
+        assertTrue("the reel-viewer rule must be guarded", signal.absentViewIds.isNotEmpty())
+        assertFalse("the reel-viewer rule must not require selection", signal.requireSelected)
     }
 }

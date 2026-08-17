@@ -28,21 +28,34 @@ class ScreenClassifier(private val ruleSet: RuleSet) {
         signal: Signal,
         snapshot: ScreenSnapshot,
         navBar: List<NodeSummary>?,
-    ): Boolean = when (signal.type) {
-        SignalType.VIEW_ID -> snapshot.nodes.any { node ->
-            node.viewId == signal.value && node.satisfies(signal)
+    ): Boolean {
+        val nodes =
+            if (signal.requireOnScreen) snapshot.nodes.filter { it.bounds.isOnScreen }
+            else snapshot.nodes
+
+        if (signal.absentViewIds.isNotEmpty() &&
+            nodes.any { it.viewId != null && it.viewId in signal.absentViewIds }
+        ) {
+            return false
         }
 
-        SignalType.CONTENT_DESCRIPTION -> snapshot.nodes.any { node ->
-            node.contentDescription != null &&
-                signal.anyOf.any { it.equals(node.contentDescription, ignoreCase = true) } &&
-                node.satisfies(signal)
-        }
+        return when (signal.type) {
+            SignalType.VIEW_ID -> nodes.any { node ->
+                node.viewId == signal.value && node.satisfies(signal)
+            }
 
-        SignalType.NAV_BAR_INDEX -> {
-            val index = signal.value?.toIntOrNull()
-            val tab = if (index == null) null else navBar?.getOrNull(index)
-            tab != null && tab.satisfies(signal)
+            SignalType.CONTENT_DESCRIPTION -> nodes.any { node ->
+                node.contentDescription != null &&
+                    signal.anyOf.any { it.equals(node.contentDescription, ignoreCase = true) } &&
+                    node.satisfies(signal)
+            }
+
+            SignalType.NAV_BAR_INDEX -> {
+                val index = signal.value?.toIntOrNull()
+                val tab = if (index == null) null else navBar?.getOrNull(index)
+                tab != null && tab.satisfies(signal) &&
+                    (!signal.requireOnScreen || tab.bounds.isOnScreen)
+            }
         }
     }
 

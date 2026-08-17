@@ -47,16 +47,21 @@ object RuleSetParser {
     }
 
     /** Returns an error message, or null when the signal is usable. */
-    private fun validate(signal: Signal): String? = when (signal.type) {
-        SignalType.VIEW_ID ->
-            if (signal.value.isNullOrBlank()) "VIEW_ID signal needs a non-empty value" else null
+    private fun validate(signal: Signal): String? {
+        if (signal.absentViewIds.any { it.isBlank() }) {
+            return "absentViewIds must not contain a blank id"
+        }
+        return when (signal.type) {
+            SignalType.VIEW_ID ->
+                if (signal.value.isNullOrBlank()) "VIEW_ID signal needs a non-empty value" else null
 
-        SignalType.CONTENT_DESCRIPTION ->
-            if (signal.anyOf.isEmpty()) "CONTENT_DESCRIPTION signal needs a non-empty anyOf" else null
+            SignalType.CONTENT_DESCRIPTION ->
+                if (signal.anyOf.isEmpty()) "CONTENT_DESCRIPTION signal needs a non-empty anyOf" else null
 
-        SignalType.NAV_BAR_INDEX -> {
-            val index = signal.value?.toIntOrNull()
-            if (index == null || index < 0) "NAV_BAR_INDEX signal needs a non-negative integer value" else null
+            SignalType.NAV_BAR_INDEX -> {
+                val index = signal.value?.toIntOrNull()
+                if (index == null || index < 0) "NAV_BAR_INDEX signal needs a non-negative integer value" else null
+            }
         }
     }
 }

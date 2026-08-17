@@ -200,4 +200,171 @@ class ScreenClassifierTest {
 
         assertEquals(Surface.OTHER, result.surface)
     }
+
+    private fun pagerRules(requireOnScreen: Boolean) = RuleSet(
+        version = 1,
+        surfaces = mapOf(
+            Surface.REELS to SurfaceRules(
+                listOf(
+                    Signal(
+                        tier = Tier.HIGH,
+                        type = SignalType.VIEW_ID,
+                        value = "pager",
+                        requireSelected = false,
+                        requireOnScreen = requireOnScreen,
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    @Test
+    fun `a zero-width node does not satisfy an on-screen signal`() {
+        // Measured on the real feed: Instagram leaves the previous screen's
+        // pager in the tree at left=1080, right=1080.
+        val leftover = snapshot(
+            listOf(node(index = 0, viewId = "pager", bounds = Bounds(1080, 152, 1080, 2235))),
+        )
+
+        val result = ScreenClassifier(pagerRules(requireOnScreen = true)).classify(leftover)
+
+        assertEquals(Surface.OTHER, result.surface)
+    }
+
+    @Test
+    fun `a negative-width node does not satisfy an on-screen signal`() {
+        // Measured on the real profile screen: right=-2160.
+        val leftover = snapshot(
+            listOf(node(index = 0, viewId = "pager", bounds = Bounds(0, 152, -2160, 2235))),
+        )
+
+        val result = ScreenClassifier(pagerRules(requireOnScreen = true)).classify(leftover)
+
+        assertEquals(Surface.OTHER, result.surface)
+    }
+
+    @Test
+    fun `a zero-height node does not satisfy an on-screen signal`() {
+        val flat = snapshot(
+            listOf(node(index = 0, viewId = "pager", bounds = Bounds(0, 152, 1080, 152))),
+        )
+
+        val result = ScreenClassifier(pagerRules(requireOnScreen = true)).classify(flat)
+
+        assertEquals(Surface.OTHER, result.surface)
+    }
+
+    @Test
+    fun `a full-size node satisfies an on-screen signal`() {
+        val visible = snapshot(
+            listOf(node(index = 0, viewId = "pager", bounds = Bounds(0, 152, 1080, 2235))),
+        )
+
+        val result = ScreenClassifier(pagerRules(requireOnScreen = true)).classify(visible)
+
+        assertEquals(Surface.REELS, result.surface)
+        assertEquals(Tier.HIGH, result.tier)
+    }
+
+    @Test
+    fun `without the flag a degenerate node still matches`() {
+        // Every shipped rule leaves requireOnScreen at its default, so this is
+        // the guarantee that none of them changes meaning.
+        val leftover = snapshot(
+            listOf(node(index = 0, viewId = "pager", bounds = Bounds(1080, 152, 1080, 2235))),
+        )
+
+        val result = ScreenClassifier(pagerRules(requireOnScreen = false)).classify(leftover)
+
+        assertEquals(Surface.REELS, result.surface)
+    }
+
+    private fun guardedRules(requireOnScreen: Boolean = true) = RuleSet(
+        version = 1,
+        surfaces = mapOf(
+            Surface.REELS to SurfaceRules(
+                listOf(
+                    Signal(
+                        tier = Tier.HIGH,
+                        type = SignalType.VIEW_ID,
+                        value = "pager",
+                        requireSelected = false,
+                        requireOnScreen = requireOnScreen,
+                        absentViewIds = listOf("reply_bar", "sender_name"),
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    private val visiblePager =
+        node(index = 0, viewId = "pager", bounds = Bounds(0, 152, 1080, 2235))
+
+    @Test
+    fun `a guarded signal matches when no guard is present`() {
+        val result = ScreenClassifier(guardedRules()).classify(snapshot(listOf(visiblePager)))
+
+        assertEquals(Surface.REELS, result.surface)
+        assertEquals(Tier.HIGH, result.tier)
+    }
+
+    @Test
+    fun `a single guard suppresses the signal`() {
+        // The reel a contact sent: the reply bar is what makes it exempt.
+        val withReplyBar = snapshot(
+            listOf(
+                visiblePager,
+                node(index = 1, viewId = "reply_bar", bounds = Bounds(0, 2000, 1080, 2200)),
+            ),
+        )
+
+        assertEquals(Surface.OTHER, ScreenClassifier(guardedRules()).classify(withReplyBar).surface)
+    }
+
+    @Test
+    fun `any one of several guards is enough`() {
+        val withSender = snapshot(
+            listOf(
+                visiblePager,
+                node(index = 1, viewId = "sender_name", bounds = Bounds(0, 300, 600, 360)),
+            ),
+        )
+
+        assertEquals(Surface.OTHER, ScreenClassifier(guardedRules()).classify(withSender).surface)
+    }
+
+    @Test
+    fun `a degenerate guard does not suppress an on-screen signal`() {
+        // Symmetry with Task 1: if a leftover reply bar counted as present, the
+        // trap would fire in reverse and silently cancel a legitimate block.
+        val leftoverGuard = snapshot(
+            listOf(
+                visiblePager,
+                node(index = 1, viewId = "reply_bar", bounds = Bounds(1080, 2000, 1080, 2200)),
+            ),
+        )
+
+        assertEquals(Surface.REELS, ScreenClassifier(guardedRules()).classify(leftoverGuard).surface)
+    }
+
+    @Test
+    fun `an empty guard list changes nothing`() {
+        val rules = RuleSet(
+            version = 1,
+            surfaces = mapOf(
+                Surface.REELS to SurfaceRules(
+                    listOf(
+                        Signal(
+                            tier = Tier.HIGH,
+                            type = SignalType.VIEW_ID,
+                            value = "pager",
+                            requireSelected = false,
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(Surface.REELS, ScreenClassifier(rules).classify(snapshot(listOf(visiblePager))).surface)
+    }
 }
