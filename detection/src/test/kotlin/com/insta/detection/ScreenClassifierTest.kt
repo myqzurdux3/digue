@@ -200,4 +200,82 @@ class ScreenClassifierTest {
 
         assertEquals(Surface.OTHER, result.surface)
     }
+
+    private fun pagerRules(requireOnScreen: Boolean) = RuleSet(
+        version = 1,
+        surfaces = mapOf(
+            Surface.REELS to SurfaceRules(
+                listOf(
+                    Signal(
+                        tier = Tier.HIGH,
+                        type = SignalType.VIEW_ID,
+                        value = "pager",
+                        requireSelected = false,
+                        requireOnScreen = requireOnScreen,
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    @Test
+    fun `a zero-width node does not satisfy an on-screen signal`() {
+        // Measured on the real feed: Instagram leaves the previous screen's
+        // pager in the tree at left=1080, right=1080.
+        val leftover = snapshot(
+            listOf(node(index = 0, viewId = "pager", bounds = Bounds(1080, 152, 1080, 2235))),
+        )
+
+        val result = ScreenClassifier(pagerRules(requireOnScreen = true)).classify(leftover)
+
+        assertEquals(Surface.OTHER, result.surface)
+    }
+
+    @Test
+    fun `a negative-width node does not satisfy an on-screen signal`() {
+        // Measured on the real profile screen: right=-2160.
+        val leftover = snapshot(
+            listOf(node(index = 0, viewId = "pager", bounds = Bounds(0, 152, -2160, 2235))),
+        )
+
+        val result = ScreenClassifier(pagerRules(requireOnScreen = true)).classify(leftover)
+
+        assertEquals(Surface.OTHER, result.surface)
+    }
+
+    @Test
+    fun `a zero-height node does not satisfy an on-screen signal`() {
+        val flat = snapshot(
+            listOf(node(index = 0, viewId = "pager", bounds = Bounds(0, 152, 1080, 152))),
+        )
+
+        val result = ScreenClassifier(pagerRules(requireOnScreen = true)).classify(flat)
+
+        assertEquals(Surface.OTHER, result.surface)
+    }
+
+    @Test
+    fun `a full-size node satisfies an on-screen signal`() {
+        val visible = snapshot(
+            listOf(node(index = 0, viewId = "pager", bounds = Bounds(0, 152, 1080, 2235))),
+        )
+
+        val result = ScreenClassifier(pagerRules(requireOnScreen = true)).classify(visible)
+
+        assertEquals(Surface.REELS, result.surface)
+        assertEquals(Tier.HIGH, result.tier)
+    }
+
+    @Test
+    fun `without the flag a degenerate node still matches`() {
+        // Every shipped rule leaves requireOnScreen at its default, so this is
+        // the guarantee that none of them changes meaning.
+        val leftover = snapshot(
+            listOf(node(index = 0, viewId = "pager", bounds = Bounds(1080, 152, 1080, 2235))),
+        )
+
+        val result = ScreenClassifier(pagerRules(requireOnScreen = false)).classify(leftover)
+
+        assertEquals(Surface.REELS, result.surface)
+    }
 }

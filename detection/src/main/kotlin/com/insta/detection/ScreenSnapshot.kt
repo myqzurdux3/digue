@@ -11,6 +11,17 @@ data class Bounds(
 )
 
 /**
+ * True when the node occupies real space.
+ *
+ * Instagram does not tear down the previous screen, so its nodes linger in the
+ * tree with collapsed or negative bounds. Measured on real captures: a leftover
+ * reel pager reports width 0 on the feed and -2160 on the profile, while the
+ * displayed one reports 1080. No threshold is needed to tell them apart.
+ */
+val Bounds.isOnScreen: Boolean
+    get() = right > left && bottom > top
+
+/**
  * One node of the observed view tree, flattened.
  *
  * Deliberately excludes node text: the classifier never needs it, so it is

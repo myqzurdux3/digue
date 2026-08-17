@@ -27,6 +27,12 @@ data class Signal(
     val value: String? = null,
     val anyOf: List<String> = emptyList(),
     val requireSelected: Boolean = true,
+    /**
+     * Restricts the signal to nodes of strictly positive area. Off by default:
+     * turning it on globally would change the meaning of rules already
+     * calibrated and verified on a device.
+     */
+    val requireOnScreen: Boolean = false,
 )
 
 @Serializable
