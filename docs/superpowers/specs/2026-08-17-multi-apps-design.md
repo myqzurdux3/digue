@@ -141,11 +141,15 @@ Kotlin actif, mis à jour cette semaine — sans attendre nos propres captures.
 | SHORTS | `reel_progress_bar` | Shorts-Blocker |
 | SPOTLIGHT | `spotlight_container` | Scrolless |
 
-**Statut assumé : non vérifié.** Ces règles n'ont **aucune fixture**, donc aucun
-test de non-régression. C'est un écart délibéré à la méthode du projet, et le
-risque est nommé : une règle YouTube trop large couperait des vidéos normales.
-Les deux atténuations sont que les surfaces arrivent éteintes, et que
-`requireOnScreen` s'applique comme partout ailleurs.
+**Statut : vérifiées sur appareil, sans fixture.** L'utilisateur a confirmé sur
+son Pixel 9a que le blocage des Shorts YouTube et de Spotlight Snapchat
+fonctionne, et sans faux positif signalé sur les vidéos YouTube normales. Le
+pari d'emprunter ces identifiants était le point le plus incertain du chantier ;
+il est gagné.
+
+Ce qui manque encore : **aucune fixture, donc aucun test de non-régression.** Le
+jour où YouTube ou Snapchat renommeront un identifiant, rien ne le dira avant
+que l'utilisateur ne le constate. Une capture de chaque app reste à faire.
 
 Deux signaux indépendants pour YouTube plutôt qu'un : ils viennent de deux
 projets différents, donc si l'un est périmé l'autre tient.
