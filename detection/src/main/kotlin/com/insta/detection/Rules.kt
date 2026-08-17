@@ -42,7 +42,14 @@ data class Signal(
 )
 
 @Serializable
-data class SurfaceRules(val signals: List<Signal>)
+data class SurfaceRules(
+    val signals: List<Signal>,
+    /**
+     * Click this node instead of leaving the screen. Null keeps the default exit
+     * behaviour, which is what every surface but Explore wants.
+     */
+    val clickViewId: String? = null,
+)
 
 data class RuleSet(
     val version: Int,

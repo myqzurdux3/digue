@@ -13,11 +13,15 @@
             "com.instagram.android:id/reply_bar_container",
             "com.instagram.android:id/sender_username_or_fullname"
           ] },
+        { "tier": "HIGH", "type": "VIEW_ID",
+          "value": "com.instagram.android:id/suggested_title",
+          "requireSelected": false, "requireOnScreen": true },
         { "tier": "LOW", "type": "NAV_BAR_INDEX",
           "value": "1", "requireSelected": true }
       ]
     },
     "EXPLORE": {
+      "clickViewId": "com.instagram.android:id/action_bar_search_edit_text",
       "signals": [
         { "tier": "HIGH", "type": "VIEW_ID",
           "value": "com.instagram.android:id/search_tab", "requireSelected": true },

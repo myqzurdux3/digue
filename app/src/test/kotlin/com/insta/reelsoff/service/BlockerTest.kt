@@ -5,6 +5,7 @@ import com.insta.detection.Surface
 import com.insta.detection.Tier
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -251,5 +252,76 @@ class BlockerTest {
 
         assertEquals(BlockAction.NONE, decision.action)
         assertFalse(decision.recordEpisode)
+    }
+
+    // A surface can name a node to click instead of being left. Explore uses it to
+    // land the user in the search field rather than bounce them out of the tab,
+    // because blocking Explore also blocks Instagram's only search.
+
+    private val exploreWithSearch =
+        Classification(Surface.EXPLORE, Tier.HIGH, clickViewId = "search_bar")
+
+    @Test
+    fun `clicks the named node instead of going back`() {
+        val decision = blocker.decide(exploreWithSearch, blocked)
+
+        assertEquals(BlockAction.CLICK, decision.action)
+        assertEquals("search_bar", decision.clickViewId)
+        assertTrue(decision.recordEpisode)
+    }
+
+    @Test
+    fun `a click never escalates to home`() {
+        // Sending the phone to its home screen because a click did not land would
+        // be a wildly disproportionate answer to opening a tab.
+        repeat(10) {
+            val decision = blocker.decide(exploreWithSearch, blocked)
+            assertNotEquals(BlockAction.HOME, decision.action)
+            clock.advance(700)
+        }
+    }
+
+    @Test
+    fun `gives up clicking and leaves the screen instead`() {
+        // If the click is not working, hammering it forever leaves the user stuck
+        // on the very screen the rule exists to take them off.
+        val first = blocker.decide(exploreWithSearch, blocked)
+        assertEquals(BlockAction.CLICK, first.action)
+
+        clock.advance(700)
+        assertEquals(BlockAction.CLICK, blocker.decide(exploreWithSearch, blocked).action)
+
+        clock.advance(700)
+        assertEquals(BlockAction.CLICK, blocker.decide(exploreWithSearch, blocked).action)
+
+        clock.advance(700)
+        val fourth = blocker.decide(exploreWithSearch, blocked)
+        assertEquals(BlockAction.BACK, fourth.action)
+        assertEquals(null, fourth.clickViewId)
+    }
+
+    @Test
+    fun `leaving the surface rearms the click budget`() {
+        repeat(4) {
+            blocker.decide(exploreWithSearch, blocked)
+            clock.advance(700)
+        }
+        assertEquals(BlockAction.BACK, blocker.decide(exploreWithSearch, blocked).action)
+
+        // The user went elsewhere and came back: this is a new visit, not a
+        // continuation of the failed one.
+        clock.advance(700)
+        blocker.decide(other, blocked)
+        clock.advance(700)
+
+        assertEquals(BlockAction.CLICK, blocker.decide(exploreWithSearch, blocked).action)
+    }
+
+    @Test
+    fun `a surface with no click target behaves exactly as before`() {
+        val decision = blocker.decide(explore, blocked)
+
+        assertEquals(BlockAction.BACK, decision.action)
+        assertEquals(null, decision.clickViewId)
     }
 }

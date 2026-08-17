@@ -10,6 +10,13 @@ package com.insta.detection
 data class Classification(
     val surface: Surface,
     val tier: Tier?,
+    /**
+     * A node to click instead of leaving the screen, copied from the matched
+     * surface's rules. Explore uses it: blocking that tab also blocks Instagram's
+     * only search, so the app lands the user in the search field rather than
+     * bouncing them out. Null means the usual exit behaviour.
+     */
+    val clickViewId: String? = null,
 ) {
     companion object {
         val OTHER = Classification(Surface.OTHER, null)

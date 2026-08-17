@@ -18,7 +18,7 @@ class ScreenClassifier(private val ruleSet: RuleSet) {
                 val matched = rules.signals
                     .filter { it.tier == tier }
                     .any { matches(it, snapshot, navBar) }
-                if (matched) return Classification(surface, tier)
+                if (matched) return Classification(surface, tier, rules.clickViewId)
             }
         }
         return Classification.OTHER

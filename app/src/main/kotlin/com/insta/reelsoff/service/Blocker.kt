@@ -8,12 +8,17 @@ enum class BlockAction {
     NONE,
     BACK,
     HOME,
+
+    /** Press a node on the screen instead of leaving it; see [BlockDecision.clickViewId]. */
+    CLICK,
 }
 
 data class BlockDecision(
     val action: BlockAction,
     val recordEpisode: Boolean,
     val tier: Tier?,
+    /** Non-null only when [action] is [BlockAction.CLICK]. */
+    val clickViewId: String? = null,
 ) {
     companion object {
         val IDLE = BlockDecision(BlockAction.NONE, recordEpisode = false, tier = null)
@@ -30,6 +35,8 @@ data class BlockerConfig(
     val homeRateLimitMillis: Long = 30_000,
     /** Silence longer than this closes the current episode. */
     val episodeGapMillis: Long = 2_000,
+    /** Clicks on one visit before giving up and leaving the screen instead. */
+    val clickBudget: Int = 3,
 )
 
 /**
@@ -50,6 +57,8 @@ class Blocker(
     private var lastHomeAtMillis = NEVER
     private var escalationWindowStartMillis = NEVER
     private var consecutiveBacks = 0
+    private var clickWindowStartMillis = NEVER
+    private var consecutiveClicks = 0
 
     fun decide(classification: Classification, blockedSurfaces: Set<Surface>): BlockDecision {
         val now = clock.nowMillis()
@@ -58,6 +67,8 @@ class Blocker(
         if (surface == Surface.OTHER || surface !in blockedSurfaces) {
             consecutiveBacks = 0
             escalationWindowStartMillis = NEVER
+            consecutiveClicks = 0
+            clickWindowStartMillis = NEVER
             return BlockDecision.IDLE
         }
 
@@ -66,6 +77,28 @@ class Blocker(
         val recordEpisode = now - lastBlockedAtMillis > config.episodeGapMillis
         lastBlockedAtMillis = now
         lastActionAtMillis = now
+
+        // A surface that names a node to click is redirected inside the screen
+        // rather than exited. Explore is the case: blocking that tab also blocks
+        // Instagram's only search, so pressing the search field keeps search
+        // usable while the grid stays out of reach.
+        val clickViewId = classification.clickViewId
+        if (clickViewId != null) {
+            if (now - clickWindowStartMillis > config.escalationWindowMillis) {
+                clickWindowStartMillis = now
+                consecutiveClicks = 0
+            }
+            consecutiveClicks++
+            return if (consecutiveClicks <= config.clickBudget) {
+                BlockDecision(BlockAction.CLICK, recordEpisode, classification.tier, clickViewId)
+            } else {
+                // The click is not landing. Leave the screen rather than hammer a
+                // node that does nothing — but never escalate to HOME from here:
+                // sending the phone home because a tap missed would be wildly out
+                // of proportion to opening a tab.
+                BlockDecision(BlockAction.BACK, recordEpisode, classification.tier)
+            }
+        }
 
         if (now - escalationWindowStartMillis > config.escalationWindowMillis) {
             escalationWindowStartMillis = now

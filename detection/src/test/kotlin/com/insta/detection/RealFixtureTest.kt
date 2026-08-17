@@ -4,6 +4,7 @@ import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -139,5 +140,51 @@ class RealFixtureTest {
         assertTrue("the reel-viewer rule must require an on-screen node", signal.requireOnScreen)
         assertTrue("the reel-viewer rule must be guarded", signal.absentViewIds.isNotEmpty())
         assertFalse("the reel-viewer rule must not require selection", signal.requireSelected)
+    }
+
+    @Test
+    fun `the shipped explore rule redirects to the search field`() {
+        // Blocking Explore also blocks Instagram's only search, so the rule presses
+        // the search field instead of bouncing the user out of the tab. Drop the
+        // click target from rules.json and this fails.
+        val result = classifier.classify(fixture("explore"))
+
+        assertEquals(Surface.EXPLORE, result.surface)
+        assertEquals(
+            "com.instagram.android:id/action_bar_search_edit_text",
+            result.clickViewId,
+        )
+    }
+
+    @Test
+    fun `the shipped reels rule does not redirect`() {
+        assertNull(classifier.classify(fixture("reels")).clickViewId)
+    }
+
+    @Test
+    fun `a suggested reel is caught even when the conversation chrome lingers`() {
+        // Redundancy against this app's recurring trap: Instagram does not tear
+        // down the previous screen, so a reply bar left mounted over a suggested
+        // reel would cancel the guard and silently exempt it. The "Suggested"
+        // label is an independent signal that says the reel is algorithmic.
+        val dmReel = fixture("dm_reel")
+        val suggestedLabel = fixture("suggested_reel").nodes
+            .single { it.viewId?.endsWith("suggested_title") == true }
+        val lingering = dmReel.copy(nodes = dmReel.nodes + suggestedLabel)
+
+        val result = classifier.classify(lingering)
+
+        assertEquals(Surface.REELS, result.surface)
+        assertEquals(Tier.HIGH, result.tier)
+    }
+
+    @Test
+    fun `the suggested-reel label is a shipped high-tier signal`() {
+        val signal = ruleSet.surfaces.getValue(Surface.REELS).signals
+            .single { it.value?.endsWith("suggested_title") == true }
+
+        assertEquals(Tier.HIGH, signal.tier)
+        assertTrue("the label must be on screen to count", signal.requireOnScreen)
+        assertFalse("the label is never selected", signal.requireSelected)
     }
 }
