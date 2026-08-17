@@ -16,12 +16,11 @@ retour arrière la plupart du temps, ou un appui sur un nœud précis pour Explo
 | Snapchat | `DISCOVER` | la colonne d'actions `context_vertical_actions/...` |
 
 **Statut au 2026-08-17.** Les cinq surfaces sont vérifiées sur l'appareil réel et `main` les
-porte toutes (`feat/snapchat-discover` est fusionnée). 219 tests JVM, 24 tests instrumentés.
+porte toutes (`feat/snapchat-discover` est fusionnée). 225 tests JVM, 24 tests instrumentés.
 
 La branche `feat/quota-horaire` ajoute le **quota quotidien, la plage horaire et le verrou par
-délai** : neuf tâches, code complet, suite verte, **mais aucune vérification sur appareil** —
-le téléphone a été débranché pendant la passe. Voir « Quota » plus bas pour ce qui reste à
-mesurer.
+délai**, vérifiés sur appareil — voir « Quota » plus bas pour la paire de mesures qui le
+prouve et pour ce qui reste couvert par les seuls tests purs.
 
 **Trois comportements fins, déjà livrés et vérifiés, à ne pas casser :**
 
@@ -358,14 +357,42 @@ en éteignant REELS. Un resserrement **annule aussi tout changement en attente**
 l'assouplissement encore armé déferait le resserrement plus tard, sans rien à l'écran pour le
 dire.
 
-**Reste à mesurer sur appareil** (le téléphone a été débranché pendant la passe) : qu'un pass
-ouvert laisse effectivement Reels jouer, que le blocage reprenne à l'épuisement, et les six
-étapes du verrou. Recette complète dans la tâche 9 du plan.
+**Vérifié sur l'appareil le 2026-08-17**, par paire :
+
+| Geste | Pass ouvert | Pass fermé |
+|---|---|---|
+| Appui long sur l'onglet Reels, puis 13 s d'immobilité | reste sur Reels, **0 épisode** | **2 épisodes** REELS/HIGH, retour au fil |
+
+Vérifié aussi : le décompte descend en direct (57 min 56 s → 57 min 42 s en 14 s) ; choisir un
+délai s'applique **sans attente** et n'arme rien ; augmenter le quota avec un délai en vigueur
+est **retenu** dans `pending_change` avec la bonne échéance ; « Annuler » retire l'attente
+immédiatement ; l'affichage correspond au protobuf au millième près.
+
+**Non vérifié sur appareil**, couvert seulement par les tests purs : le resserrement pendant
+qu'un changement est en attente, et la maturation réelle d'un délai.
+
+### Deux pièges d'outillage, tous deux rencontrés ici
+
+- **`uiautomator dump` échoue en renvoyant 0.** « ERROR: null root node returned by
+  UiTestAutomationBridge » part sur la sortie standard, code 0, et `cat` relit alors le
+  **dump précédent**. Un écran figé dans le passé, et une heure passée à chercher un défaut
+  inexistant. Toujours supprimer le fichier avant, et vérifier que la sortie contient
+  « dumped to ». Sur l'écran Compose de Digue il échoue souvent : passer par
+  `adb exec-out screencap -p`, qui n'a jamais menti.
+- **Ne pas découper le XML à la ligne pour trouver des bornes.** Un nœud porteur de texte et
+  ses ancêtres portent tous un `bounds` ; un `grep | head -1` prend celui du **parent**, et
+  chaque appui atterrit à des centaines de pixels de la cible. Parser le XML.
+- L'instrument le plus fiable reste **le protobuf de DataStore** :
+  `adb shell run-as com.insta.reelsoff cat files/datastore/settings.preferences_pb`, décodé
+  (entrées de map : champ 1 = clé, champ 2 = valeur ; dans la valeur, 1=bool, 3=int, 4=long,
+  5=string, 6=set).
+- **`input tap` est trop bref pour la barre d'onglets d'Instagram** : il ne change pas
+  d'onglet. `adb shell input swipe X Y X Y 120` — un appui de 120 ms — fonctionne.
 
 ## Chantiers de suite, par priorité
 
-1. **Vérifier `feat/quota-horaire` sur l'appareil** — voir ci-dessus. Le code est complet et
-   la suite est verte, mais rien n'a tourné sur le téléphone.
+1. **Fusionner `feat/quota-horaire`** — dix commits, vérifiés sur appareil, pas encore
+   dans `main`.
 2. **Aucune fixture pour YouTube ni Snapchat.** Leurs règles marchent, mais rien ne préviendra
    quand un identifiant sera renommé : l'utilisateur le découvrira. Capturer les deux apps et
    en tirer des fixtures nettoyées est le vrai reste à faire.
