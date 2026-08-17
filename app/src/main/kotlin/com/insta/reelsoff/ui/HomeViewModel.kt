@@ -1,6 +1,7 @@
 package com.insta.reelsoff.ui
 
 import android.app.Application
+import android.os.SystemClock
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -13,6 +14,14 @@ import com.insta.reelsoff.data.DailyCount
 import com.insta.reelsoff.data.RuleLoadStatus
 import com.insta.reelsoff.data.SettingsStore
 import com.insta.reelsoff.data.dailyCounts
+import com.insta.reelsoff.service.AllowanceSettings
+import com.insta.reelsoff.service.AllowanceState
+import com.insta.reelsoff.service.LockedSettings
+import com.insta.reelsoff.service.PendingChange
+import com.insta.reelsoff.service.armChange
+import com.insta.reelsoff.service.closePass
+import com.insta.reelsoff.service.openPass
+import com.insta.reelsoff.service.settle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -21,6 +30,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
@@ -60,6 +70,8 @@ data class HomeUiState(
      * override file the ViewModel would otherwise re-read on its own.
      */
     val declaredPackages: Set<String> = emptySet(),
+    /** The daily quota, its window and any held change — see [allowanceUiState]. */
+    val allowance: AllowanceUiState = AllowanceUiState(),
 ) {
     val todayTotal: Int get() = history.lastOrNull()?.total ?: 0
 }
@@ -125,15 +137,21 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     @OptIn(ExperimentalCoroutinesApi::class)
     private val events = windowTick.flatMapLatest { dao.observeSince(historySinceMillis()) }
 
-    // combine's typed overloads stop at five flows; this screen now needs seven, so the
+    // combine's typed overloads stop at five flows; this screen now needs ten, so the
     // vararg form is used instead, indexed positionally against the argument order below.
-    //   0 serviceEnabled            -> Boolean
-    //   1 settingsStore.settings    -> BlockSettings
-    //   2 events                    -> List<BlockEvent>
-    //   3 settingsStore.ruleLoadStatus  -> RuleLoadStatus
-    //   4 settingsStore.captureStatus   -> CaptureStatus
-    //   5 installedPackages         -> Set<String>
-    //   6 settingsStore.declaredPackages -> Set<String>
+    // Nothing here is type-checked: two Set<String> flows sit next to each other, and
+    // swapping any two indices compiles and runs. Re-read this table against the
+    // argument list whenever either changes.
+    //   0 serviceEnabled                  -> Boolean
+    //   1 settingsStore.settings          -> BlockSettings
+    //   2 events                          -> List<BlockEvent>
+    //   3 settingsStore.ruleLoadStatus    -> RuleLoadStatus
+    //   4 settingsStore.captureStatus     -> CaptureStatus
+    //   5 installedPackages               -> Set<String>
+    //   6 settingsStore.declaredPackages  -> Set<String>
+    //   7 settingsStore.allowanceSettings -> AllowanceSettings
+    //   8 settingsStore.allowanceState    -> AllowanceState
+    //   9 settingsStore.pendingChange     -> PendingChange?
     val uiState: StateFlow<HomeUiState> = combine(
         serviceEnabled,
         settingsStore.settings,
@@ -142,6 +160,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         settingsStore.captureStatus,
         installedPackages,
         settingsStore.declaredPackages,
+        settingsStore.allowanceSettings,
+        settingsStore.allowanceState,
+        settingsStore.pendingChange,
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         val enabled = values[0] as Boolean
@@ -157,6 +178,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val installed = values[5] as Set<String>
         @Suppress("UNCHECKED_CAST")
         val declared = values[6] as Set<String>
+        @Suppress("UNCHECKED_CAST")
+        val allowanceSettings = values[7] as AllowanceSettings
+        @Suppress("UNCHECKED_CAST")
+        val allowanceState = values[8] as AllowanceState
+        @Suppress("UNCHECKED_CAST")
+        val pending = values[9] as PendingChange?
         HomeUiState(
             serviceEnabled = enabled,
             settings = settings,
@@ -166,6 +193,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             captureStatus = captureStatus,
             installedPackages = installed,
             declaredPackages = declared,
+            allowance = allowanceUiState(
+                stored = allowanceSettings,
+                state = allowanceState,
+                pending = pending,
+                blockedSurfaces = settings.blockedSurfaces,
+                nowEpochMillis = System.currentTimeMillis(),
+                nowElapsedRealtime = SystemClock.elapsedRealtime(),
+                zone = zone,
+            ),
         )
     }
         // Both DataStore (IOException) and Room (SQLiteException) can throw out of this
@@ -178,7 +214,87 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
+    /**
+     * Every settings write in this class goes through here, so what applies at
+     * once and what waits is decided in exactly one place.
+     *
+     * [applyTightening] runs only when the change does not loosen anything; it
+     * is passed rather than performed here because the two writers touch
+     * different keys — the quota's own fields, and the surface switches.
+     */
+    private suspend fun writeThroughLock(
+        proposed: (LockedSettings) -> LockedSettings,
+        applyTightening: suspend () -> Unit,
+    ) {
+        val current = LockedSettings(
+            settingsStore.allowanceSettings.first(),
+            settingsStore.settings.first().blockedSurfaces,
+        )
+        val armed = armChange(
+            current = current,
+            proposed = proposed(current),
+            nowEpochMillis = System.currentTimeMillis(),
+            nowElapsedRealtime = SystemClock.elapsedRealtime(),
+        )
+        if (armed == null) {
+            applyTightening()
+            // A tightening supersedes anything held: leaving a loosening armed
+            // past it would undo the tightening on its own, later, silently.
+            settingsStore.setPendingChange(null)
+        } else {
+            settingsStore.setPendingChange(armed)
+        }
+    }
+
     fun setSurfaceBlocked(surface: Surface, blocked: Boolean) {
-        viewModelScope.launch { settingsStore.setSurfaceBlocked(surface, blocked) }
+        viewModelScope.launch {
+            writeThroughLock(
+                proposed = { current ->
+                    current.copy(
+                        blockedSurfaces = if (blocked) {
+                            current.blockedSurfaces + surface
+                        } else {
+                            current.blockedSurfaces - surface
+                        },
+                    )
+                },
+                applyTightening = { settingsStore.setSurfaceBlocked(surface, blocked) },
+            )
+        }
+    }
+
+    fun proposeAllowanceSettings(proposed: AllowanceSettings) {
+        viewModelScope.launch {
+            writeThroughLock(
+                proposed = { current -> current.copy(allowance = proposed) },
+                applyTightening = { settingsStore.setAllowanceSettings(proposed) },
+            )
+        }
+    }
+
+    /**
+     * Settles first, so a pass that expired while the screen was closed is
+     * banked rather than reopened — [openPass] refuses an already-open pass, and
+     * an expired one still carries a nonzero opening stamp.
+     */
+    fun openPass() {
+        viewModelScope.launch {
+            val settings = settingsStore.allowanceSettings.first()
+            val now = System.currentTimeMillis()
+            val settled = settle(settings, settingsStore.allowanceState.first(), now, zone)
+            settingsStore.setAllowanceState(openPass(settings, settled, now, zone))
+        }
+    }
+
+    fun closePass() {
+        viewModelScope.launch {
+            val current = settingsStore.allowanceState.first()
+            settingsStore.setAllowanceState(closePass(current, System.currentTimeMillis(), zone))
+        }
+    }
+
+    /** Cancelling a held loosening is itself a tightening, so it lands at once. */
+    fun cancelPendingChange() {
+        viewModelScope.launch { settingsStore.setPendingChange(null) }
     }
 }
