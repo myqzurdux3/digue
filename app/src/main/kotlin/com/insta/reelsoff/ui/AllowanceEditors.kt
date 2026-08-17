@@ -152,7 +152,7 @@ private fun ChoiceRow(
                     text = if (choice == 0L) {
                         stringResource(R.string.allowance_cooldown_none)
                     } else {
-                        formatDuration(choice)
+                        formatChoice(choice)
                     },
                     style = MaterialTheme.typography.labelSmall,
                     color = if (choice == selected) Accent else EncreDouce,

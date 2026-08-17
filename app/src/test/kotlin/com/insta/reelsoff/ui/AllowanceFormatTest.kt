@@ -53,11 +53,17 @@ class AllowanceEditorsTest {
     }
 
     @Test
-    fun `every choice formats to something a reader recognises`() {
-        assertEquals("1 min 00 s", formatDuration(QUOTA_CHOICES.first()))
-        assertEquals("30 min 00 s", formatDuration(QUOTA_CHOICES.last()))
-        assertEquals("1 h 00", formatDuration(COOLDOWN_CHOICES[1]))
-        assertEquals("72 h 00", formatDuration(COOLDOWN_CHOICES.last()))
+    fun `every choice gets a label short enough to sit in a row of five`() {
+        // Measured on the device: "30 min 00 s" does not fit and Compose wraps it
+        // to one glyph per line — 16 px wide, 293 tall. A preset drops what is
+        // always zero; only the countdown needs the seconds.
+        assertEquals(listOf("1 min", "5 min", "10 min", "15 min", "30 min"), QUOTA_CHOICES.map(::formatChoice))
+        assertEquals(listOf("1 h", "6 h", "24 h", "72 h"), COOLDOWN_CHOICES.drop(1).map(::formatChoice))
+    }
+
+    @Test
+    fun `a choice that is not a whole hour keeps its minutes`() {
+        assertEquals("1 h 30", formatChoice(90 * 60_000L))
     }
 
     @Test

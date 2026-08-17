@@ -55,6 +55,7 @@ private val PAGE_MARGIN = 28.dp
 @Composable
 fun HomeScreen(
     state: HomeUiState,
+    allowance: AllowanceUiState,
     onOpenAccessibilitySettings: () -> Unit,
     onStartCapture: () -> Unit,
     onSurfaceBlockedChanged: (Surface, Boolean) -> Unit,
@@ -94,7 +95,7 @@ fun HomeScreen(
         // on rather than read, and its countdown is time-critical.
         Section(title = stringResource(R.string.allowance_title)) {
             AllowancePanel(
-                state = state.allowance,
+                state = allowance,
                 serviceEnabled = state.serviceEnabled,
                 onOpen = onOpenPass,
                 onClose = onClosePass,

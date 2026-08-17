@@ -71,8 +71,6 @@ data class HomeUiState(
      * override file the ViewModel would otherwise re-read on its own.
      */
     val declaredPackages: Set<String> = emptySet(),
-    /** The daily quota, its window and any held change — see [allowanceUiState]. */
-    val allowance: AllowanceUiState = AllowanceUiState(),
 ) {
     val todayTotal: Int get() = history.lastOrNull()?.total ?: 0
 }
@@ -152,7 +150,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     @OptIn(ExperimentalCoroutinesApi::class)
     private val events = windowTick.flatMapLatest { dao.observeSince(historySinceMillis()) }
 
-    // combine's typed overloads stop at five flows; this screen now needs ten, so the
+    // combine's typed overloads stop at five flows; this screen needs seven, so the
     // vararg form is used instead, indexed positionally against the argument order below.
     // Nothing here is type-checked: two Set<String> flows sit next to each other, and
     // swapping any two indices compiles and runs. Re-read this table against the
@@ -164,9 +162,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     //   4 settingsStore.captureStatus     -> CaptureStatus
     //   5 installedPackages               -> Set<String>
     //   6 settingsStore.declaredPackages  -> Set<String>
-    //   7 settingsStore.allowanceSettings -> AllowanceSettings
-    //   8 settingsStore.allowanceState    -> AllowanceState
-    //   9 settingsStore.pendingChange     -> PendingChange?
     val uiState: StateFlow<HomeUiState> = combine(
         serviceEnabled,
         settingsStore.settings,
@@ -175,9 +170,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         settingsStore.captureStatus,
         installedPackages,
         settingsStore.declaredPackages,
-        settingsStore.allowanceSettings,
-        settingsStore.allowanceState,
-        settingsStore.pendingChange,
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         val enabled = values[0] as Boolean
@@ -193,12 +185,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val installed = values[5] as Set<String>
         @Suppress("UNCHECKED_CAST")
         val declared = values[6] as Set<String>
-        @Suppress("UNCHECKED_CAST")
-        val allowanceSettings = values[7] as AllowanceSettings
-        @Suppress("UNCHECKED_CAST")
-        val allowanceState = values[8] as AllowanceState
-        @Suppress("UNCHECKED_CAST")
-        val pending = values[9] as PendingChange?
         HomeUiState(
             serviceEnabled = enabled,
             settings = settings,
@@ -208,15 +194,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             captureStatus = captureStatus,
             installedPackages = installed,
             declaredPackages = declared,
-            allowance = allowanceUiState(
-                stored = allowanceSettings,
-                state = allowanceState,
-                pending = pending,
-                blockedSurfaces = settings.blockedSurfaces,
-                nowEpochMillis = System.currentTimeMillis(),
-                nowElapsedRealtime = SystemClock.elapsedRealtime(),
-                zone = zone,
-            ),
         )
     }
         // Both DataStore (IOException) and Room (SQLiteException) can throw out of this
@@ -228,6 +205,60 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             emit(HomeUiState())
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
+
+    /**
+     * The quota's own state, recomputed every second.
+     *
+     * Deliberately its own flow rather than three more arguments to [uiState].
+     * Time passing is not an emission from any DataStore flow, so a countdown
+     * folded into that combine simply froze at the value it had when the pass
+     * opened — measured on the device, where "Pass ouvert — 59 s" stayed at 59 s
+     * for minutes. Recomposing the panel could not fix it: the panel was
+     * redrawing the same stale numbers.
+     *
+     * And it must not be *inside* [uiState] either: that combine also rebuilds
+     * the 14-day chart from every event in the window, which has no business
+     * running once a second.
+     */
+    val allowance: StateFlow<AllowanceUiState> = combine(
+        settingsStore.allowanceSettings,
+        settingsStore.allowanceState,
+        settingsStore.pendingChange,
+        settingsStore.settings,
+        flow {
+            while (true) {
+                emit(Unit)
+                delay(1_000)
+            }
+        },
+    ) { values ->
+        @Suppress("UNCHECKED_CAST")
+        val stored = values[0] as AllowanceSettings
+        @Suppress("UNCHECKED_CAST")
+        val state = values[1] as AllowanceState
+        @Suppress("UNCHECKED_CAST")
+        val pending = values[2] as PendingChange?
+        @Suppress("UNCHECKED_CAST")
+        val blockSettings = values[3] as BlockSettings
+        allowanceUiState(
+            stored = stored,
+            state = state,
+            pending = pending,
+            blockedSurfaces = blockSettings.blockedSurfaces,
+            nowEpochMillis = System.currentTimeMillis(),
+            nowElapsedRealtime = SystemClock.elapsedRealtime(),
+            zone = zone,
+        )
+    }
+        // Same reason as uiState's catch: this screen shares a process with the
+        // accessibility service, so an uncaught DataStore failure here would take
+        // the blocker down with the UI. A default AllowanceUiState reads as "no
+        // quota", which is the strict side.
+        .catch { e ->
+            Log.e(TAG, "allowance state combination failed", e)
+            emit(AllowanceUiState())
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AllowanceUiState())
 
     /**
      * Writes a matured pending change into the store and clears it.

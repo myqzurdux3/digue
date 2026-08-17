@@ -34,8 +34,12 @@ class MainActivity : ComponentActivity() {
             DigueTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val state by viewModel.uiState.collectAsStateWithLifecycle()
+                    // Collected separately because it re-emits every second, and
+                    // uiState must not: that one rebuilds the 14-day chart.
+                    val allowance by viewModel.allowance.collectAsStateWithLifecycle()
                     HomeScreen(
                         state = state,
+                        allowance = allowance,
                         modifier = Modifier.safeDrawingPadding(),
                         onOpenAccessibilitySettings = {
                             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
