@@ -94,9 +94,16 @@ bleu-vert, filets d'un pixel à la place des cartes. Verrouillée en clair.
   chaque bouton, sinon ils restent en gélules alors que tout le reste est à angles vifs.
 - Logo : `res/drawable/ic_digue.xml`, dessiné dans une boîte 48×48. L'icône de lanceur
   (`ic_launcher_foreground.xml`) reprend la même géométrie via un `<group>` mis à l'échelle.
-  **Toute retouche du dessin doit être reportée dans les trois fichiers** (marque, avant-plan,
-  monochrome) et la demi-diagonale de l'encombrement doit rester **sous 33** dans le repère
-  108×108, sinon les lanceurs à masque circulaire rognent la marque.
+  **Toute retouche du dessin doit être reportée dans les quatre fichiers** — marque, avant-plan,
+  monochrome, plus `docs/brand/digue.svg` pour le README — et la demi-diagonale de
+  l'encombrement doit rester **sous 33** dans le repère 108×108, sinon les lanceurs à masque
+  circulaire rognent la marque.
+- **Le SVG du README est en SVG, pas en PNG, exprès** : c'est le même genre d'objet que le
+  vecteur Android — des rectangles et des couleurs — donc une dérive se lit dans un diff, là
+  où un binaire aurait dérivé en silence. Il porte en plus un fond papier que les trois autres
+  n'ont pas, et ce fond n'est pas décoratif : le mur est en encre quasi noire et GitHub rend un
+  README en thème clair **ou** sombre. Sans tuile, sur fond sombre, le mur disparaît et il ne
+  reste que trois vagues — l'inverse de ce que la marque raconte.
 - **La marque actuelle est le design 1A, « la digue et la houle »** : quatre rectangles à fond
   aligné, trois vagues qui montent vers un mur plus large et plus haut qu'elles. Encombrement
   39 × 42 centré dans la boîte de 48 ; échelle 1,1 et translation 27,6 sur les deux axes dans

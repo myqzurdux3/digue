@@ -1,10 +1,21 @@
-# Digue
+<p align="center">
+  <img src="docs/brand/digue.svg" alt="" width="88" height="88">
+</p>
+
+<h1 align="center">Digue</h1>
+
+<p align="center"><em>Les fils de vidéos courtes, retenus</em></p>
+
+---
 
 App Android qui **bloque les fils de vidéos courtes dans plusieurs apps officielles**.
 
 Ce n'est pas un client alternatif : aucune de ces apps n'expose d'API de fil. Digue observe
 leur arbre de vues via un `AccessibilityService`, reconnaît l'écran affiché, et agit — retour
 arrière la plupart du temps, ou un appui sur un nœud précis pour Explore.
+
+La marque dit la même chose en quatre rectangles : trois vagues qui montent, une digue qui ne
+bouge pas.
 
 | App | Surface | Interrupteur |
 |---|---|---|

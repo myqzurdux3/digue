@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  La marque, pour le README. Quatrième copie de la géométrie de
+  app/src/main/res/drawable/ic_digue.xml, après l'avant-plan et le monochrome du
+  lanceur — toute retouche du dessin doit passer par les quatre.
+
+  En SVG et non en PNG pour cette raison précise : c'est le même genre d'objet que
+  le vecteur Android, des rectangles et des couleurs, donc un écart se lit dans un
+  diff. Un binaire aurait dérivé en silence.
+
+  Coordonnées identiques à celles de la boîte de 48, marges comprises, et posée sur
+  une tuile papier. Le fond n'est pas décoratif : le mur est en encre quasi noire,
+  et GitHub rend un README en thème clair OU sombre. Sans tuile, sur fond sombre,
+  le mur disparaîtrait et il ne resterait que trois vagues — soit l'inverse de ce
+  que la marque raconte.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"
+     role="img" aria-label="Digue">
+  <title>Digue — trois vagues retenues par une digue</title>
+  <rect width="48" height="48" rx="4" ry="4" fill="#F4F1EA"/>
+  <!-- trois vagues qui montent -->
+  <rect x="4.5"  y="33" width="6" height="12" fill="#8FA79B"/>
+  <rect x="14.5" y="25" width="6" height="20" fill="#5C8073"/>
+  <rect x="24.5" y="15" width="6" height="30" fill="#2F6553"/>
+  <!-- la digue : plus large qu'aucune, plus haute que toutes -->
+  <rect x="34.5" y="3"  width="9" height="42" fill="#14100C"/>
+</svg>
