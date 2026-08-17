@@ -90,4 +90,21 @@ class AllowanceEditorsTest {
             assertTrue(minute in 0 until 1440)
         }
     }
+
+    @Test
+    fun `a file size reads at the coarsest useful unit`() {
+        assertEquals("0 o", formatBytes(0))
+        assertEquals("999 o", formatBytes(999))
+        assertEquals("1,0 ko", formatBytes(1_000))
+        assertEquals("76,1 ko", formatBytes(76_098))
+        assertEquals("1,0 Mo", formatBytes(1_000_000))
+        assertEquals("2,4 Mo", formatBytes(2_412_345))
+    }
+
+    @Test
+    fun `a negative size never shows a minus sign`() {
+        // Cannot come from File.length(), but the figure sits next to a delete
+        // button and "-1 o à supprimer" would read as a bug in the user's data.
+        assertEquals("0 o", formatBytes(-1))
+    }
 }

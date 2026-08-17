@@ -49,6 +49,7 @@ fun HomeScreen(
     allowance: AllowanceUiState,
     onOpenAccessibilitySettings: () -> Unit,
     onStartCapture: () -> Unit,
+    onDeleteCaptures: () -> Unit,
     onSurfaceBlockedChanged: (Surface, Boolean) -> Unit,
     onOpenPass: () -> Unit,
     onClosePass: () -> Unit,
@@ -168,7 +169,7 @@ fun HomeScreen(
             }
         }
 
-        MaintenanceSection(state, onStartCapture)
+        MaintenanceSection(state, onStartCapture, onDeleteCaptures)
     }
 }
 

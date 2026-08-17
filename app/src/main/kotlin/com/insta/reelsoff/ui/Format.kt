@@ -52,3 +52,18 @@ fun formatChoice(millis: Long): String {
 /** Minutes since local midnight, as a wall-clock time. */
 fun formatMinuteOfDay(minuteOfDay: Int): String =
     String.format(Locale.FRENCH, "%02d h %02d", minuteOfDay / 60, minuteOfDay % 60)
+
+/**
+ * A file size in French, at the coarsest unit that still says something useful.
+ *
+ * Rounds to one decimal above a kilobyte, because the figure exists to tell the
+ * user whether a directory is worth emptying, not to be exact.
+ */
+fun formatBytes(bytes: Long): String {
+    val safe = bytes.coerceAtLeast(0)
+    return when {
+        safe >= 1_000_000 -> String.format(Locale.FRENCH, "%.1f Mo", safe / 1_000_000.0)
+        safe >= 1_000 -> String.format(Locale.FRENCH, "%.1f ko", safe / 1_000.0)
+        else -> String.format(Locale.FRENCH, "%d o", safe)
+    }
+}

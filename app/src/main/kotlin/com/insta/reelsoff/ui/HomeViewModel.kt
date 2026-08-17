@@ -23,7 +23,9 @@ import com.insta.reelsoff.service.PassClosure
 import com.insta.reelsoff.service.PendingChange
 import com.insta.reelsoff.service.armChange
 import com.insta.reelsoff.service.closureOf
+import com.insta.reelsoff.service.deleteCaptures
 import com.insta.reelsoff.service.forcedClosureOf
+import com.insta.reelsoff.service.listCaptures
 import com.insta.reelsoff.service.maturedProposal
 import com.insta.reelsoff.service.openPass
 import kotlinx.coroutines.Dispatchers
@@ -79,6 +81,8 @@ data class HomeUiState(
     val declaredPackages: Set<String> = emptySet(),
     /** Watched time per day, same 14-day window and same order as [history]. */
     val watched: List<DailyWatched> = emptyList(),
+    /** Capture files sitting on disk right now — what the delete button offers to remove. */
+    val captures: CapturesOnDisk = CapturesOnDisk(),
 ) {
     val todayTotal: Int get() = history.lastOrNull()?.total ?: 0
 
@@ -87,6 +91,16 @@ data class HomeUiState(
 
     val watchedTotalMillis: Long get() = watched.sumOf { it.millis }
 }
+
+/**
+ * How many capture files are on disk and what they weigh.
+ *
+ * Read from the file system rather than counted from `CaptureStatus`: that one
+ * says what the last session wrote, which stops being true the moment anything
+ * is deleted — by the next arming, by the button, or by the user's own file
+ * manager. The offer to delete has to describe what is actually there.
+ */
+data class CapturesOnDisk(val count: Int = 0, val bytes: Long = 0)
 
 /**
  * The surfaces that carry a user-facing switch. `Surface.OTHER` is not one, and
@@ -117,6 +131,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val passDao = AppDatabase.get(application).passEventDao()
     private val serviceEnabled = MutableStateFlow(false)
     private val installedPackages = MutableStateFlow(emptySet<String>())
+    private val captures = MutableStateFlow(CapturesOnDisk())
 
     /** Called from onResume: the user leaves the app to flip the system toggle. */
     fun refreshServiceStatus() {
@@ -136,6 +151,56 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 runCatching { manager.getPackageInfo(candidate, 0) }.isSuccess
             }.toSet()
             installedPackages.value = installed
+        }
+    }
+
+    /**
+     * Called on resume, and again after a deletion.
+     *
+     * Off the main thread: this stats every file in the capture directory, and
+     * onResume runs on the main thread. Same shape and same reason as
+     * [refreshInstalledPackages].
+     */
+    fun refreshCaptures() {
+        viewModelScope.launch(Dispatchers.IO) {
+            captures.value = runCatching {
+                val files = listCaptures(getApplication())
+                CapturesOnDisk(files.size, files.sumOf { it.length() })
+            }.getOrElse {
+                Log.e(TAG, "could not list captures", it)
+                // Reporting nothing is the honest failure here: the button that
+                // reads this offers to delete, and offering to delete files we
+                // could not even count would be worse than staying quiet.
+                CapturesOnDisk()
+            }
+        }
+    }
+
+    /**
+     * Deletes every capture this app wrote, on the user's say-so.
+     *
+     * The service already clears earlier sessions each time a capture is armed;
+     * this is the way to clear the last one too, without arming anything. Both go
+     * through the same rule about which files are ours, so neither can reach a
+     * file that is not a capture.
+     *
+     * Nothing here needs the accessibility service — the files belong to the app,
+     * not to the service — so this still works when it is switched off, which is
+     * exactly when someone is most likely to be tidying up.
+     */
+    fun deleteAllCaptures() {
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { deleteCaptures(getApplication()) }
+                .onSuccess { Log.i(TAG, "deleted $it captures") }
+                .onFailure { Log.e(TAG, "could not delete captures", it) }
+            // The session record goes with the files. Measured on the device: with
+            // it left alone the screen kept saying "Terminé : 3 instantanés
+            // enregistrés" over an empty directory, which sends the user looking
+            // for files that are not there. Resetting it puts the capture control
+            // back to its idle wording, which is now the truth.
+            runCatching { settingsStore.setCaptureStatus(CaptureStatus()) }
+                .onFailure { Log.e(TAG, "could not reset the capture status", it) }
+            refreshCaptures()
         }
     }
 
@@ -182,6 +247,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val settings: BlockSettings,
         val ruleLoadStatus: RuleLoadStatus,
         val captureStatus: CaptureStatus,
+        val captures: CapturesOnDisk,
     )
 
     /** Which apps are on the phone, and which the service may actually observe. */
@@ -214,11 +280,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
+    // Five flows, which is exactly where combine's typed overloads stop — a sixth
+    // would force the untyped vararg form back, and that is the shape this file
+    // was just rid of. Split the slice rather than reach for it.
     private val statusSlice: Flow<StatusSlice> = combine(
         serviceEnabled,
         settingsStore.settings,
         settingsStore.ruleLoadStatus,
         settingsStore.captureStatus,
+        captures,
         ::StatusSlice,
     )
 
@@ -239,6 +309,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             degraded = history.degradedByTier || status.ruleLoadStatus.error != null,
             ruleLoadError = status.ruleLoadStatus.error,
             captureStatus = status.captureStatus,
+            captures = status.captures,
             installedPackages = packages.installed,
             declaredPackages = packages.declared,
             watched = history.watched,

@@ -26,7 +26,33 @@ import kotlinx.coroutines.delay
  * screen's shape rather than its repair tools.
  */
 @Composable
-fun MaintenanceSection(state: HomeUiState, onStartCapture: () -> Unit) {
+fun MaintenanceSection(
+    state: HomeUiState,
+    onStartCapture: () -> Unit,
+    onDeleteCaptures: () -> Unit,
+) {
+    // The clock lives here rather than inside the capture control, because two
+    // things below depend on the phase now: the capture button, and whether the
+    // delete button may appear. Left where it was, `now` would have been local
+    // state of one child and the other would have been drawn against whatever
+    // time it happened to be composed at — a phase that changes by time passing
+    // alone, with no emission to trigger a redraw. That is the frozen-countdown
+    // defect this project has already paid for once.
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    val phase = capturePhase(state.captureStatus, now)
+    val midSession = phase == CapturePhase.WAITING || phase == CapturePhase.RUNNING
+
+    // Ticks only while the display can still change, and stops on its own: a
+    // permanent one-second timer to render a finished session would be waste.
+    LaunchedEffect(state.captureStatus) {
+        while (true) {
+            now = System.currentTimeMillis()
+            val current = capturePhase(state.captureStatus, now)
+            if (current != CapturePhase.WAITING && current != CapturePhase.RUNNING) break
+            delay(1_000)
+        }
+    }
+
     Section(title = stringResource(R.string.maintenance_title)) {
         // Both of these only matter when something has gone wrong, so they sit at
         // the foot of the page rather than above the numbers the user came for.
@@ -55,8 +81,64 @@ fun MaintenanceSection(state: HomeUiState, onStartCapture: () -> Unit) {
         Spacer(Modifier.height(14.dp))
         CaptureControl(
             status = state.captureStatus,
+            phase = phase,
+            now = now,
             serviceEnabled = state.serviceEnabled,
             onStartCapture = onStartCapture,
+        )
+        StoredCaptures(
+            captures = state.captures,
+            // Nothing to press mid-session, for the same reason the capture button
+            // itself disappears there: deleting three files while the session is
+            // about to write three more reads as a button that did not work.
+            visible = !midSession,
+            onDelete = onDeleteCaptures,
+        )
+    }
+}
+
+/**
+ * What is on disk, and the offer to remove it.
+ *
+ * Hidden entirely when there is nothing: an always-present delete button with
+ * nothing to delete is noise on a screen whose whole point is a short page.
+ *
+ * No confirmation step, on purpose. The line above the button says how many files
+ * and how much they weigh, which is a better safeguard than a dialog that gets
+ * dismissed reflexively — and the cost of a mistake is bounded, since arming a
+ * capture already clears earlier sessions anyway. What the wording has to carry
+ * instead is that these files are worth pulling off the phone first.
+ */
+@Composable
+private fun StoredCaptures(captures: CapturesOnDisk, visible: Boolean, onDelete: () -> Unit) {
+    if (captures.count == 0 || !visible) return
+
+    Spacer(Modifier.height(14.dp))
+    Text(
+        text = stringResource(
+            R.string.captures_on_disk,
+            captures.count,
+            formatBytes(captures.bytes),
+        ),
+        style = MaterialTheme.typography.bodySmall,
+        color = EncreDouce,
+    )
+    Spacer(Modifier.height(4.dp))
+    Text(
+        text = stringResource(R.string.captures_personal_data),
+        style = MaterialTheme.typography.bodySmall,
+        color = EncreDouce,
+    )
+    Spacer(Modifier.height(8.dp))
+    TextButton(
+        onClick = onDelete,
+        shape = MaterialTheme.shapes.small,
+        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.delete_captures),
+            style = MaterialTheme.typography.labelSmall,
+            color = Alerte,
         )
     }
 }
@@ -72,23 +154,11 @@ fun MaintenanceSection(state: HomeUiState, onStartCapture: () -> Unit) {
 @Composable
 private fun CaptureControl(
     status: CaptureStatus,
+    phase: CapturePhase,
+    now: Long,
     serviceEnabled: Boolean,
     onStartCapture: () -> Unit,
 ) {
-    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    val phase = capturePhase(status, now)
-
-    // Ticks only while the display can still change, and stops on its own: a
-    // permanent one-second timer to render a finished session would be waste.
-    LaunchedEffect(status) {
-        while (true) {
-            now = System.currentTimeMillis()
-            val current = capturePhase(status, now)
-            if (current != CapturePhase.WAITING && current != CapturePhase.RUNNING) break
-            delay(1_000)
-        }
-    }
-
     val message = when {
         !serviceEnabled -> stringResource(R.string.capture_needs_service)
         phase == CapturePhase.WAITING -> stringResource(R.string.capture_waiting)

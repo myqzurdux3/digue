@@ -11,6 +11,9 @@
     <string name="capture_done">Terminé : %1$d instantanés enregistrés.</string>
     <string name="capture_missed">Aucun instantané : aucune application surveillée n\'est passée au premier plan.</string>
     <string name="capture_needs_service">Le service est éteint : la capture ne peut pas démarrer.</string>
+    <string name="captures_on_disk">%1$d instantané(s) sur le disque — %2$s</string>
+    <string name="captures_personal_data">Ils contiennent de vraies données personnelles. Récupère-les avant de les effacer.</string>
+    <string name="delete_captures">Supprimer les captures</string>
     <string name="capture_hint">Appuie, puis ouvre une application dont une surface est allumée et navigue dedans. Seules ces applications-là sont visibles du service. Un instantané est enregistré toutes les 3 secondes. Les instantanés des captures précédentes sont effacés au démarrage : ils contiennent de vraies données personnelles, récupère-les avant d\'en relancer une.</string>
     <string name="service_on">Service actif</string>
     <string name="service_off">Service inactif</string>

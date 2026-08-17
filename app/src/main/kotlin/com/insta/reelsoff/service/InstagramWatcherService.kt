@@ -553,9 +553,6 @@ class InstagramWatcherService : AccessibilityService() {
         return target.performAction(AccessibilityNodeInfo.ACTION_CLICK)
     }
 
-    private fun captureDirectory(): File =
-        File(getExternalFilesDir(null), "captures").apply { mkdirs() }
-
     /**
      * Deletes the snapshots left by earlier sessions, when a new one is armed.
      *
@@ -570,36 +567,23 @@ class InstagramWatcherService : AccessibilityService() {
      * own recipe pulls these files off the device without `run-as`, and moving
      * them would break it. Clearing them at each arming does not make the
      * exposure zero — it bounds it to one session instead of to the app's whole
-     * history, which is the part that was actually indefensible.
+     * history, which is the part that was actually indefensible. The home screen
+     * offers to clear the rest on demand.
      *
-     * Deletes only files of a **strictly earlier** session, matched on the stamp in
-     * their own name. Skipping "the session just armed" would have been enough for
-     * one arming and wrong for two: the capture button is only hidden once the
-     * status has come back through DataStore, so a double press sends two
-     * broadcasts, and the two purges run on IO in no particular order. A late
-     * purge for session 1 would then have deleted session 2's files. Ordering by
-     * stamp makes that impossible rather than unlikely.
-     *
-     * Matches the naming pattern too, so anything else parked in that directory —
-     * a scrubbed derivative, say — is left alone.
+     * Which files go is decided by [deleteCaptures], shared with that button.
      */
     private fun purgeOldCaptures() {
         val current = sessionStamp
         scope.launch {
             runCatching {
-                captureDirectory().listFiles()
-                    ?.filter { file -> stampOf(file.name)?.let { it < current } == true }
-                    ?.forEach { it.delete() }
+                val gone = deleteCaptures(applicationContext, before = current)
+                if (gone > 0) Log.i(TAG, "purged $gone captures from earlier sessions")
             }.onFailure {
                 if (it is CancellationException) throw it
                 Log.e(TAG, "could not purge earlier captures", it)
             }
         }
     }
-
-    /** The session stamp in `capture-<stamp>-<index>.json`, or null if not one of ours. */
-    private fun stampOf(fileName: String): Long? = CAPTURE_NAME.matchEntire(fileName)
-        ?.groupValues?.get(1)?.toLongOrNull()
 
     /**
      * Writes one snapshot, off the main thread.
@@ -618,7 +602,7 @@ class InstagramWatcherService : AccessibilityService() {
         val name = "capture-%d-%03d.json".format(sessionStamp, captureIndex++)
         scope.launch {
             runCatching {
-                val file = File(captureDirectory(), name)
+                val file = File(captureDirectory(applicationContext), name)
                 file.writeText(json.encodeToString(snapshot))
                 Log.i(TAG, "wrote ${file.absolutePath} (${snapshot.nodes.size} nodes)")
             }.onFailure {
@@ -634,7 +618,5 @@ class InstagramWatcherService : AccessibilityService() {
 
         private const val TAG = "ReelsOff"
 
-        /** `capture-<stamp>-<index>.json`, the only files purging is allowed to touch. */
-        private val CAPTURE_NAME = Regex("""capture-(\d+)-\d+\.json""")
     }
 }
