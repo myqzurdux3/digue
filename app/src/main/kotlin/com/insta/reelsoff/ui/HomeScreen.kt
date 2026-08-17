@@ -86,7 +86,7 @@ fun HomeScreen(
         }
 
         Section(title = stringResource(R.string.today)) {
-            TodayTotal(state.todayTotal, state.settings.blockedSurfaces, state.history.lastOrNull())
+            TodayTotal(state.todayTotal, state.history.lastOrNull())
         }
 
         Section(
@@ -102,7 +102,7 @@ fun HomeScreen(
                 group.surfaces.forEachIndexed { index, surface ->
                     if (index > 0) Spacer(Modifier.height(4.dp))
                     SwitchRow(
-                        label = stringResource(switchLabelRes(surface)),
+                        label = switchLabel(surface),
                         checked = surface in state.settings.blockedSurfaces,
                         onCheckedChange = { onSurfaceBlockedChanged(surface, it) },
                     )
@@ -119,12 +119,15 @@ fun HomeScreen(
                 color = EncreDouce,
             )
             Spacer(Modifier.height(10.dp))
-            // What the service is actually allowed to watch right now, derived from
-            // the same blocked-surfaces set the switches above edit — so this line
-            // can never drift from what the switches say.
-            val observedLabels = groups
-                .filter { group -> group.surfaces.any { it in state.settings.blockedSurfaces } }
-                .map { stringResource(it.labelResId) }
+            // What the service is actually declaring to Android right now — state.declaredPackages
+            // comes from the same declaredPackages(ruleSet, blocked) the service itself calls (see
+            // DeclaredPackages.kt), not from the installed-filtered `groups` above. Installed-app
+            // detection can be empty or stale while a surface is still blocked, and this line has
+            // to stay true even then, unlike the switches, which rightly hide an app nobody has.
+            val observedLabels = state.declaredPackages
+                .mapNotNull { packageName -> labelForPackage(packageName) }
+                .map { stringResource(it) }
+                .distinct()
                 .sorted()
             Text(
                 text = stringResource(
@@ -144,30 +147,33 @@ fun HomeScreen(
     }
 }
 
-/** Which switch label a surface's toggle carries, inside its app's [Section]. */
-private fun switchLabelRes(surface: Surface): Int = when (surface) {
-    Surface.REELS -> R.string.block_reels
-    Surface.EXPLORE -> R.string.block_explore
-    Surface.SHORTS -> R.string.block_shorts
-    Surface.SPOTLIGHT -> R.string.block_spotlight
-    Surface.OTHER -> error("OTHER never appears in a SurfaceGroup")
+/**
+ * Which switch label a surface's toggle carries, inside its app's [Section].
+ *
+ * `OTHER` falls back to an empty string rather than throwing: it never actually
+ * reaches here (`surfaceGroups()` never emits it), but this screen shares a
+ * process with the accessibility service, so a wrong label beats a crash.
+ */
+@Composable
+private fun switchLabel(surface: Surface): String = when (surface) {
+    Surface.REELS -> stringResource(R.string.block_reels)
+    Surface.EXPLORE -> stringResource(R.string.block_explore)
+    Surface.SHORTS -> stringResource(R.string.block_shorts)
+    Surface.SPOTLIGHT -> stringResource(R.string.block_spotlight)
+    Surface.OTHER -> ""
 }
 
-/** The short display name for a surface, used in the daily breakdown line. */
-private fun shortLabelRes(surface: Surface): Int = when (surface) {
-    Surface.REELS -> R.string.reels
-    Surface.EXPLORE -> R.string.explore
-    Surface.SHORTS -> R.string.shorts
-    Surface.SPOTLIGHT -> R.string.spotlight
-    Surface.OTHER -> error("OTHER never appears in a SurfaceGroup")
-}
-
-private fun DailyCount.countFor(surface: Surface): Int = when (surface) {
-    Surface.REELS -> reels
-    Surface.EXPLORE -> explore
-    Surface.SHORTS -> shorts
-    Surface.SPOTLIGHT -> spotlight
-    Surface.OTHER -> 0
+/**
+ * The short display name for a surface, used in the daily breakdown line.
+ * `OTHER` is unreachable (see [switchLabel]) and falls back the same way.
+ */
+@Composable
+private fun shortLabel(surface: Surface): String = when (surface) {
+    Surface.REELS -> stringResource(R.string.reels)
+    Surface.EXPLORE -> stringResource(R.string.explore)
+    Surface.SHORTS -> stringResource(R.string.shorts)
+    Surface.SPOTLIGHT -> stringResource(R.string.spotlight)
+    Surface.OTHER -> ""
 }
 
 @Composable
@@ -351,7 +357,7 @@ private fun Callout(text: String) {
 }
 
 @Composable
-private fun TodayTotal(total: Int, blockedSurfaces: Set<Surface>, today: DailyCount?) {
+private fun TodayTotal(total: Int, today: DailyCount?) {
     val accessibleTotal = stringResource(R.string.today_total, total)
     Column {
         Counter(
@@ -361,12 +367,12 @@ private fun TodayTotal(total: Int, blockedSurfaces: Set<Surface>, today: DailyCo
             // together the bare number and the small-caps label separately.
             modifier = Modifier.clearAndSetSemantics { contentDescription = accessibleTotal },
         )
-        // Order follows the enum, which is also the order the surfaces are declared
-        // in the switch sections below, so the breakdown reads left to right the
-        // same way the toggles do.
-        val breakdown = Surface.entries
-            .filter { it != Surface.OTHER && it in blockedSurfaces }
-            .map { surface -> stringResource(shortLabelRes(surface)) to (today?.countFor(surface) ?: 0) }
+        // Every surface with a nonzero count today, blocked or not right now — see
+        // breakdownSurfaces() — so this line's numbers always sum to the total above.
+        // Enum order, which is also the order surfaces are declared in the switch
+        // sections below, so the breakdown reads left to right like the toggles do.
+        val breakdown = breakdownSurfaces(today)
+            .map { surface -> shortLabel(surface) to (today?.countFor(surface) ?: 0) }
         if (breakdown.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
             Text(
