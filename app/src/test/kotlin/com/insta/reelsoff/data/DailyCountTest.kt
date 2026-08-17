@@ -47,6 +47,21 @@ class DailyCountTest {
     }
 
     @Test
+    fun `counts the newer surfaces too`() {
+        val events = listOf(
+            event(at(today, 9), Surface.SHORTS),
+            event(at(today, 10), Surface.SHORTS),
+            event(at(today, 11), Surface.SPOTLIGHT),
+        )
+
+        val last = dailyCounts(events, paris, today, days = 14).last()
+
+        assertEquals(2, last.shorts)
+        assertEquals(1, last.spotlight)
+        assertEquals(3, last.total)
+    }
+
+    @Test
     fun `buckets by local day not by utc day`() {
         // 00:30 Paris on the 16th is 22:30 UTC on the 15th.
         val events = listOf(event(at(today, 0, 30), Surface.REELS))

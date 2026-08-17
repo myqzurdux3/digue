@@ -1,6 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!--
+      Android 11+ (targetSdk 35 here) hides other apps' package info by default.
+      Without this, PackageManager#getPackageInfo on any of these package names
+      throws NameNotFoundException even when the app is installed, and the home
+      screen's "installed apps" detection silently reports nothing. This does not
+      grant any new capability beyond seeing whether these five specific packages
+      are present.
+    -->
+    <queries>
+        <package android:name="com.instagram.android" />
+        <package android:name="com.google.android.youtube" />
+        <package android:name="com.google.android.apps.youtube.kids" />
+        <package android:name="app.revanced.android.youtube" />
+        <package android:name="com.snapchat.android" />
+    </queries>
+
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"

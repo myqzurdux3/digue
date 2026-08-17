@@ -9,8 +9,10 @@ data class DailyCount(
     val date: LocalDate,
     val reels: Int,
     val explore: Int,
+    val shorts: Int = 0,
+    val spotlight: Int = 0,
 ) {
-    val total: Int get() = reels + explore
+    val total: Int get() = reels + explore + shorts + spotlight
 }
 
 /**
@@ -29,6 +31,8 @@ fun dailyCounts(
     val firstDay = today.minusDays((days - 1).toLong())
     val reels = mutableMapOf<LocalDate, Int>()
     val explore = mutableMapOf<LocalDate, Int>()
+    val shorts = mutableMapOf<LocalDate, Int>()
+    val spotlight = mutableMapOf<LocalDate, Int>()
 
     for (event in events) {
         val date = Instant.ofEpochMilli(event.epochMillis).atZone(zone).toLocalDate()
@@ -36,12 +40,14 @@ fun dailyCounts(
         when (event.surface) {
             Surface.REELS.name -> reels.merge(date, 1, Int::plus)
             Surface.EXPLORE.name -> explore.merge(date, 1, Int::plus)
+            Surface.SHORTS.name -> shorts.merge(date, 1, Int::plus)
+            Surface.SPOTLIGHT.name -> spotlight.merge(date, 1, Int::plus)
             else -> Unit
         }
     }
 
     return (0 until days).map { offset ->
         val date = firstDay.plusDays(offset.toLong())
-        DailyCount(date, reels[date] ?: 0, explore[date] ?: 0)
+        DailyCount(date, reels[date] ?: 0, explore[date] ?: 0, shorts[date] ?: 0, spotlight[date] ?: 0)
     }
 }

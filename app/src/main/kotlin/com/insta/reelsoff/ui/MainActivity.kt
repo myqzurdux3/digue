@@ -15,7 +15,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.insta.detection.Surface as BlockedSurface
 import com.insta.reelsoff.service.InstagramWatcherService
 
 class MainActivity : ComponentActivity() {
@@ -47,8 +46,9 @@ class MainActivity : ComponentActivity() {
                                     .setPackage(packageName),
                             )
                         },
-                        onBlockReelsChanged = { viewModel.setSurfaceBlocked(BlockedSurface.REELS, it) },
-                        onBlockExploreChanged = { viewModel.setSurfaceBlocked(BlockedSurface.EXPLORE, it) },
+                        onSurfaceBlockedChanged = { surface, blocked ->
+                            viewModel.setSurfaceBlocked(surface, blocked)
+                        },
                     )
                 }
             }
@@ -59,5 +59,6 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.refreshServiceStatus()
+        viewModel.refreshInstalledPackages()
     }
 }

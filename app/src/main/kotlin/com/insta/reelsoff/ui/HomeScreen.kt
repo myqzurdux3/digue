@@ -36,6 +36,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -54,8 +56,7 @@ fun HomeScreen(
     state: HomeUiState,
     onOpenAccessibilitySettings: () -> Unit,
     onStartCapture: () -> Unit,
-    onBlockReelsChanged: (Boolean) -> Unit,
-    onBlockExploreChanged: (Boolean) -> Unit,
+    onSurfaceBlockedChanged: (Surface, Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -85,7 +86,7 @@ fun HomeScreen(
         }
 
         Section(title = stringResource(R.string.today)) {
-            TodayCounters(state.todayReels, state.todayExplore)
+            TodayTotal(state.todayTotal, state.settings.blockedSurfaces, state.history.lastOrNull())
         }
 
         Section(
@@ -95,18 +96,18 @@ fun HomeScreen(
             HistoryChart(state.history)
         }
 
-        Section(title = stringResource(R.string.blocking_title)) {
-            SwitchRow(
-                label = stringResource(R.string.block_reels),
-                checked = Surface.REELS in state.settings.blockedSurfaces,
-                onCheckedChange = onBlockReelsChanged,
-            )
-            Spacer(Modifier.height(4.dp))
-            SwitchRow(
-                label = stringResource(R.string.block_explore),
-                checked = Surface.EXPLORE in state.settings.blockedSurfaces,
-                onCheckedChange = onBlockExploreChanged,
-            )
+        val groups = surfaceGroups(installed = state.installedPackages)
+        for (group in groups) {
+            Section(title = stringResource(group.labelResId)) {
+                group.surfaces.forEachIndexed { index, surface ->
+                    if (index > 0) Spacer(Modifier.height(4.dp))
+                    SwitchRow(
+                        label = stringResource(switchLabelRes(surface)),
+                        checked = surface in state.settings.blockedSurfaces,
+                        onCheckedChange = { onSurfaceBlockedChanged(surface, it) },
+                    )
+                }
+            }
         }
 
         Section(title = stringResource(R.string.maintenance_title)) {
@@ -114,6 +115,22 @@ fun HomeScreen(
             // the foot of the page rather than above the numbers the user came for.
             Text(
                 text = stringResource(R.string.battery_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = EncreDouce,
+            )
+            Spacer(Modifier.height(10.dp))
+            // What the service is actually allowed to watch right now, derived from
+            // the same blocked-surfaces set the switches above edit — so this line
+            // can never drift from what the switches say.
+            val observedLabels = groups
+                .filter { group -> group.surfaces.any { it in state.settings.blockedSurfaces } }
+                .map { stringResource(it.labelResId) }
+                .sorted()
+            Text(
+                text = stringResource(
+                    R.string.declared_packages,
+                    if (observedLabels.isEmpty()) "—" else observedLabels.joinToString(", "),
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = EncreDouce,
             )
@@ -125,6 +142,32 @@ fun HomeScreen(
             )
         }
     }
+}
+
+/** Which switch label a surface's toggle carries, inside its app's [Section]. */
+private fun switchLabelRes(surface: Surface): Int = when (surface) {
+    Surface.REELS -> R.string.block_reels
+    Surface.EXPLORE -> R.string.block_explore
+    Surface.SHORTS -> R.string.block_shorts
+    Surface.SPOTLIGHT -> R.string.block_spotlight
+    Surface.OTHER -> error("OTHER never appears in a SurfaceGroup")
+}
+
+/** The short display name for a surface, used in the daily breakdown line. */
+private fun shortLabelRes(surface: Surface): Int = when (surface) {
+    Surface.REELS -> R.string.reels
+    Surface.EXPLORE -> R.string.explore
+    Surface.SHORTS -> R.string.shorts
+    Surface.SPOTLIGHT -> R.string.spotlight
+    Surface.OTHER -> error("OTHER never appears in a SurfaceGroup")
+}
+
+private fun DailyCount.countFor(surface: Surface): Int = when (surface) {
+    Surface.REELS -> reels
+    Surface.EXPLORE -> explore
+    Surface.SHORTS -> shorts
+    Surface.SPOTLIGHT -> spotlight
+    Surface.OTHER -> 0
 }
 
 @Composable
@@ -308,10 +351,30 @@ private fun Callout(text: String) {
 }
 
 @Composable
-private fun TodayCounters(reels: Int, explore: Int) {
-    Row(modifier = Modifier.fillMaxWidth()) {
-        Counter(reels, stringResource(R.string.reels), Modifier.weight(1f))
-        Counter(explore, stringResource(R.string.explore), Modifier.weight(1f))
+private fun TodayTotal(total: Int, blockedSurfaces: Set<Surface>, today: DailyCount?) {
+    val accessibleTotal = stringResource(R.string.today_total, total)
+    Column {
+        Counter(
+            value = total,
+            label = stringResource(R.string.today),
+            // One utterance ("Retenu 3 fois") rather than a screen reader stitching
+            // together the bare number and the small-caps label separately.
+            modifier = Modifier.clearAndSetSemantics { contentDescription = accessibleTotal },
+        )
+        // Order follows the enum, which is also the order the surfaces are declared
+        // in the switch sections below, so the breakdown reads left to right the
+        // same way the toggles do.
+        val breakdown = Surface.entries
+            .filter { it != Surface.OTHER && it in blockedSurfaces }
+            .map { surface -> stringResource(shortLabelRes(surface)) to (today?.countFor(surface) ?: 0) }
+        if (breakdown.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = breakdown.joinToString(" · ") { (label, count) -> "$label : $count" },
+                style = MaterialTheme.typography.bodySmall,
+                color = EncreDouce,
+            )
+        }
     }
 }
 
