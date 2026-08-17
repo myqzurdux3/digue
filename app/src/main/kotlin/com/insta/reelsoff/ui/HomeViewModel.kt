@@ -13,6 +13,7 @@ import com.insta.reelsoff.data.DailyCount
 import com.insta.reelsoff.data.RuleLoadStatus
 import com.insta.reelsoff.data.SettingsStore
 import com.insta.reelsoff.data.dailyCounts
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -83,12 +84,20 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         serviceEnabled.value = isServiceEnabled(getApplication())
     }
 
-    /** Called from onResume: the user can install or remove an app while this screen is closed. */
+    /**
+     * Called from onResume: the user can install or remove an app while this
+     * screen is closed. Dispatched onto viewModelScope (which defaults to
+     * Dispatchers.Main.immediate) so the five PackageManager IPCs below don't
+     * run synchronously on the caller's thread — onResume is the main thread.
+     */
     fun refreshInstalledPackages() {
-        val manager = getApplication<Application>().packageManager
-        installedPackages.value = ALL_KNOWN_PACKAGES.filter { candidate ->
-            runCatching { manager.getPackageInfo(candidate, 0) }.isSuccess
-        }.toSet()
+        viewModelScope.launch(Dispatchers.IO) {
+            val manager = getApplication<Application>().packageManager
+            val installed = ALL_KNOWN_PACKAGES.filter { candidate ->
+                runCatching { manager.getPackageInfo(candidate, 0) }.isSuccess
+            }.toSet()
+            installedPackages.value = installed
+        }
     }
 
     private val zone: ZoneId get() = ZoneId.systemDefault()
