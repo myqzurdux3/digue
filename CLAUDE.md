@@ -56,7 +56,8 @@ migration Room 1 → 2, l'enregistrement du temps regardé, et la **survie à un
   `files/datastore/settings.preferences_pb`. Restaurer via `base64` sur l'entrée standard —
   `adb push` vers le stockage externe ne marche pas, l'app n'y a pas accès en `run-as`.
 
-**Trois comportements fins, déjà livrés et vérifiés, à ne pas casser :**
+**Trois comportements fins, à ne pas casser — les trois revérifiés à la main par
+l'utilisateur le 2026-08-17, APRÈS le remaniement de l'audit :**
 
 1. **Un reel qu'un contact envoie en message reste regardable**, mais les reels suggérés qui
    suivent sont bloqués.
@@ -64,6 +65,12 @@ migration Room 1 → 2, l'enregistrement du temps regardé, et la **survie à un
    parce que bloquer Explore bloquait aussi la seule recherche d'Instagram. **Revérifié à la
    main le 2026-08-17 : fonctionne.**
 3. **Une story d'un ami sur Snapchat reste regardable**, les vidéos Discover non.
+
+Les trois tiennent après l'audit. Les deux premiers ont été confirmés par
+l'utilisateur lui-même — un reel envoyé par un ami en message privé, et une story
+d'ami — parce qu'ils touchent de vraies conversations et que je ne les ouvre pas
+de mon côté. Le troisième est prouvé par `block_event` : `DISCOVER` bloqué,
+`SPOTLIGHT` bloqué, aucune ligne pour la story.
 
 Le quota ne change aucun des trois : quand un laissez-passer est ouvert, le service remet
 simplement un **ensemble vide** de surfaces bloquées au `Blocker`, ce qui est son chemin déjà
@@ -614,7 +621,8 @@ regardé quand même — c'est le chiffre que le quota existe pour faire baisser
    **Deux sorties, toutes deux à ton choix** : un appareil sous Android 8-12 pour éprouver le
    mécanisme, ou remonter `minSdk` à 33 — ce qui supprime la classe entière de problème sans
    une ligne de code, au prix d'Android 8 à 12.
-3. **Heuristique de la barre de navigation (F9, différée).** `ScreenClassifier.findNavBar`
+3. **Heuristique de la barre de navigation (F9, différée — et l'utilisateur l'a
+   explicitement dépriorisée le 2026-08-17 : « c'est pas important pour l'instant »).** `ScreenClassifier.findNavBar`
    retient « ≥4 frères cliquables, la rangée la plus basse ». Sur les captures réelles cela
    laisse 3-4 rangées candidates par écran, départagées par la seule géométrie. Un panneau ou
    une feuille à 4 boutons pourrait déplacer la vraie barre. C'est le seul repli restant pour
@@ -626,7 +634,8 @@ regardé quand même — c'est le chiffre que le quota existe pour faire baisser
    pas de couture pure pour `Settings.Secure` ; et `HomeViewModel` n'a aucun test du tout — ses
    fonctions pures le sont, mais le fait qu'il les appelle dans le bon ordre ne l'est pas, ce
    qui est précisément par où un défaut de comptage du temps regardé était passé.
-5. **Non vérifié** : persistance sur 24 h ; côté quota, le resserrement pendant qu'un
+5. **Non vérifié** : la persistance sur 24 h — l'utilisateur doit la constater
+   lui-même et la rapporter, aucune manipulation à faire d'ici là ; côté quota, le resserrement pendant qu'un
    changement est en attente, et la maturation réelle d'un délai d'une heure.
 
 **Deux points fermés par la mesure le 2026-08-17 :**
