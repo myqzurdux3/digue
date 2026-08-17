@@ -185,4 +185,27 @@ class RuleSetParserTest {
 
         assertTrue(result is ParseResult.Failure)
     }
+
+    @Test
+    fun `a mistyped new field degrades instead of throwing`() {
+        // The rules file is hand-edited on the phone to repair detection without
+        // recompiling, so the day it is wrong the app must degrade, not crash.
+        val raw = """
+            {
+              "version": 1,
+              "surfaces": {
+                "REELS": {
+                  "signals": [
+                    { "tier": "HIGH", "type": "VIEW_ID", "value": "pager",
+                      "requireOnScreen": "yes" }
+                  ]
+                }
+              }
+            }
+        """.trimIndent()
+
+        val result = RuleSetParser.parse(raw)
+
+        assertTrue(result is ParseResult.Failure)
+    }
 }
