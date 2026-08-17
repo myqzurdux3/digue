@@ -1,13 +1,31 @@
 # Digue — état du projet
 
-App Android qui **bloque l'onglet Reels et la page Explore dans l'app Instagram officielle**.
-Ce n'est pas un client alternatif : Instagram n'expose aucune API de fil d'actualité. L'app
-observe l'arbre de vues d'Instagram via un `AccessibilityService`, reconnaît l'écran affiché,
-et déclenche un retour arrière quand c'est un écran bloqué.
+App Android qui **bloque les fils de vidéos courtes dans plusieurs apps officielles**.
+Ce n'est pas un client alternatif : aucune de ces apps n'expose d'API de fil. Digue observe
+leur arbre de vues via un `AccessibilityService`, reconnaît l'écran affiché, et agit —
+retour arrière la plupart du temps, ou un appui sur un nœud précis pour Explore.
 
-**Statut : v1 terminée et fusionnée dans `main` (2026-08-16).** 27 commits, 76 tests JVM,
-10 tests instrumentés, recette passée sur appareil réel. **Passe esthétique faite ensuite**
-(nom, logo, écran), branche `feat/digue-aesthetics`.
+**Cinq surfaces bloquées**, chacune avec son interrupteur :
+
+| App | Surface | Signal principal |
+|---|---|---|
+| Instagram | `REELS` | `clips_tab`, et le lecteur `clips_viewer_view_pager` |
+| Instagram | `EXPLORE` | `search_tab` — **redirige** vers la recherche au lieu de sortir |
+| YouTube | `SHORTS` | `reel_player_page_container`, `reel_progress_bar` |
+| Snapchat | `SPOTLIGHT` | `spotlight_container` |
+| Snapchat | `DISCOVER` | la colonne d'actions `context_vertical_actions/...` |
+
+**Statut au 2026-08-17 : tout est vérifié sur l'appareil réel de l'utilisateur.** 148 tests
+JVM, 19 tests instrumentés. `main` porte tout sauf la branche `feat/snapchat-discover`
+(Discover Snapchat, validée sur appareil, **non fusionnée**).
+
+**Trois comportements fins, déjà livrés et vérifiés, à ne pas casser :**
+
+1. **Un reel qu'un contact envoie en message reste regardable**, mais les reels suggérés qui
+   suivent sont bloqués.
+2. **Ouvrir l'onglet Explore appuie sur la barre de recherche** au lieu de sortir de l'onglet,
+   parce que bloquer Explore bloquait aussi la seule recherche d'Instagram.
+3. **Une story d'un ami sur Snapchat reste regardable**, les vidéos Discover non.
 
 ## Identité et interface
 
@@ -52,14 +70,21 @@ bleu-vert, filets d'un pixel à la place des cartes. Verrouillée en clair.
 
 ```
 :detection   Kotlin pur, AUCUN import android.* — c'est LA contrainte structurante
-             Surface, Bounds, NodeSummary, ScreenSnapshot, Tier, SignalType, Signal,
-             RuleSet, RuleSetParser, Classification, ScreenClassifier
+             Surface, Bounds (+ isOnScreen), NodeSummary, ScreenSnapshot,
+             Tier, SignalType, Signal, SurfaceRules, AppRules, RuleSet, RULES_VERSION,
+             RuleSetParser, Classification, ScreenClassifier
 :app         service/  InstagramWatcherService, TreeWalker, NodeLike, AccessibilityNodeLike,
-                       Blocker, Clock, NEVER, EventThrottle, CaptureSession, RuleSetLoader
+                       Blocker, Clock, NEVER, EventThrottle, CaptureSession, RuleSetLoader,
+                       DeclaredPackages (declaredPackages, packageNamesFor)
              data/     BlockEvent, BlockEventDao, AppDatabase, DailyCount, dailyCounts,
-                       SettingsStore, BlockSettings
-             ui/       MainActivity, HomeScreen, HomeViewModel, ServiceStatus
+                       SettingsStore, BlockSettings, RuleLoadStatus, CaptureStatus
+             ui/       MainActivity, HomeScreen, HomeViewModel, ServiceStatus, Theme,
+                       CaptureProgress, SurfaceGroups, TodayBreakdown
 ```
+
+**Le service ne s'appelle plus que par habitude `InstagramWatcherService`** — il couvre
+maintenant cinq surfaces sur trois apps. Le renommer casserait le composant enregistré dans
+les réglages d'accessibilité, exactement comme l'identifiant applicatif. Ne pas le faire.
 
 `:detection` ne connaît jamais `AccessibilityNodeInfo`. Le service traduit l'arbre Android en
 `ScreenSnapshot` neutre, puis appelle une fonction pure. C'est ce qui rend la détection testable
@@ -81,8 +106,12 @@ sur JVM contre de vrais arbres capturés.
 
 ## Règles de détection
 
-`app/src/main/assets/rules.json`, surchargeable par `filesDir/rules.json` (édition à la main sur
-le téléphone pour réparer sans recompiler). Trois paliers de confiance :
+`app/src/main/assets/rules.json`, **format version 2, indexé par paquet puis par surface**,
+surchargeable par `filesDir/rules.json` (édition à la main sur le téléphone pour réparer sans
+recompiler). Un fichier version 1 est rejeté proprement, jamais migré en douce. L'analyseur
+**ne jette jamais**.
+
+Trois paliers de confiance :
 
 | Palier | Signal | Robustesse |
 |---|---|---|
@@ -90,13 +119,65 @@ le téléphone pour réparer sans recompiler). Trois paliers de confiance :
 | MEDIUM | `contentDescription` | dépend de la langue |
 | LOW | position dans la barre du bas, trouvée géométriquement | survit aux renommages |
 
-Valeurs réelles calibrées depuis des captures d'Instagram 442.0.0.46.79 :
-`clips_tab` (Reels, indexInParent **1**), `search_tab` (Explore, indexInParent **3**).
+Un signal porte quatre options, toutes payées par un défaut trouvé sur du vrai :
 
-**REELS n'a que HIGH et LOW, pas de MEDIUM — c'est délibéré.** La capture réelle du fil
-d'actualité contient un nœud résiduel hors écran libellé « Reels » avec `isSelected=true`
-(Instagram ne démonte pas l'état de l'écran précédent). Une règle par libellé aurait donc bloqué
-le fil de l'utilisateur. **Ne jamais réintroduire ce palier.**
+- **`requireSelected`, défaut `true`.** Piège majeur : la plupart des nœuds hors barre
+  d'onglets sont à `isSelected=false`, donc **toute règle sur un lecteur doit poser
+  `false` explicitement**, sinon elle ne se déclenche jamais — indiscernable d'une règle
+  qui marche.
+- **`requireOnScreen`, défaut `false`.** N'accepte que les nœuds d'aire strictement positive.
+- **`absentViewIds`.** Le signal ne compte que si aucun de ces identifiants n'est visible.
+- **`clickViewId`** (au niveau de la surface). Appuie sur ce nœud au lieu de quitter l'écran.
+
+### Le piège qui s'est produit trois fois : les nœuds résiduels
+
+**Ces apps ne démontent pas l'écran précédent.** Ses nœuds restent dans l'arbre avec des
+bornes dégénérées. Mesuré trois fois, sur trois identifiants différents :
+
+| Cas | Nœud résiduel | Bornes |
+|---|---|---|
+| fil Instagram | libellé « Reels », `isSelected=true` | hors écran |
+| fil / profil / conversation | `clips_viewer_view_pager` | largeur **0** et **−2160** |
+| fil Instagram | tout l'onglet Explore pré-monté | `left=3240, right=1080` |
+
+D'où `requireOnScreen`. **Toute nouvelle règle sur un conteneur doit le poser**, sinon elle
+bloquera le fil de l'utilisateur.
+
+**REELS n'a toujours pas de palier MEDIUM, et ne doit pas en avoir.** `requireOnScreen` rend
+la chose techniquement possible ; ce serait un changement de comportement non demandé sur le
+chemin le plus dangereux de l'app.
+
+### Les deux discriminations fines, et pourquoi elles sont ainsi
+
+**Reel reçu en message.** Le reel qu'un contact envoie porte `reel_viewer_message_composer`,
+`reply_bar_container`, `sender_username_or_fullname` ; le reel suggéré qui suit n'en a aucun,
+et porte `suggested_title`. Vérifié que la barre de réponse **ne s'estompe pas** : 16
+instantanés sur 46 s sans interaction, marqueurs présents du premier au dernier.
+
+**Story d'ami contre vidéo Discover, sur Snapchat.** Les deux jouent dans le **même**
+`opera_viewer` plein écran. `chrome_subscribe_button` **n'est PAS un discriminant** — il est
+présent des deux côtés, contre toute intuition. Le discriminant est la colonne d'actions
+verticale, absente des stories d'amis.
+
+### Identifiants : deux pièges de nommage
+
+- **Snapchat obfusque ~60 % de ses identifiants** (`0_resource_name_obfuscated`). Les règles
+  Snapchat tiennent sur une poignée de survivants et sont les plus fragiles du projet.
+- **Snapchat expose une partie de son arbre hors du `<paquet>:id/` habituel** :
+  `context_vertical_actions/context_vertical_action_comment`. La règle Discover a été livrée
+  cassée une fois pour cette raison. **En analysant une capture, ne jamais tronquer
+  l'identifiant après le dernier `/`** — c'est exactement ce qui avait masqué le défaut.
+
+### Sources externes utiles
+
+Trois projets comparables ont été lus. **Scrolless** (`duartebarbosadev/Scrolless`) est le plus
+proche : il a convergé indépendamment sur `clips_viewer_view_pager`, et c'est de lui que
+viennent les identifiants YouTube et Snapchat, plus l'idée du garde `suggested_title`. Il
+couvre aussi TikTok (`player_view`, sortie par **accueil** et non retour) et Facebook.
+**NoReel** est un autre paradigme — un navigateur qui injecte du JavaScript dans le site web
+d'Instagram — et **télécharge son script depuis GitHub à l'exécution**, ce que nos invariants
+interdisent. **Shorts-Blocker** est à ne pas imiter : il ne parcourt que 10 nœuds et ne filtre
+aucun paquet.
 
 ## Faits sur l'appareil de test
 
@@ -171,12 +252,47 @@ Leçons :
 - Les fixtures actuelles sont nettoyées : toutes les `contentDescription` valent `[scrubbed]`
   sauf 7 chaînes de chrome Instagram (`Reels`, `Home`, `Rechercher et explorer`, `Profil`,
   `Plus`, `Créer un reel`, `Créer`). **`Reels` doit rester** : c'est le nœud piège du fil.
-- Ne jamais commiter de capture d'écran d'Instagram ni de capture d'arbre brute.
+- Ne jamais commiter de capture d'écran ni de capture d'arbre brute, d'aucune des trois apps.
+- Les fixtures Snapchat/YouTube n'existent pas encore : leurs règles sont vérifiées sur
+  appareil mais **sans aucun test de non-régression**.
+
+## Ce que le service a le droit de voir
+
+`android:packageNames` est **appliqué par Android**, pas par l'app : un paquet absent de la
+liste est *incapable* d'atteindre le service. C'est la garantie la plus forte du projet.
+
+**La permission suit l'interrupteur.** Le service redéclare sa liste à l'exécution via
+`setServiceInfo`, depuis les surfaces activées (`declaredPackages`). Snapchat éteint, Snapchat
+n'est pas dans la liste. Les nouvelles surfaces arrivent **éteintes**.
+
+Trois choses à ne jamais casser là-dedans :
+
+1. **Le plancher statique doit rester dans le manifeste.** `android:packageNames` y vaut
+   Instagram seul. Une liste **nulle signifie « toutes les applications »** pour Android, et
+   la déclaration à l'exécution peut ne jamais tourner — une exception au démarrage suffit.
+   Le plancher n'est pas un plafond : `setServiceInfo` élargit librement au-delà. Ce défaut a
+   été introduit une fois, par le plan, et rattrapé en revue finale.
+2. **Une sélection vide s'écrit comme un paquet impossible**, jamais comme `null` ni comme un
+   tableau vide (`packageNamesFor`).
+3. **`applyDeclaredPackages` ne doit rien laisser échapper** : elle tourne dans le collecteur
+   de réglages, et l'invariant 4 s'applique.
+
+**Cette propriété n'est PAS vérifiée par la mesure.** `dumpsys accessibility` n'expose pas la
+liste de paquets d'un service sur l'appareil de test, et un test par le comportement ne peut
+pas y suppléer, puisque les réglages conditionnent le blocage de toute façon. Elle repose sur
+le contrat documenté de `setServiceInfo`, plus les tests des deux fonctions pures.
 
 ## Chantiers de suite, par priorité
 
-1. ~~Esthétique, logo, nom~~ — **fait.** Voir « Identité et interface » plus haut.
-2. **Heuristique de la barre de navigation (F9, différée).** `ScreenClassifier.findNavBar`
+1. **Fusionner `feat/snapchat-discover`** — deux commits, validés sur appareil, pas encore
+   dans `main`.
+2. **Aucune fixture pour YouTube ni Snapchat.** Leurs règles marchent, mais rien ne préviendra
+   quand un identifiant sera renommé : l'utilisateur le découvrira. Capturer les deux apps et
+   en tirer des fixtures nettoyées est le vrai reste à faire.
+3. **Le tag `ReelsOff` ne remonte plus dans logcat** sur cet appareil, alors que la recette du
+   projet s'appuie dessus. La base `block_event` a servi de preuve à la place — la lire ainsi :
+   `adb shell run-as com.insta.reelsoff cat databases/reelsoff.db > x.sqlite`.
+4. **Heuristique de la barre de navigation (F9, différée).** `ScreenClassifier.findNavBar`
    retient « ≥4 frères cliquables, la rangée la plus basse ». Sur les captures réelles cela
    laisse 3-4 rangées candidates par écran, départagées par la seule géométrie. Un panneau ou
    une feuille à 4 boutons pourrait déplacer la vraie barre. C'est le seul repli restant pour
@@ -189,10 +305,18 @@ Leçons :
    `isServiceEnabled` n'a pas de test car le code n'a pas de couture pure pour `Settings.Secure`.
 4. **Non vérifié** : survie à un redémarrage, persistance sur 24 h. Commandes dans la recette.
 
-## Limite produit à connaître
+## Limites produit à connaître
 
-Bloquer Explore bloque aussi **la recherche Instagram** : c'est le même onglet (`search_tab`).
-L'utilisateur ne peut pas chercher un compte sans désactiver l'interrupteur Explore.
+- ~~Bloquer Explore bloque aussi la recherche Instagram~~ — **résolu.** Explore ne sort plus
+  de l'onglet : il **appuie sur la barre de recherche** (`clickViewId`), donc la loupe reste
+  utilisable et seule la grille devient inatteignable. Budget de trois appuis par visite, puis
+  repli sur le retour arrière, et **jamais d'escalade vers l'accueil** depuis ce chemin.
+- **Un service d'accessibilité ne peut pas annuler un geste.** Il ne filtre que les touches
+  physiques. Après un glissement, l'utilisateur voit toujours ~1 s du contenu suivant avant que
+  l'app réagisse. Irréductible, à ne pas promettre autrement.
+- **Un reel ouvert depuis un profil ou un commentaire est coupé immédiatement**, pas après un :
+  il n'a pas de barre de réponse non plus. Écart assumé par rapport à « un reel autorisé
+  partout sauf l'onglet ».
 
 ## Idée 2, hors périmètre
 
