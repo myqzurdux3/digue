@@ -164,4 +164,49 @@ class AllowanceUiStateTest {
         assertNull(ui.pendingInMillis)
         assertEquals(600_000L, ui.quotaMillis)
     }
+
+    /**
+     * A pass nobody ever settled must not lock the user out the next day.
+     *
+     * `canOpenPass` refuses while an opening stamp is still on the state, and the
+     * panel used to ask it about the state exactly as stored. So a pass opened at
+     * 20:55, abandoned, and never noticed by the service — which needs an event
+     * from a watched app, and gets none once the user has left — left the stamp
+     * behind. The following day the quota is fresh, the window is open, the panel
+     * says "5 min restantes sur 5 min", and the button is dead. It heals only when
+     * the user opens a watched app, which is the thing they wanted the pass for.
+     */
+    @Test
+    fun `a pass left open on a previous day does not block opening one today`() {
+        val stale = AllowanceState(
+            day = epochDayOf(at(16, 20, 55), PARIS),
+            consumedMillis = 60_000,
+            passOpenedAtEpochMillis = at(16, 20, 55),
+        )
+
+        val ui = state(allowanceState = stale, now = at(17, 20, 30))
+
+        assertFalse("the stale pass is not running", ui.passRunning)
+        assertTrue("yesterday's stamp must not veto today's pass", ui.canOpen)
+        assertEquals("today's quota is untouched", 300_000L, ui.remainingMillis)
+    }
+
+    /**
+     * The same state, one day earlier in the day's own window: the pass really has
+     * run out of quota, so the button stays shut — for the right reason this time.
+     */
+    @Test
+    fun `an expired pass from today still blocks opening, on quota not on its stamp`() {
+        val spent = AllowanceState(
+            day = epochDayOf(at(17, 20, 0), PARIS),
+            consumedMillis = 0,
+            passOpenedAtEpochMillis = at(17, 20, 0),
+        )
+
+        val ui = state(allowanceState = spent, now = at(17, 20, 0) + 400_000)
+
+        assertFalse(ui.passRunning)
+        assertFalse(ui.canOpen)
+        assertEquals(0L, ui.remainingMillis)
+    }
 }

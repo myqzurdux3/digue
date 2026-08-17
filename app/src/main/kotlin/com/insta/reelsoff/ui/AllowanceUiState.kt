@@ -10,6 +10,7 @@ import com.insta.reelsoff.service.effectiveSettings
 import com.insta.reelsoff.service.minuteOfDay
 import com.insta.reelsoff.service.passIsOpen
 import com.insta.reelsoff.service.remainingMillis
+import com.insta.reelsoff.service.settle
 import com.insta.reelsoff.service.windowContains
 import java.time.ZoneId
 
@@ -73,16 +74,31 @@ fun allowanceUiState(
             }
             maxOf(byWallClock, byElapsedRealtime).coerceAtLeast(0)
         }
+    // Settled first, and this matters for the button rather than for the numbers.
+    //
+    // canOpenPass refuses while an opening stamp is on the state, and this used to
+    // ask it about the state exactly as stored. A pass that nobody ever settled —
+    // opened, then abandoned before the service could see another event from a
+    // watched app — therefore kept its stamp, and vetoed the button on the
+    // following day, when the quota was fresh and the window open. The panel read
+    // "5 min restantes sur 5 min" over a dead control, and it healed only once the
+    // user opened a watched app, which is the very thing they wanted the pass for.
+    //
+    // Deriving instead of waiting to be told is the same rule the rest of the quota
+    // follows: settle here, exactly as openPass does before writing anything.
+    val settled = settle(effective, state, nowEpochMillis, zone)
     return AllowanceUiState(
         enabled = effective.enabled,
         quotaMillis = effective.quotaMillis,
-        remainingMillis = remainingMillis(effective, state, nowEpochMillis, zone),
+        remainingMillis = remainingMillis(effective, settled, nowEpochMillis, zone),
         windowStartMinutes = effective.windowStartMinutes,
         windowEndMinutes = effective.windowEndMinutes,
         cooldownMillis = effective.cooldownMillis,
         insideWindow = windowContains(effective, minuteOfDay(nowEpochMillis, zone)),
-        canOpen = canOpenPass(effective, state, nowEpochMillis, zone),
-        passRunning = passIsOpen(effective, state, nowEpochMillis, zone),
+        canOpen = canOpenPass(effective, settled, nowEpochMillis, zone),
+        // settle only ever closes a pass that passIsOpen already calls shut, so
+        // this answers the same as it did on the raw state.
+        passRunning = passIsOpen(effective, settled, nowEpochMillis, zone),
         pendingInMillis = stillWaiting,
     )
 }

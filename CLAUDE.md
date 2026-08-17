@@ -550,13 +550,24 @@ regardé quand même — c'est le chiffre que le quota existe pour faire baisser
   l'interface peuvent chacun inscrire une ligne, et la journée compte le pass deux fois.
   Fenêtre minuscule, et l'erreur va dans le sens prudent : elle affiche **plus** de temps
   regardé, jamais moins.
-- **« Ouvrir » enregistre aussi le pass qu'il vient de fermer.** Il settlait par `settle`,
-  qui banque le temps dans l'état et ne rend rien d'autre : les minutes étaient bien
-  décomptées du quota et disparaissaient du graphique. Le service couvre le cas ordinaire —
-  il constate l'expiration à son événement suivant — mais pas celui-là : quitter l'app
-  surveillée avant l'expiration ne lui envoie plus aucun événement, et c'est alors l'écran
-  qui settle en premier. Le chiffre que le quota existe pour faire baisser était celui
-  sous-estimé.
+- **Le temps regardé n'est PAS sous-déclaré, contrairement à ce que l'audit a affirmé.**
+  Cette entrée a d'abord dit que « Ouvrir » perdait le temps d'un pass expiré. C'est faux, et
+  l'erreur mérite d'être gardée : le bouton « Ouvrir » est **désactivé** tant qu'un horodatage
+  d'ouverture traîne, parce que `canOpenPass` l'exige nul — donc le chemin qui aurait perdu la
+  ligne n'était pas atteignable. Vérifié en énumérant les quatre façons dont un pass finit :
+  faute de quota et hors plage laissent `remaining` à 0 ou la plage fermée, donc bouton mort ;
+  un jour antérieur donne une durée nulle par conception ; relever le quota ne change rien,
+  `closePass` plafonnant l'écoulé au quota. **Aucun cas ne rend l'écriture atteignable.**
+  C'est le service, via `recordAnyClosedPass`, qui inscrit les lignes, et il le fait au premier
+  événement suivant. `openPass` passe tout de même par `closureOf` plutôt que `settle` : même
+  état écrit, mais l'arithmétique de durée reste au même endroit pour tout le monde.
+- **En revanche l'horodatage résiduel bloquait le bouton, et ça c'était réel.** `canOpen` se
+  calculait sur l'état **stocké** : un pass ouvert puis abandonné — le service ne le constate
+  qu'avec un événement d'une app surveillée, et il n'en reçoit plus — gardait son horodatage,
+  et **le lendemain, quota frais et plage ouverte, l'écran affichait « 5 min restantes sur
+  5 min » au-dessus d'un bouton mort**. Ça ne se débloquait qu'en ouvrant une app surveillée,
+  c'est-à-dire la chose même pour laquelle on voulait le pass. `allowanceUiState` settle
+  maintenant avant de décider, comme le fait `openPass` avant d'écrire. Deux tests JVM.
 - **Le bandeau de règles illisibles porte maintenant un bouton « Recharger les règles »**
   (`ACTION_RELOAD_RULES`). Avant, le statut n'était écrit qu'au `onServiceConnected` : on
   réparait `rules.json` et le bandeau restait, pendant que le service tournait toujours sur le
