@@ -114,6 +114,22 @@ class SettingsStoreTest {
     }
 
     @Test
+    fun declaredPackagesIsEmptyUntilTheServiceWritesOne() = runBlocking {
+        // Empty here must read as "not published yet", not as "declares nothing" —
+        // the service has not run since the store was cleared.
+        assertTrue(store.declaredPackages.first().isEmpty())
+    }
+
+    @Test
+    fun declaredPackagesSurvivesTheRoundTrip() = runBlocking {
+        store.setDeclaredPackages(setOf("com.instagram.android", "com.snapchat.android"))
+
+        val declared = store.declaredPackages.first()
+
+        assertEquals(setOf("com.instagram.android", "com.snapchat.android"), declared)
+    }
+
+    @Test
     fun armingAgainClearsTheEarlierWindow() = runBlocking {
         store.setCaptureStatus(
             CaptureStatus(armedAtEpochMillis = 111L, startedAtEpochMillis = 222L, count = 7),

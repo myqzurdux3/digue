@@ -91,6 +91,18 @@ class SettingsStore(private val context: Context) {
         )
     }
 
+    /**
+     * The packages the service actually declared to Android the last time it
+     * successfully did so — see `InstagramWatcherService.applyDeclaredPackages`.
+     * Empty before the service has ever run, same as an app just installed and
+     * never opened: that reads as "nothing declared yet", not as "declares
+     * nothing", and the "Service inactif" block already tells the user when the
+     * service itself is the reason nothing is declared.
+     */
+    val declaredPackages: Flow<Set<String>> = context.dataStore.data.map { preferences ->
+        preferences[DECLARED_PACKAGES] ?: emptySet()
+    }
+
     suspend fun setBlockReels(enabled: Boolean) {
         context.dataStore.edit { it[BLOCK_REELS] = enabled }
     }
@@ -132,6 +144,11 @@ class SettingsStore(private val context: Context) {
         }
     }
 
+    /** Written by the service right after a successful `serviceInfo.packageNames` update. */
+    suspend fun setDeclaredPackages(packages: Set<String>) {
+        context.dataStore.edit { it[DECLARED_PACKAGES] = packages }
+    }
+
     suspend fun clear() {
         context.dataStore.edit { it.clear() }
     }
@@ -145,5 +162,6 @@ class SettingsStore(private val context: Context) {
         val CAPTURE_ARMED_AT = longPreferencesKey("capture_armed_at")
         val CAPTURE_STARTED_AT = longPreferencesKey("capture_started_at")
         val CAPTURE_COUNT = intPreferencesKey("capture_count")
+        val DECLARED_PACKAGES = stringSetPreferencesKey("declared_packages")
     }
 }

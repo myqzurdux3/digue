@@ -60,6 +60,5 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         viewModel.refreshServiceStatus()
         viewModel.refreshInstalledPackages()
-        viewModel.refreshRuleSet()
     }
 }

@@ -195,7 +195,28 @@ class InstagramWatcherService : AccessibilityService() {
                 packageNames = if (packages.isEmpty()) arrayOf(NO_PACKAGE) else packages.toTypedArray()
             }
             Log.i(TAG, "declared packages: ${packages.size}")
+            // Only reached once the assignment above has actually succeeded, and
+            // publishes exactly what was assigned (not the sentinel array) — if
+            // the assignment throws, this line never runs and the home screen
+            // keeps showing whatever was last actually declared, rather than
+            // claiming success for a change that never took.
+            publishDeclaredPackages(packages)
         }.onFailure { Log.e(TAG, "could not narrow declared packages", it) }
+    }
+
+    /**
+     * Mirrors the packages just declared to the UI. Failing to publish must never
+     * take the service down — the declaration itself already succeeded, only its
+     * display is affected.
+     */
+    private fun publishDeclaredPackages(packages: Set<String>) {
+        scope.launch {
+            runCatching { SettingsStore(applicationContext).setDeclaredPackages(packages) }
+                .onFailure {
+                    if (it is CancellationException) throw it
+                    Log.e(TAG, "could not publish declared packages", it)
+                }
+        }
     }
 
     override fun onDestroy() {

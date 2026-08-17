@@ -4,7 +4,6 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.insta.detection.RuleSet
 import com.insta.detection.Surface
 import com.insta.reelsoff.data.AppDatabase
 import com.insta.reelsoff.data.BlockEvent
@@ -14,8 +13,6 @@ import com.insta.reelsoff.data.DailyCount
 import com.insta.reelsoff.data.RuleLoadStatus
 import com.insta.reelsoff.data.SettingsStore
 import com.insta.reelsoff.data.dailyCounts
-import com.insta.reelsoff.service.RuleSetLoader
-import com.insta.reelsoff.service.declaredPackages
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,10 +49,14 @@ data class HomeUiState(
     /** Read on resume: the user can install or remove an app while this screen is closed. */
     val installedPackages: Set<String> = emptySet(),
     /**
-     * The packages the service is actually declaring to Android right now — see
-     * `DeclaredPackages.kt`. Deliberately not filtered by [installedPackages]: this is
-     * what "Applications observées" reports, and it has to stay true even if
-     * installed-app detection is empty or stale while a surface is still blocked.
+     * The packages the service actually declared to Android the last time it
+     * succeeded — published by `InstagramWatcherService.applyDeclaredPackages`,
+     * not recomputed here. Deliberately not filtered by [installedPackages]:
+     * this is what "Applications observées" reports, and it must reflect what
+     * really happened, not what should have happened had the assignment
+     * succeeded — those can disagree if `serviceInfo.packageNames =` throws, or
+     * if the service's cached rule set is stale relative to a hand-edited
+     * override file the ViewModel would otherwise re-read on its own.
      */
     val declaredPackages: Set<String> = emptySet(),
 ) {
@@ -76,7 +77,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val dao = AppDatabase.get(application).blockEventDao()
     private val serviceEnabled = MutableStateFlow(false)
     private val installedPackages = MutableStateFlow(emptySet<String>())
-    private val ruleSet = MutableStateFlow(RuleSet(version = 0, apps = emptyMap()))
 
     /** Called from onResume: the user leaves the app to flip the system toggle. */
     fun refreshServiceStatus() {
@@ -89,16 +89,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         installedPackages.value = ALL_KNOWN_PACKAGES.filter { candidate ->
             runCatching { manager.getPackageInfo(candidate, 0) }.isSuccess
         }.toSet()
-    }
-
-    /**
-     * Called from onResume: the user can hand-edit `filesDir/rules.json` while this
-     * screen is closed, same as the service re-reads it on reconnect. Reading it here
-     * mirrors `InstagramWatcherService.onServiceConnected()` — see `RuleSetLoader` — so
-     * "Applications observées" reports the same rule set the service is running.
-     */
-    fun refreshRuleSet() {
-        ruleSet.value = RuleSetLoader(getApplication()).load().ruleSet
     }
 
     private val zone: ZoneId get() = ZoneId.systemDefault()
@@ -128,6 +118,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     // combine's typed overloads stop at five flows; this screen now needs seven, so the
     // vararg form is used instead, indexed positionally against the argument order below.
+    //   0 serviceEnabled            -> Boolean
+    //   1 settingsStore.settings    -> BlockSettings
+    //   2 events                    -> List<BlockEvent>
+    //   3 settingsStore.ruleLoadStatus  -> RuleLoadStatus
+    //   4 settingsStore.captureStatus   -> CaptureStatus
+    //   5 installedPackages         -> Set<String>
+    //   6 settingsStore.declaredPackages -> Set<String>
     val uiState: StateFlow<HomeUiState> = combine(
         serviceEnabled,
         settingsStore.settings,
@@ -135,7 +132,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         settingsStore.ruleLoadStatus,
         settingsStore.captureStatus,
         installedPackages,
-        ruleSet,
+        settingsStore.declaredPackages,
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         val enabled = values[0] as Boolean
@@ -150,7 +147,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         @Suppress("UNCHECKED_CAST")
         val installed = values[5] as Set<String>
         @Suppress("UNCHECKED_CAST")
-        val currentRuleSet = values[6] as RuleSet
+        val declared = values[6] as Set<String>
         HomeUiState(
             serviceEnabled = enabled,
             settings = settings,
@@ -159,7 +156,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             ruleLoadError = ruleLoadStatus.error,
             captureStatus = captureStatus,
             installedPackages = installed,
-            declaredPackages = declaredPackages(currentRuleSet, settings.blockedSurfaces),
+            declaredPackages = declared,
         )
     }
         // Both DataStore (IOException) and Room (SQLiteException) can throw out of this

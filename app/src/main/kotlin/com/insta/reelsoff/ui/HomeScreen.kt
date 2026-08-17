@@ -119,11 +119,15 @@ fun HomeScreen(
                 color = EncreDouce,
             )
             Spacer(Modifier.height(10.dp))
-            // What the service is actually declaring to Android right now — state.declaredPackages
-            // comes from the same declaredPackages(ruleSet, blocked) the service itself calls (see
-            // DeclaredPackages.kt), not from the installed-filtered `groups` above. Installed-app
-            // detection can be empty or stale while a surface is still blocked, and this line has
-            // to stay true even then, unlike the switches, which rightly hide an app nobody has.
+            // state.declaredPackages is what the service last actually assigned to
+            // serviceInfo.packageNames, published by InstagramWatcherService itself
+            // right after a successful assignment (see DeclaredPackages.kt and
+            // applyDeclaredPackages) — not recomputed here from the rule set and not
+            // filtered by the installed-app detection the `groups` above use. That
+            // makes this line true of what happened, not of what should have
+            // happened: it cannot claim success for an assignment that threw, and it
+            // cannot go stale relative to a hand-edited rules.json override the way a
+            // ViewModel-side recomputation could.
             val observedLabels = state.declaredPackages
                 .mapNotNull { packageName -> labelForPackage(packageName) }
                 .map { stringResource(it) }
