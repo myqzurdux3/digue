@@ -39,6 +39,14 @@ android {
     }
 }
 
+// Room writes the schema it expects to schemas/<db>/<version>.json at build time.
+// That is what makes a hand-written Migration verifiable WITHOUT a device: the
+// CREATE TABLE in AppDatabase has to match this file exactly, or Room throws when
+// it opens an upgraded database. Diff the two on every schema change.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     implementation(project(":detection"))
     implementation(libs.kotlinx.serialization.json)

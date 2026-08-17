@@ -16,11 +16,16 @@ retour arrière la plupart du temps, ou un appui sur un nœud précis pour Explo
 | Snapchat | `DISCOVER` | la colonne d'actions `context_vertical_actions/...` |
 
 **Statut au 2026-08-17.** Les cinq surfaces sont vérifiées sur l'appareil réel et `main` les
-porte toutes (`feat/snapchat-discover` est fusionnée). 225 tests JVM, 24 tests instrumentés.
+porte toutes (`feat/snapchat-discover` est fusionnée). 249 tests JVM, 24 tests instrumentés.
 
 Le **quota quotidien, la plage horaire et le verrou par délai** sont dans `main`, vérifiés sur
 appareil — voir « Quota » plus bas pour la paire de mesures qui le prouve et pour ce qui reste
-couvert par les seuls tests purs. Aucune branche en attente de fusion.
+couvert par les seuls tests purs.
+
+La branche `feat/temps-regarde` ajoute la **mesure du temps réellement regardé** et les
+**fixtures YouTube et Snapchat**. Vérifiée sur appareil : migration Room 1 → 2 jouée pour de
+vrai (version 1 → 2, `pass_event` créée, les lignes de `block_event` conservées, aucune erreur
+Room), et deux passes réellement inscrits par le chemin de code normal.
 
 **Trois comportements fins, déjà livrés et vérifiés, à ne pas casser :**
 
@@ -67,7 +72,7 @@ bleu-vert, filets d'un pixel à la place des cartes. Verrouillée en clair.
 
 ```bash
 ./gradlew build                                   # tout
-./gradlew :detection:test :app:testDebugUnitTest  # 225 tests JVM
+./gradlew :detection:test :app:testDebugUnitTest  # 249 tests JVM
 ./gradlew :app:installDebug                       # installe sur l'appareil
 # tests instrumentés : --tests ne marche PAS sur cette version d'AGP, utiliser :
 ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=<fqcn>
@@ -89,7 +94,9 @@ bleu-vert, filets d'un pixel à la place des cartes. Verrouillée en clair.
                        AllowanceLock  (LockedSettings, PendingChange, isLoosening, armChange,
                                        hasMatured, effectiveSettings,
                                        effectiveBlockedSurfaces)
-             data/     BlockEvent, BlockEventDao, AppDatabase, DailyCount, dailyCounts,
+             data/     BlockEvent, BlockEventDao, AppDatabase (+ MIGRATION_1_2),
+                       DailyCount, dailyCounts, PassEvent, PassEventDao,
+                       DailyWatched, dailyWatched,
                        SettingsStore, BlockSettings, RuleLoadStatus, CaptureStatus
              ui/       MainActivity, HomeScreen, HomeViewModel, ServiceStatus, Theme,
                        CaptureProgress, SurfaceGroups, TodayBreakdown,
@@ -180,9 +187,21 @@ et porte `suggested_title`. Vérifié que la barre de réponse **ne s'estompe pa
 instantanés sur 46 s sans interaction, marqueurs présents du premier au dernier.
 
 **Story d'ami contre vidéo Discover, sur Snapchat.** Les deux jouent dans le **même**
-`opera_viewer` plein écran. `chrome_subscribe_button` **n'est PAS un discriminant** — il est
-présent des deux côtés, contre toute intuition. Le discriminant est la colonne d'actions
-verticale, absente des stories d'amis.
+`opera_viewer` plein écran — vérifié une seconde fois le 2026-08-17 : il est à l'écran dans
+Spotlight, Discover **et** la story d'ami. Toute règle qui s'appuierait dessus bloquerait les
+trois. Le discriminant est la **colonne d'actions verticale**, absente des stories d'amis.
+
+Sur `chrome_subscribe_button`, deux mesures se contredisent. La première le donnait présent
+des deux côtés, donc inutilisable ; la capture du 2026-08-17 le montre présent côté Discover
+et **absent** côté story. Un échantillon ne renverse pas une mesure antérieure, et la règle
+n'a pas été touchée : la colonne d'actions marche dans les deux lectures. À trancher avec
+d'autres captures avant d'y toucher — et se souvenir que l'analyse d'origine tronquait les
+identifiants après le dernier `/`, ce qui a déjà produit une conclusion fausse ici.
+
+**`reel_progress_bar` n'apparaît pas** dans la capture Shorts du 2026-08-17, alors que la
+règle YouTube le porte comme second signal. Le premier (`reel_player_page_container`) suffit
+et la fixture le couvre ; mais le second est moins fiable qu'annoncé, et ne doit pas être
+considéré comme un filet.
 
 ### Identifiants : deux pièges de nommage
 
@@ -253,6 +272,27 @@ aucun paquet.
 - Le déclencheur de capture `am broadcast` ne marche PAS depuis un shell (récepteur non exporté,
   posture correcte). Lancer `MainActivity` par adb et taper le bouton « Capturer 60 secondes ».
 
+## Capturer une surface qui est bloquée
+
+**Piège qui a fait rater la première capture Shorts.** Le service ne reçoit d'événements que
+des paquets dont une surface est **allumée** — donc pour capturer Shorts il faut allumer
+Shorts, mais l'allumer le fait bloquer, et la capture n'enregistre que l'écran précédent.
+Mesuré : `block_event` portait deux SHORTS en plein dans la fenêtre, et les quatre instantanés
+ne contenaient que l'accueil YouTube.
+
+**La sortie est le quota** : un pass ouvert suspend le blocage tout en laissant le service
+observer. Recette, pour chaque cible :
+
+1. allumer l'interrupteur de la surface visée ;
+2. dans Digue, **Ouvrir** un pass ;
+3. **Capturer 60 secondes**, tout en bas de l'écran, section Maintenance ;
+4. aller dans l'app et naviguer **lentement** — un instantané toutes les 3 s ;
+5. revenir et **Fermer maintenant**, pour rendre le temps non consommé.
+
+Les fichiers sortent dans `/sdcard/Android/data/com.insta.reelsoff/files/captures/`, lisibles
+sans `run-as`. **Ils contiennent de vraies données personnelles** — les nettoyer avant tout
+usage, et ne jamais les commiter.
+
 ## Méthode de vérification qui marche
 
 Pour savoir si l'utilisateur peut rester coincé dans Reels : taper une fois, puis **rester
@@ -278,8 +318,13 @@ Leçons :
   sauf 7 chaînes de chrome Instagram (`Reels`, `Home`, `Rechercher et explorer`, `Profil`,
   `Plus`, `Créer un reel`, `Créer`). **`Reels` doit rester** : c'est le nœud piège du fil.
 - Ne jamais commiter de capture d'écran ni de capture d'arbre brute, d'aucune des trois apps.
-- Les fixtures Snapchat/YouTube n'existent pas encore : leurs règles sont vérifiées sur
-  appareil mais **sans aucun test de non-régression**.
+- **Les fixtures YouTube et Snapchat existent depuis le 2026-08-17** :
+  `youtube_shorts`, `youtube_home`, `snapchat_spotlight`, `snapchat_discover`,
+  `snapchat_story`. Trois sont des cas **négatifs** — l'accueil YouTube et la story d'ami ne
+  doivent pas être bloqués. Toutes les `contentDescription` valent `[scrubbed]`, sans
+  exception : les arbres bruts portaient un nom de groupe et l'aperçu d'un message dans une
+  bannière de notification. Un test l'affirme, pour qu'une fixture ajoutée sans précaution
+  soit attrapée avant d'atterrir.
 
 ## Ce que le service a le droit de voir
 
@@ -370,6 +415,32 @@ immédiatement ; l'affichage correspond au protobuf au millième près.
 
 **Non vérifié sur appareil**, couvert seulement par les tests purs : le resserrement pendant
 qu'un changement est en attente, et la maturation réelle d'un délai.
+
+### Le temps regardé
+
+Table `pass_event` (instant de fermeture, durée), à côté de `block_event`. Le compte de
+blocages dit à quelle fréquence l'app t'a rattrapé ; celui-ci dit combien de temps tu as
+regardé quand même — c'est le chiffre que le quota existe pour faire baisser.
+
+- **C'est le service qui enregistre.** Un pass qui s'épuise pendant que tu défiles n'est
+  constaté par personne d'autre : l'écran peut être fermé, et les fonctions pures ne font que
+  dériver. `recordAnyClosedPass` le voit à l'événement suivant.
+- **`closureFrom` est le seul endroit où la durée se calcule**, pour que le bouton « Fermer
+  maintenant » et une expiration ne puissent pas raconter deux choses différentes.
+- **La migration 1 → 2 est écrite à la main et `fallbackToDestructiveMigration` est
+  délibérément absent** : il effacerait `block_event`, seule preuve que l'app ait jamais
+  fonctionné. Comme elle n'a pas pu être jouée sur l'appareil, `exportSchema` est activé et un
+  **test JVM compare le `CREATE TABLE` à `app/schemas/…/2.json`**, qui est ce que Room
+  exigera. L'autorité est le JSON, pas le code. Ne pas supprimer `app/schemas/` du dépôt.
+- **Défaut connu, non corrigé** : si tu appuies sur « Fermer maintenant » dans les
+  millisecondes où le pass expire, le service et l'interface peuvent chacun inscrire une
+  ligne, et la journée compte le pass deux fois. Fenêtre minuscule, et l'erreur va dans le
+  sens prudent — elle affiche **plus** de temps regardé, jamais moins.
+- **Vérifié sur appareil le 2026-08-17** : la migration a été jouée en mise à jour depuis une
+  base réelle en version 1 (2 lignes `block_event` conservées, `pass_event` créée au schéma
+  exact, rien dans logcat), et deux `pass_event` ont été inscrits par le chemin normal.
+  **La migration ne se joue que sur une mise à jour** : après une désinstallation, la base
+  naît directement en version 2 et le chemin n'est jamais éprouvé.
 
 ### Deux pièges d'outillage, tous deux rencontrés ici
 

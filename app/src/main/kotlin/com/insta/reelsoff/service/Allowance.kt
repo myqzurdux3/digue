@@ -170,6 +170,53 @@ fun closePass(state: AllowanceState, nowEpochMillis: Long, zone: ZoneId): Allowa
 }
 
 /**
+ * A pass that settling has just closed: the state to persist, and how long it
+ * ran. Deliberately plain numbers rather than a Room entity — this file carries
+ * no `android.*` import, and the caller builds the row.
+ */
+data class PassClosure(
+    val state: AllowanceState,
+    val durationMillis: Long,
+)
+
+/**
+ * Whether settling would close a pass, and what that is worth recording.
+ *
+ * Null means nothing to do, which is the overwhelmingly common answer — no pass
+ * running, or one still running. Both the service and the UI go through here, so
+ * "a pass ended" is decided once rather than in two places that could disagree.
+ *
+ * A pass carried over from an earlier day yields null: [closePass] discards its
+ * time, because the day it belonged to no longer has a budget to charge, and
+ * inventing a duration for it would put time on the wrong day.
+ */
+fun closureOf(
+    settings: AllowanceSettings,
+    state: AllowanceState,
+    nowEpochMillis: Long,
+    zone: ZoneId,
+): PassClosure? = closureFrom(state, settle(settings, state, nowEpochMillis, zone))
+
+/**
+ * The same, for a pass the user shuts on purpose.
+ *
+ * Separate from [closureOf] because a pass closed by the "Fermer maintenant"
+ * button is still legitimately open — settling it would answer "nothing to do".
+ * Both funnel through [closureFrom], so the duration is computed in one place.
+ */
+fun forcedClosureOf(
+    state: AllowanceState,
+    nowEpochMillis: Long,
+    zone: ZoneId,
+): PassClosure? = closureFrom(state, closePass(state, nowEpochMillis, zone))
+
+private fun closureFrom(before: AllowanceState, after: AllowanceState): PassClosure? {
+    if (after == before) return null
+    val banked = after.consumedMillis - before.consumedMillis
+    return PassClosure(after, banked.coerceAtLeast(0))
+}
+
+/**
  * Brings a stored state up to date with the clock: shuts a pass that expired,
  * left the window, or belongs to a past day. Every reader calls this before
  * using a state, so the three ways a pass ends live in one place instead of

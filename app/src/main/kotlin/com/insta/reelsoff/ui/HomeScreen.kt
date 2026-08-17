@@ -106,6 +106,20 @@ fun HomeScreen(
 
         Section(title = stringResource(R.string.today)) {
             TodayTotal(state.todayTotal, state.history.lastOrNull())
+            // The count says how often the app caught you; this says how long you
+            // watched anyway. The second is the figure the quota exists to move,
+            // so it sits with the first rather than in a corner.
+            if (state.todayWatchedMillis > 0) {
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = stringResource(
+                        R.string.today_watched,
+                        formatDuration(state.todayWatchedMillis),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EncreDouce,
+                )
+            }
         }
 
         Section(
@@ -113,6 +127,17 @@ fun HomeScreen(
             trailing = stringResource(R.string.history_total, state.history.sumOf { it.total }),
         ) {
             HistoryChart(state.history)
+            if (state.watchedTotalMillis > 0) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = stringResource(
+                        R.string.history_watched,
+                        formatDuration(state.watchedTotalMillis),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EncreDouce,
+                )
+            }
         }
 
         val groups = surfaceGroups(installed = state.installedPackages)

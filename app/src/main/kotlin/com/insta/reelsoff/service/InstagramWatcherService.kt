@@ -18,6 +18,7 @@ import com.insta.reelsoff.data.AppDatabase
 import com.insta.reelsoff.data.BlockEvent
 import com.insta.reelsoff.data.BlockSettings
 import com.insta.reelsoff.data.CaptureStatus
+import com.insta.reelsoff.data.PassEvent
 import com.insta.reelsoff.data.SettingsStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -362,11 +363,17 @@ class InstagramWatcherService : AccessibilityService() {
             nowEpochMillis = now,
             nowElapsedRealtime = android.os.SystemClock.elapsedRealtime(),
         )
+        val zone = ZoneId.systemDefault()
+        // A pass that runs out while the user is scrolling is noticed by nobody
+        // else: the screen may be closed, and the pure functions only ever derive.
+        // The service is the component that is always running, so it is the one
+        // that banks the time and records the pass.
+        val state = recordAnyClosedPass(effective.allowance, allowanceState, now, zone)
         val blockedNow = effectiveBlockedSurfaces(
             locked = effective,
-            state = allowanceState,
+            state = state,
             nowEpochMillis = now,
-            zone = ZoneId.systemDefault(),
+            zone = zone,
         )
         val decision = blocker.decide(classification, blockedNow)
 
@@ -398,6 +405,50 @@ class InstagramWatcherService : AccessibilityService() {
             }
             Log.i(TAG, "blocked ${classification.surface} via ${decision.tier}")
         }
+    }
+
+    /**
+     * Banks a pass that has just ended and writes it to the history, returning the
+     * state to reason with — settled if it closed one, untouched otherwise.
+     *
+     * Returns synchronously and persists in the background, so the blocking
+     * decision below never waits on a disk write: `onAccessibilityEvent` runs on
+     * the main thread, and the returned state is already correct whether or not
+     * the write lands.
+     *
+     * The write feeds the same DataStore this service collects, so the field is
+     * updated by that collector rather than here. It terminates by idempotence,
+     * not by luck: settling an already-shut pass returns it unchanged, so the
+     * second pass through produces no write.
+     */
+    private fun recordAnyClosedPass(
+        settings: AllowanceSettings,
+        state: AllowanceState,
+        nowEpochMillis: Long,
+        zone: ZoneId,
+    ): AllowanceState {
+        val closure = closureOf(settings, state, nowEpochMillis, zone) ?: return state
+        scope.launch {
+            runCatching {
+                SettingsStore(applicationContext).setAllowanceState(closure.state)
+                // Same arithmetic as the UI's "Fermer maintenant", by construction:
+                // both go through closureFrom.
+                // Zero-length closures are not recorded: a pass carried over from
+                // an earlier day has no duration that belongs to today.
+                if (closure.durationMillis > 0) {
+                    AppDatabase.get(applicationContext).passEventDao().insert(
+                        PassEvent(
+                            epochMillis = nowEpochMillis,
+                            durationMillis = closure.durationMillis,
+                        ),
+                    )
+                }
+            }.onFailure {
+                if (it is CancellationException) throw it
+                Log.e(TAG, "could not record a closed pass", it)
+            }
+        }
+        return closure.state
     }
 
     /**

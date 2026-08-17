@@ -11,15 +11,19 @@ import com.insta.reelsoff.data.BlockEvent
 import com.insta.reelsoff.data.BlockSettings
 import com.insta.reelsoff.data.CaptureStatus
 import com.insta.reelsoff.data.DailyCount
+import com.insta.reelsoff.data.DailyWatched
+import com.insta.reelsoff.data.PassEvent
 import com.insta.reelsoff.data.RuleLoadStatus
 import com.insta.reelsoff.data.SettingsStore
 import com.insta.reelsoff.data.dailyCounts
+import com.insta.reelsoff.data.dailyWatched
 import com.insta.reelsoff.service.AllowanceSettings
 import com.insta.reelsoff.service.AllowanceState
 import com.insta.reelsoff.service.LockedSettings
 import com.insta.reelsoff.service.PendingChange
 import com.insta.reelsoff.service.armChange
-import com.insta.reelsoff.service.closePass
+import com.insta.reelsoff.service.closureOf
+import com.insta.reelsoff.service.forcedClosureOf
 import com.insta.reelsoff.service.maturedProposal
 import com.insta.reelsoff.service.openPass
 import com.insta.reelsoff.service.settle
@@ -71,8 +75,15 @@ data class HomeUiState(
      * override file the ViewModel would otherwise re-read on its own.
      */
     val declaredPackages: Set<String> = emptySet(),
+    /** Watched time per day, same 14-day window and same order as [history]. */
+    val watched: List<DailyWatched> = emptyList(),
 ) {
     val todayTotal: Int get() = history.lastOrNull()?.total ?: 0
+
+    /** Time spent inside a pass today, in millis. */
+    val todayWatchedMillis: Long get() = watched.lastOrNull()?.millis ?: 0
+
+    val watchedTotalMillis: Long get() = watched.sumOf { it.millis }
 }
 
 /**
@@ -101,6 +112,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val settingsStore = SettingsStore(application)
     private val dao = AppDatabase.get(application).blockEventDao()
+    private val passDao = AppDatabase.get(application).passEventDao()
     private val serviceEnabled = MutableStateFlow(false)
     private val installedPackages = MutableStateFlow(emptySet<String>())
 
@@ -150,7 +162,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     @OptIn(ExperimentalCoroutinesApi::class)
     private val events = windowTick.flatMapLatest { dao.observeSince(historySinceMillis()) }
 
-    // combine's typed overloads stop at five flows; this screen needs seven, so the
+    // Driven by the same tick as `events`, so the two histories are always cut on
+    // the same 14-day boundary and can be read index for index.
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val passes = windowTick.flatMapLatest { passDao.observeSince(historySinceMillis()) }
+
+    // combine's typed overloads stop at five flows; this screen needs eight, so the
     // vararg form is used instead, indexed positionally against the argument order below.
     // Nothing here is type-checked: two Set<String> flows sit next to each other, and
     // swapping any two indices compiles and runs. Re-read this table against the
@@ -162,6 +179,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     //   4 settingsStore.captureStatus     -> CaptureStatus
     //   5 installedPackages               -> Set<String>
     //   6 settingsStore.declaredPackages  -> Set<String>
+    //   7 passes                          -> List<PassEvent>
     val uiState: StateFlow<HomeUiState> = combine(
         serviceEnabled,
         settingsStore.settings,
@@ -170,6 +188,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         settingsStore.captureStatus,
         installedPackages,
         settingsStore.declaredPackages,
+        passes,
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         val enabled = values[0] as Boolean
@@ -185,6 +204,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val installed = values[5] as Set<String>
         @Suppress("UNCHECKED_CAST")
         val declared = values[6] as Set<String>
+        @Suppress("UNCHECKED_CAST")
+        val passEvents = values[7] as List<PassEvent>
         HomeUiState(
             serviceEnabled = enabled,
             settings = settings,
@@ -194,6 +215,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             captureStatus = captureStatus,
             installedPackages = installed,
             declaredPackages = declared,
+            watched = dailyWatched(passEvents, zone, LocalDate.now(zone), HISTORY_DAYS),
         )
     }
         // Both DataStore (IOException) and Room (SQLiteException) can throw out of this
@@ -378,10 +400,20 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Closes the pass and records it. Shares the duration arithmetic with the
+     * service's expiry path, so the button and a pass running out cannot disagree
+     * about what was watched.
+     */
     fun closePass() {
         viewModelScope.launch {
-            val current = settingsStore.allowanceState.first()
-            settingsStore.setAllowanceState(closePass(current, System.currentTimeMillis(), zone))
+            val now = System.currentTimeMillis()
+            val closure = forcedClosureOf(settingsStore.allowanceState.first(), now, zone)
+                ?: return@launch
+            settingsStore.setAllowanceState(closure.state)
+            if (closure.durationMillis > 0) {
+                passDao.insert(PassEvent(epochMillis = now, durationMillis = closure.durationMillis))
+            }
         }
     }
 

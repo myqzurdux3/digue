@@ -2,6 +2,7 @@ package com.insta.reelsoff.service
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -120,5 +121,72 @@ class AllowancePassTest {
         val opened = openPass(settings, AllowanceState(), at(17, 20, 0), PARIS)
         val once = settle(settings, opened, at(17, 21, 5), PARIS)
         assertEquals(once, settle(settings, once, at(17, 21, 5), PARIS))
+    }
+}
+
+/**
+ * The single place "a pass ended" is decided, shared by the service and the UI so
+ * the two cannot disagree about whether to record one.
+ */
+class PassClosureTest {
+
+    private val settings = AllowanceSettings(
+        enabled = true,
+        quotaMillis = 300_000,
+        windowStartMinutes = 20 * 60,
+        windowEndMinutes = 21 * 60,
+    )
+
+    @Test
+    fun `nothing to record when no pass is running`() {
+        assertNull(closureOf(settings, AllowanceState(day = dayOf(17)), at(17, 20, 30), PARIS))
+    }
+
+    @Test
+    fun `nothing to record while a pass is still running`() {
+        val opened = openPass(settings, AllowanceState(), at(17, 20, 0), PARIS)
+        assertNull(closureOf(settings, opened, at(17, 20, 0) + 30_000, PARIS))
+    }
+
+    @Test
+    fun `an expired pass yields the state to persist and its duration`() {
+        val opened = openPass(settings, AllowanceState(), at(17, 20, 0), PARIS)
+        val closure = closureOf(settings, opened, at(17, 20, 0) + 300_001, PARIS)!!
+
+        assertEquals(0L, closure.state.passOpenedAtEpochMillis)
+        assertEquals(300_001L, closure.durationMillis)
+    }
+
+    @Test
+    fun `the duration counts only this pass, not time banked earlier today`() {
+        val earlier = AllowanceState(day = dayOf(17), consumedMillis = 120_000)
+        val opened = openPass(settings, earlier, at(17, 20, 0), PARIS)
+        val closure = closureOf(settings, opened, at(17, 20, 0) + 180_001, PARIS)!!
+
+        assertEquals(180_001L, closure.durationMillis)
+        assertEquals(300_001L, closure.state.consumedMillis)
+    }
+
+    @Test
+    fun `a pass carried over from an earlier day records nothing`() {
+        // closePass discards its time: the day it belonged to has no budget left to
+        // charge, and inventing a duration would put the time on the wrong day.
+        val stale = AllowanceState(
+            day = dayOf(16),
+            consumedMillis = 60_000,
+            passOpenedAtEpochMillis = at(16, 23, 59),
+        )
+        val closure = closureOf(settings, stale, at(17, 0, 30), PARIS)!!
+
+        assertEquals(0L, closure.durationMillis)
+        assertEquals(dayOf(17), closure.state.day)
+    }
+
+    @Test
+    fun `settling twice records once`() {
+        val opened = openPass(settings, AllowanceState(), at(17, 20, 0), PARIS)
+        val first = closureOf(settings, opened, at(17, 21, 30), PARIS)!!
+
+        assertNull(closureOf(settings, first.state, at(17, 21, 30), PARIS))
     }
 }
