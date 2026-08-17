@@ -18,9 +18,9 @@ retour arrière la plupart du temps, ou un appui sur un nœud précis pour Explo
 **Statut au 2026-08-17.** Les cinq surfaces sont vérifiées sur l'appareil réel et `main` les
 porte toutes (`feat/snapchat-discover` est fusionnée). 225 tests JVM, 24 tests instrumentés.
 
-La branche `feat/quota-horaire` ajoute le **quota quotidien, la plage horaire et le verrou par
-délai**, vérifiés sur appareil — voir « Quota » plus bas pour la paire de mesures qui le
-prouve et pour ce qui reste couvert par les seuls tests purs.
+Le **quota quotidien, la plage horaire et le verrou par délai** sont dans `main`, vérifiés sur
+appareil — voir « Quota » plus bas pour la paire de mesures qui le prouve et pour ce qui reste
+couvert par les seuls tests purs. Aucune branche en attente de fusion.
 
 **Trois comportements fins, déjà livrés et vérifiés, à ne pas casser :**
 
@@ -67,7 +67,7 @@ bleu-vert, filets d'un pixel à la place des cartes. Verrouillée en clair.
 
 ```bash
 ./gradlew build                                   # tout
-./gradlew :detection:test :app:testDebugUnitTest  # 76 tests JVM
+./gradlew :detection:test :app:testDebugUnitTest  # 225 tests JVM
 ./gradlew :app:installDebug                       # installe sur l'appareil
 # tests instrumentés : --tests ne marche PAS sur cette version d'AGP, utiliser :
 ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=<fqcn>
@@ -309,7 +309,7 @@ le contrat documenté de `setServiceInfo`, plus les tests des deux fonctions pur
 
 ## Quota, plage horaire et verrou
 
-Sur `feat/quota-horaire`. Spec et plan dans `docs/superpowers/`. Cinq minutes de vidéo courte
+Spec et plan dans `docs/superpowers/`. Cinq minutes de vidéo courte
 par jour, ouvrables seulement dans une plage choisie, et un verrou qui rend tout desserrement
 lent au lieu d'instantané.
 
@@ -391,26 +391,26 @@ qu'un changement est en attente, et la maturation réelle d'un délai.
 
 ## Chantiers de suite, par priorité
 
-1. **Fusionner `feat/quota-horaire`** — dix commits, vérifiés sur appareil, pas encore
-   dans `main`.
-2. **Aucune fixture pour YouTube ni Snapchat.** Leurs règles marchent, mais rien ne préviendra
+1. **Aucune fixture pour YouTube ni Snapchat.** Leurs règles marchent, mais rien ne préviendra
    quand un identifiant sera renommé : l'utilisateur le découvrira. Capturer les deux apps et
    en tirer des fixtures nettoyées est le vrai reste à faire.
-3. **Le tag `ReelsOff` ne remonte plus dans logcat** sur cet appareil, alors que la recette du
+2. **Le tag `ReelsOff` ne remonte plus dans logcat** sur cet appareil, alors que la recette du
    projet s'appuie dessus. La base `block_event` a servi de preuve à la place — la lire ainsi :
    `adb shell run-as com.insta.reelsoff cat databases/reelsoff.db > x.sqlite`.
-4. **Heuristique de la barre de navigation (F9, différée).** `ScreenClassifier.findNavBar`
+3. **Heuristique de la barre de navigation (F9, différée).** `ScreenClassifier.findNavBar`
    retient « ≥4 frères cliquables, la rangée la plus basse ». Sur les captures réelles cela
    laisse 3-4 rangées candidates par écran, départagées par la seule géométrie. Un panneau ou
    une feuille à 4 boutons pourrait déplacer la vraie barre. C'est le seul repli restant pour
    REELS après la suppression du palier MEDIUM. Resserrer demande des seuils qui pourraient
    casser sur d'autres géométries d'écran : à faire avec des captures sur plus d'un appareil,
    plus un départage déterministe en cas d'égalité.
-3. **Résiduels connus, non bloquants** : le statut de chargement des règles n'est écrit qu'au
+4. **Résiduels connus, non bloquants** : le statut de chargement des règles n'est écrit qu'au
    `onServiceConnected`, donc le bandeau persiste après réparation jusqu'à reconnexion du
    service ; la cause interpolée est du texte anglais dans une phrase française ;
    `isServiceEnabled` n'a pas de test car le code n'a pas de couture pure pour `Settings.Secure`.
-4. **Non vérifié** : survie à un redémarrage, persistance sur 24 h. Commandes dans la recette.
+5. **Non vérifié** : survie à un redémarrage, persistance sur 24 h ; côté quota, le
+   resserrement pendant qu'un changement est en attente, et la maturation réelle d'un délai
+   d'une heure. Commandes dans la recette.
 
 ## Limites produit à connaître
 
