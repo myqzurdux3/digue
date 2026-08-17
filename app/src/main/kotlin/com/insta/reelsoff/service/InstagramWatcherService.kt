@@ -13,6 +13,7 @@ import androidx.core.content.ContextCompat
 import com.insta.detection.RuleSet
 import com.insta.detection.ScreenClassifier
 import com.insta.detection.ScreenSnapshot
+import com.insta.detection.Surface
 import com.insta.reelsoff.data.AppDatabase
 import com.insta.reelsoff.data.BlockEvent
 import com.insta.reelsoff.data.BlockSettings
@@ -44,6 +45,9 @@ class InstagramWatcherService : AccessibilityService() {
 
     @Volatile
     private var settings = BlockSettings()
+
+    @Volatile
+    private var ruleSet: RuleSet = RuleSet(version = 0, apps = emptyMap())
 
     private var captureIndex = 0
     private var sessionStamp = 0L
@@ -111,6 +115,8 @@ class InstagramWatcherService : AccessibilityService() {
                 LoadedRules(RuleSet(version = 0, apps = emptyMap()), RuleSource.BUNDLED, "rule loading failed unexpectedly: ${e.message}")
             }
             classifier = ScreenClassifier(loaded.ruleSet)
+            ruleSet = loaded.ruleSet
+            applyDeclaredPackages(settings.blockedSurfaces)
             Log.i(TAG, "rules loaded from ${loaded.source}${loaded.error?.let { " ($it)" } ?: ""}")
 
             // Mirror the load outcome into DataStore (F1): the home screen has no other
@@ -148,7 +154,10 @@ class InstagramWatcherService : AccessibilityService() {
                             delay(1_000)
                             true
                         }
-                        .collectLatest { settings = it }
+                        .collectLatest {
+                            settings = it
+                            applyDeclaredPackages(it.blockedSurfaces)
+                        }
                 }.onFailure {
                     if (it is CancellationException) throw it
                     Log.e(TAG, "settings collection launch failed", it)
@@ -167,6 +176,26 @@ class InstagramWatcherService : AccessibilityService() {
                 classifier = ScreenClassifier(RuleSet(version = 0, apps = emptyMap()))
             }
         }
+    }
+
+    /**
+     * Narrows what Android is allowed to send this service to the packages whose
+     * blocking is switched on.
+     *
+     * Never lets anything escape: this runs inside the settings collector, and an
+     * exception here would take the service down, which Android may answer by
+     * disabling it for good — leaving the user believing they are protected.
+     */
+    private fun applyDeclaredPackages(blocked: Set<Surface>) {
+        runCatching {
+            val packages = declaredPackages(ruleSet, blocked)
+            serviceInfo = serviceInfo.apply {
+                // A null packageNames means "every app" to Android, so an empty
+                // selection must be expressed as a package that cannot match.
+                packageNames = if (packages.isEmpty()) arrayOf(NO_PACKAGE) else packages.toTypedArray()
+            }
+            Log.i(TAG, "declared packages: ${packages.size}")
+        }.onFailure { Log.e(TAG, "could not narrow declared packages", it) }
     }
 
     override fun onDestroy() {
@@ -191,7 +220,7 @@ class InstagramWatcherService : AccessibilityService() {
     override fun onInterrupt() = Unit
 
     private fun handle(event: AccessibilityEvent?) {
-        if (event?.packageName != INSTAGRAM_PACKAGE) return
+        val packageName = event?.packageName?.toString() ?: return
         // Always consult the throttle (F8): it used to be short-circuited away
         // whenever a capture session was active, which meant a content-changed
         // event walked the tree unthrottled — on the main thread — for the whole
@@ -204,7 +233,7 @@ class InstagramWatcherService : AccessibilityService() {
         val root = rootInActiveWindow ?: return
         val snapshot = walker.walk(
             root = AccessibilityNodeLike(root),
-            packageName = INSTAGRAM_PACKAGE,
+            packageName = packageName,
             capturedAtMillis = System.currentTimeMillis(),
         )
 
@@ -283,7 +312,9 @@ class InstagramWatcherService : AccessibilityService() {
 
     companion object {
         const val ACTION_START_CAPTURE = "com.insta.reelsoff.START_CAPTURE"
-        private const val INSTAGRAM_PACKAGE = "com.instagram.android"
+
+        /** Matches no installed app; see applyDeclaredPackages. */
+        private const val NO_PACKAGE = "com.insta.reelsoff.none"
         private const val TAG = "ReelsOff"
     }
 }
