@@ -67,7 +67,7 @@ data class AllowanceSettings(
     val quotaMillis: Long = 5 * 60_000,
     val windowStartMinutes: Int = 20 * 60,  // minutes depuis minuit local
     val windowEndMinutes: Int = 21 * 60,
-    val cooldownMillis: Long = 24 * 3_600_000,
+    val cooldownMillis: Long = 0,
 )
 
 data class AllowanceState(
@@ -79,6 +79,14 @@ data class AllowanceState(
 
 `enabled` vaut `false` à l'installation : une fonction neuve arrive éteinte, comme
 chaque surface ajoutée jusqu'ici.
+
+**`cooldownMillis` vaut zéro à l'installation, et c'est ce qui rend le verrou
+utilisable.** Allumer le quota est lui-même un assouplissement : avec un délai par
+défaut de 24 h, une installation neuve armerait une attente d'un jour au moment
+même où l'utilisateur active la fonction, qui ne ferait donc rien pendant un jour.
+À zéro, les réglages s'arrangent librement ; **choisir un délai est un
+resserrement**, donc immédiat, et verrouille tout ce qui vient après. Le verrou
+s'arme délibérément, en un geste, au lieu de se déclencher au premier usage.
 
 Les deux vivent dans le `SettingsStore` existant, en clés plates. Rien de nouveau
 côté Room — un quota n'est pas un historique.
@@ -167,11 +175,18 @@ fun isLoosening(current: LockedSettings, proposed: LockedSettings): Boolean
 - quota réduit
 - plage rétrécie
 - délai rallongé
-- quota activé
+- quota **désactivé**
 - surface ajoutée au blocage
 
-**Différé de `cooldownMillis`** — tout le reste, y compris désactiver le quota et
+**Différé de `cooldownMillis`** — tout le reste, y compris **activer** le quota et
 retirer une surface du blocage.
+
+Le sens de `enabled` se lit à l'envers de l'intuition, et il faut le poser
+explicitement : le quota **accorde** du temps, il n'en retire pas. Le blocage des
+surfaces ne dépend pas de lui. Donc `enabled = false` est l'état le **plus**
+strict — aucun laissez-passer n'est ouvrable — et allumer le quota est un
+assouplissement, à différer. L'écrire dans l'autre sens donnerait un verrou
+contournable en une écriture.
 
 Un changement qui mélange resserrement et assouplissement compte **entièrement**
 comme un assouplissement. C'est le choix sûr, et il évite d'avoir à découper une
