@@ -225,7 +225,8 @@ aucun paquet.
 
 ## Faits sur l'appareil de test
 
-- Pixel 9a, série `<retiré>`, Android 17, USB
+- Pixel 9a, Android 17, branché en USB (`adb devices` donne son numéro de série ;
+  il n'est pas noté ici, c'est un identifiant matériel qui n'apporte rien au projet)
 - Écran 1080x2424. **Centres des onglets : y = 2298** (barre 2235..2361).
   Ne PAS utiliser y=2350 : trop près de la zone de navigation gestuelle, les taps sont
   interceptés et mettent Instagram en arrière-plan.
