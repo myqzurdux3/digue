@@ -120,6 +120,11 @@ le fil de l'utilisateur. **Ne jamais réintroduire ce palier.**
   valeur, donc la vérification standard ne voit rien. **Toujours activer le service en dernier,
   après le dernier redémarrage de l'app, et relire au moins 5 s après.** Pour relancer l'écran
   sans casser le service, utiliser `KEYCODE_HOME` puis `am start`, jamais `force-stop`.
+- **Piège : `./gradlew :app:connectedDebugAndroidTest` désinstalle l'app en fin de
+  course** (nettoyage par défaut d'AGP), ce qui retire le service d'accessibilité.
+  C'est la commande que cette recette prescrit elle-même. **Après toute passe de
+  tests instrumentés : réinstaller, rejouer `appops`, réactiver le service, et
+  relire `dumpsys` au moins 5 s après.**
 - **Piège : une réinstallation remet le drapeau « réglages restreints » du paquet.** Android
   refuse alors l'accessibilité pour une app installée hors magasin et révoque le réglage.
   À relancer après chaque `installDebug` :
