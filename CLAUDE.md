@@ -15,14 +15,11 @@ retour arrière la plupart du temps, ou un appui sur un nœud précis pour Explo
 | Snapchat | `SPOTLIGHT` | `spotlight_container` |
 | Snapchat | `DISCOVER` | la colonne d'actions `context_vertical_actions/...` |
 
-**Statut au 2026-08-17 — tout est dans `main`, aucune branche en attente.** 256 tests JVM
-verts. **24 tests instrumentés qui compilent — et c'est tout ce qu'on en sait.** Ils ne
-compilaient plus du tout : `BlockEventDaoTest` appelait `dao.since(...)`, une requête retirée
-du DAO quand l'écran est passé aux `Flow`, et personne n'avait relancé
-`compileDebugAndroidTestKotlin` depuis. Un `@Test` qui ne compile pas se compte exactement
-comme un `@Test` qui passe. Le test lit maintenant la première émission de `observeSince`,
-mais **il n'a pas été exécuté** : il faut l'appareil, et l'appareil est partagé.
-Arbre propre. Dépôt distant : `github.com/myqzurdux3/digue`, **privé**
+**Statut au 2026-08-17.** 256 tests JVM verts et **24 tests instrumentés passés sur
+l'appareil** — une première : ils ne compilaient plus du tout, `BlockEventDaoTest` appelant
+`dao.since(...)`, une requête retirée du DAO quand l'écran est passé aux `Flow`, et personne
+n'ayant relancé `compileDebugAndroidTestKotlin` depuis. Un `@Test` qui ne compile pas se compte
+exactement comme un `@Test` qui passe. Arbre propre. Dépôt distant : `github.com/myqzurdux3/digue`, **privé**
 (le dépôt documente les habitudes de l'utilisateur, et les commits antérieurs au 2026-08-17
 portent encore le numéro de série de son téléphone — une ouverture demanderait une réécriture
 d'historique).
@@ -30,12 +27,42 @@ d'historique).
 Vérifié sur son appareil : les cinq surfaces, le quota avec sa plage horaire et son verrou, la
 migration Room 1 → 2, l'enregistrement du temps regardé, et la **survie à un redémarrage**.
 
+**Passe d'appareil du 2026-08-17, après l'audit**, tout mesuré et non déduit :
+
+- **Reels : bloqué.** Un appui sur l'onglet, puis 12 s d'immobilité — **un seul** épisode
+  `REELS`/HIGH puis silence, et l'écran est le fil. Coincé, le service en aurait journalisé un
+  toutes les ~2 s.
+- **L'écriture des captures est bien hors du fil principal.** Prouvé par logcat : l'échec d'une
+  écriture est journalisé depuis le tid 13044 alors que le processus est 10804. Le déport
+  demandé par l'audit fonctionne.
+- **La purge des captures fonctionne.** Trois fichiers écrits par l'app, un nouvel armement,
+  dossier vide. **Piège de méthode** : des fichiers factices poussés par `adb shell`
+  appartiennent à `shell:ext_data_rw` et l'app **ne peut pas les supprimer**, même en `run-as` —
+  le premier test était donc invalide, pas le code. Créer le dossier `captures` en `adb shell`
+  le rend aussi **non inscriptible** par l'app (`EACCES`) : le supprimer et laisser l'app le
+  recréer.
+- **Le tag `ReelsOff` remonte de nouveau dans logcat** sur cet appareil, contrairement à ce que
+  ce fichier a longtemps dit.
+- **Un appui `adb` synthétique n'est PAS un instrument valable pour la redirection d'Explore.**
+  Mesuré ainsi — `input swipe` sur l'onglet puis copies d'écran à 2 s et 14 s, plus
+  `mInputShown` — la redirection paraissait ne pas se produire : clavier fermé, grille
+  utilisable, aucun nouvel épisode sur 20 s. **Vérifié au doigt par l'utilisateur dans la
+  minute : elle se produit.** La conclusion « Explore ne redirige plus » était fausse, et elle
+  a bien failli être écrite comme un défaut. Ce que la mesure établissait vraiment, et qui
+  reste vrai, c'est qu'Explore est détecté au palier HIGH et qu'il n'y a **qu'un seul épisode
+  par visite** — ce qui est exactement la signature d'un clic qui a réussi.
+- **`connectedDebugAndroidTest` désinstalle bien l'app**, ce qui **efface la base**. Sauvegarder
+  avant : `adb exec-out run-as com.insta.reelsoff cat databases/reelsoff.db`, plus le `-wal`, et
+  `files/datastore/settings.preferences_pb`. Restaurer via `base64` sur l'entrée standard —
+  `adb push` vers le stockage externe ne marche pas, l'app n'y a pas accès en `run-as`.
+
 **Trois comportements fins, déjà livrés et vérifiés, à ne pas casser :**
 
 1. **Un reel qu'un contact envoie en message reste regardable**, mais les reels suggérés qui
    suivent sont bloqués.
 2. **Ouvrir l'onglet Explore appuie sur la barre de recherche** au lieu de sortir de l'onglet,
-   parce que bloquer Explore bloquait aussi la seule recherche d'Instagram.
+   parce que bloquer Explore bloquait aussi la seule recherche d'Instagram. **Revérifié à la
+   main le 2026-08-17 : fonctionne.**
 3. **Une story d'un ami sur Snapchat reste regardable**, les vidéos Discover non.
 
 Le quota ne change aucun des trois : quand un laissez-passer est ouvert, le service remet
@@ -70,6 +97,23 @@ bleu-vert, filets d'un pixel à la place des cartes. Verrouillée en clair.
   **Toute retouche du dessin doit être reportée dans les trois fichiers** (marque, avant-plan,
   monochrome) et la demi-diagonale de l'encombrement doit rester **sous 33** dans le repère
   108×108, sinon les lanceurs à masque circulaire rognent la marque.
+- **La marque actuelle est le design 1A, « la digue et la houle »** : quatre rectangles à fond
+  aligné, trois vagues qui montent vers un mur plus large et plus haut qu'elles. Encombrement
+  39 × 42 centré dans la boîte de 48 ; échelle 1,1 et translation 27,6 sur les deux axes dans
+  le repère 108×108, ce qui donne 42,9 × 46,2 centré sur (54, 54) et une demi-diagonale de
+  **31,5**. Une échelle de 1,15 atteindrait déjà 32,96 : la règle sert à garder une marge, pas
+  à la frôler.
+- **Trois couleurs n'existent que pour la marque** : `houle_basse`, `houle_moyenne`,
+  `houle_haute`, dans `colors.xml` seulement. Elles **n'ont volontairement pas de jumelle dans
+  `Theme.kt`** — les vecteurs résolvent `@color` eux-mêmes, Compose ne les dessine jamais, un
+  `val` serait mort le jour où il serait écrit. C'est la seule exception à la règle « les deux
+  fichiers bougent ensemble », et rien dans l'interface ne doit s'en servir : ce n'est pas un
+  second accent. Le mur reprend `encre` plutôt que le `#14231E` du design — deux noirs à six
+  unités d'écart dans une palette tenue courte exprès, et l'écart est invisible à la taille
+  d'une icône.
+- **`accent` n'est plus référencé par aucun drawable** depuis 1A, et doit rester dans
+  `colors.xml` : il y est la moitié XML de `Theme.kt`, ce qui est sa raison d'être. Ne pas le
+  balayer comme ressource morte.
 
 ## Commandes
 
@@ -537,9 +581,10 @@ regardé quand même — c'est le chiffre que le quota existe pour faire baisser
 
 ## Chantiers de suite, par priorité
 
-1. **Le tag `ReelsOff` ne remonte plus dans logcat** sur cet appareil, alors que la recette du
-   projet s'appuie dessus. La base `block_event` a servi de preuve à la place — la lire ainsi :
-   `adb shell run-as com.insta.reelsoff cat databases/reelsoff.db > x.sqlite`.
+1. **Le tag `ReelsOff` remonte de nouveau dans logcat** sur cet appareil, contrairement à ce
+   que ce fichier a longtemps dit. La base `block_event` reste l'autre preuve, à lire ainsi :
+   `adb exec-out run-as com.insta.reelsoff cat databases/reelsoff.db > x.sqlite` — et **prendre
+   aussi le `-wal`**, sinon les dernières lignes manquent.
 2. **Les nœuds d'accessibilité ne sont pas recyclés, et c'est une décision, pas un oubli.**
    `recycle()` est un no-op à partir de l'API 33 ; `minSdk` vaut 26, donc la fuite n'existe
    que de l'API 26 à 32 — précisément les versions dont ce projet n'a aucun appareil. Le
