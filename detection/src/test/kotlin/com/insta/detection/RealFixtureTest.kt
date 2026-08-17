@@ -263,3 +263,108 @@ class RealFixtureTest {
         assertTrue("none may require selection", signals.none { it.requireSelected })
     }
 }
+
+/**
+ * The same, for YouTube and Snapchat.
+ *
+ * Until these existed, those rules were verified on the device and by nothing
+ * else: an identifier renamed upstream would have been discovered by the user,
+ * on a surface that silently stopped being blocked. Snapchat is the sharper
+ * case — roughly 60% of its identifiers are obfuscated, so its rules rest on a
+ * handful of survivors.
+ *
+ * Every `contentDescription` in these trees is `[scrubbed]`, all of them rather
+ * than a chosen subset: the raw captures carried a group name and a contact's
+ * message in an in-app notification banner. Nothing here is load-bearing, since
+ * all five rules are HIGH tier — resource identifiers.
+ */
+class MultiAppFixtureTest {
+
+    private val json = Json { ignoreUnknownKeys = true }
+
+    private fun resource(path: String): String =
+        checkNotNull(javaClass.getResourceAsStream(path)) { "missing resource $path" }
+            .bufferedReader().readText()
+
+    private fun fixture(name: String): ScreenSnapshot =
+        json.decodeFromString(resource("/fixtures/$name.json"))
+
+    private val classifier = ScreenClassifier(
+        when (val result = RuleSetParser.parse(resource("/rules.json"))) {
+            is ParseResult.Success -> result.ruleSet
+            is ParseResult.Failure -> error("shipped rules are invalid: ${result.message}")
+        },
+    )
+
+    @Test
+    fun `the shorts player is detected at the high tier`() {
+        val result = classifier.classify(fixture("youtube_shorts"))
+
+        assertEquals(Surface.SHORTS, result.surface)
+        assertEquals(Tier.HIGH, result.tier)
+    }
+
+    @Test
+    fun `the youtube home feed is not blocked`() {
+        // The one that mattered on the device: the first capture attempt caught
+        // this screen instead of Shorts, because Shorts was being blocked. It
+        // earns its place as the negative case.
+        assertEquals(Surface.OTHER, classifier.classify(fixture("youtube_home")).surface)
+    }
+
+    @Test
+    fun `spotlight is detected at the high tier`() {
+        val result = classifier.classify(fixture("snapchat_spotlight"))
+
+        assertEquals(Surface.SPOTLIGHT, result.surface)
+        assertEquals(Tier.HIGH, result.tier)
+    }
+
+    @Test
+    fun `a discover video is detected at the high tier`() {
+        val result = classifier.classify(fixture("snapchat_discover"))
+
+        assertEquals(Surface.DISCOVER, result.surface)
+        assertEquals(Tier.HIGH, result.tier)
+    }
+
+    @Test
+    fun `a friend's story is not blocked`() {
+        // The behaviour the user asked for by name, and the one most easily
+        // broken by a careless widening of the Snapchat rules.
+        assertEquals(Surface.OTHER, classifier.classify(fixture("snapchat_story")).surface)
+    }
+
+    @Test
+    fun `the full-screen viewer alone decides nothing`() {
+        // opera_viewer is on screen in Spotlight, in Discover and in a friend's
+        // story alike. Any rule resting on it would block all three.
+        val viewers = listOf("snapchat_spotlight", "snapchat_discover", "snapchat_story")
+            .map { name -> fixture(name).nodes.any { it.viewId?.endsWith("opera_viewer") == true } }
+
+        assertEquals(listOf(true, true, true), viewers)
+    }
+
+    @Test
+    fun `the vertical action column is what separates discover from a story`() {
+        fun hasColumn(name: String) = fixture(name).nodes.any {
+            it.viewId?.contains("context_vertical_action") == true && it.bounds.isOnScreen
+        }
+
+        assertTrue(hasColumn("snapchat_discover"))
+        assertFalse(hasColumn("snapchat_story"))
+    }
+
+    @Test
+    fun `no fixture carries a description that was not scrubbed`() {
+        // Guards the privacy boundary itself. These trees came off a real phone,
+        // and one of them held a contact's name and a message preview before
+        // scrubbing; a future fixture added carelessly would be caught here.
+        val descriptions = listOf(
+            "youtube_shorts", "youtube_home",
+            "snapchat_spotlight", "snapchat_discover", "snapchat_story",
+        ).flatMap { name -> fixture(name).nodes.mapNotNull { it.contentDescription } }
+
+        assertEquals(setOf("[scrubbed]"), descriptions.toSet())
+    }
+}
