@@ -15,17 +15,14 @@ retour arrière la plupart du temps, ou un appui sur un nœud précis pour Explo
 | Snapchat | `SPOTLIGHT` | `spotlight_container` |
 | Snapchat | `DISCOVER` | la colonne d'actions `context_vertical_actions/...` |
 
-**Statut au 2026-08-17.** Les cinq surfaces sont vérifiées sur l'appareil réel et `main` les
-porte toutes (`feat/snapchat-discover` est fusionnée). 250 tests JVM, 24 tests instrumentés.
+**Statut au 2026-08-17 — tout est dans `main`, aucune branche en attente.** 250 tests JVM,
+24 tests instrumentés, arbre propre. Dépôt distant : `github.com/myqzurdux3/digue`, **privé**
+(le dépôt documente les habitudes de l'utilisateur, et les commits antérieurs au 2026-08-17
+portent encore le numéro de série de son téléphone — une ouverture demanderait une réécriture
+d'historique).
 
-Le **quota quotidien, la plage horaire et le verrou par délai** sont dans `main`, vérifiés sur
-appareil — voir « Quota » plus bas pour la paire de mesures qui le prouve et pour ce qui reste
-couvert par les seuls tests purs.
-
-La branche `feat/temps-regarde` ajoute la **mesure du temps réellement regardé** et les
-**fixtures YouTube et Snapchat**. Vérifiée sur appareil : migration Room 1 → 2 jouée pour de
-vrai (version 1 → 2, `pass_event` créée, les lignes de `block_event` conservées, aucune erreur
-Room), et deux passes réellement inscrits par le chemin de code normal.
+Vérifié sur son appareil : les cinq surfaces, le quota avec sa plage horaire et son verrou, la
+migration Room 1 → 2, l'enregistrement du temps regardé, et la **survie à un redémarrage**.
 
 **Trois comportements fins, déjà livrés et vérifiés, à ne pas casser :**
 
