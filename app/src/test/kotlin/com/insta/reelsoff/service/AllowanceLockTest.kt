@@ -166,3 +166,51 @@ class ArmAndMatureTest {
         assertEquals(BASE, effectiveSettings(BASE, null, 1_000_000, 50_000))
     }
 }
+
+/**
+ * The regression this guards: the lock compares a *proposal* against the store,
+ * so a matured change that was never written back leaves the store holding the
+ * pre-loosening values. A new proposal would then be measured against the wrong
+ * baseline, and the delay the user had already served would be re-armed —
+ * silently rolling back a loosening they had earned.
+ */
+class MaturedProposalTest {
+
+    private val loosened = withAllowance { copy(quotaMillis = 600_000) }
+
+    @Test
+    fun `nothing pending means nothing to write back`() {
+        assertNull(maturedProposal(null, 1_000_000, 50_000))
+    }
+
+    @Test
+    fun `a change still waiting is not written back`() {
+        val pending = armChange(BASE, loosened, 1_000_000, 50_000)!!
+        assertNull(maturedProposal(pending, 1_000_000 + 3_600_000, 50_000 + 3_600_000))
+    }
+
+    @Test
+    fun `a matured change is handed back for writing`() {
+        val pending = armChange(BASE, loosened, 1_000_000, 50_000)!!
+        assertEquals(
+            loosened,
+            maturedProposal(pending, 1_000_000 + DAY_MILLIS, 50_000 + DAY_MILLIS),
+        )
+    }
+
+    @Test
+    fun `once written back, the same proposal is no longer a loosening`() {
+        // This is the point of writing it back at all: measured against the
+        // committed value, re-proposing it arms nothing and the user keeps what
+        // they waited for.
+        val pending = armChange(BASE, loosened, 1_000_000, 50_000)!!
+        val committed = maturedProposal(pending, 1_000_000 + DAY_MILLIS, 50_000 + DAY_MILLIS)!!
+        assertNull(armChange(committed, loosened, 2_000_000, 60_000))
+    }
+
+    @Test
+    fun `measured against the stale store instead, the same proposal would re-arm`() {
+        // The defect, stated as a test so it cannot come back unnoticed.
+        assertTrue(armChange(BASE, loosened, 2_000_000, 60_000) != null)
+    }
+}

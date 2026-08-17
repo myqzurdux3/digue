@@ -20,6 +20,7 @@ import com.insta.reelsoff.service.LockedSettings
 import com.insta.reelsoff.service.PendingChange
 import com.insta.reelsoff.service.armChange
 import com.insta.reelsoff.service.closePass
+import com.insta.reelsoff.service.maturedProposal
 import com.insta.reelsoff.service.openPass
 import com.insta.reelsoff.service.settle
 import kotlinx.coroutines.Dispatchers
@@ -75,6 +76,20 @@ data class HomeUiState(
 ) {
     val todayTotal: Int get() = history.lastOrNull()?.total ?: 0
 }
+
+/**
+ * The surfaces that carry a user-facing switch. `Surface.OTHER` is not one, and
+ * is deliberately not derived from `Surface.entries`: a new blockable surface
+ * must be added here on purpose, and the instrumented test that promises "every
+ * surface" names the same list for the same reason.
+ */
+private val BLOCKABLE_SURFACES = listOf(
+    Surface.REELS,
+    Surface.EXPLORE,
+    Surface.SHORTS,
+    Surface.SPOTLIGHT,
+    Surface.DISCOVER,
+)
 
 private val ALL_KNOWN_PACKAGES = setOf(
     "com.instagram.android",
@@ -215,6 +230,42 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
     /**
+     * Writes a matured pending change into the store and clears it.
+     *
+     * Readers do not depend on this — `effectiveSettings` derives the in-force
+     * values on every read, which is what makes a matured change apply even if
+     * the process died before it could be written back. What this exists for is
+     * to stop the store and the in-force values from drifting apart, because the
+     * lock compares a *proposal* against the store.
+     *
+     * Idempotent, and a no-op when nothing is pending or nothing has matured.
+     */
+    private suspend fun commitMaturedChange() {
+        val proposal = maturedProposal(
+            pending = settingsStore.pendingChange.first(),
+            nowEpochMillis = System.currentTimeMillis(),
+            nowElapsedRealtime = SystemClock.elapsedRealtime(),
+        ) ?: return
+        settingsStore.setAllowanceSettings(proposal.allowance)
+        // Written surface by surface: setSurfaceBlocked is the only writer of that
+        // key, and it carries the migration from the two old booleans. Every
+        // blockable surface is named, so one that is absent from the proposal is
+        // actually switched off rather than left as it was.
+        for (surface in BLOCKABLE_SURFACES) {
+            settingsStore.setSurfaceBlocked(surface, surface in proposal.blockedSurfaces)
+        }
+        settingsStore.setPendingChange(null)
+    }
+
+    /**
+     * Called on resume: a change can mature while the app is closed, and the
+     * store would otherwise stay behind the values already in force.
+     */
+    fun commitAnyMaturedChange() {
+        viewModelScope.launch { commitMaturedChange() }
+    }
+
+    /**
      * Every settings write in this class goes through here, so what applies at
      * once and what waits is decided in exactly one place.
      *
@@ -226,6 +277,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         proposed: (LockedSettings) -> LockedSettings,
         applyTightening: suspend () -> Unit,
     ) {
+        // Before comparing anything: a matured change is already in force as far
+        // as every reader is concerned, but it is not in the store yet. Comparing
+        // against the stale stored value would measure the proposal against the
+        // wrong baseline and re-arm a delay the user has already served — the
+        // loosening they had earned would silently roll back.
+        commitMaturedChange()
         val current = LockedSettings(
             settingsStore.allowanceSettings.first(),
             settingsStore.settings.first().blockedSurfaces,
@@ -279,6 +336,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun openPass() {
         viewModelScope.launch {
+            // Same reason as in writeThroughLock: a matured change may have
+            // widened the window or raised the quota, and reading the stale store
+            // would refuse a pass the user is entitled to.
+            commitMaturedChange()
             val settings = settingsStore.allowanceSettings.first()
             val now = System.currentTimeMillis()
             val settled = settle(settings, settingsStore.allowanceState.first(), now, zone)

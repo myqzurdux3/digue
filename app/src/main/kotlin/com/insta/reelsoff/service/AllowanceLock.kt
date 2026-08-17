@@ -103,6 +103,26 @@ fun hasMatured(
 }
 
 /**
+ * The settings a caller should write back, or null when there is nothing to do.
+ *
+ * Readers never need this — [effectiveSettings] derives the in-force values on
+ * every read, which is what makes a matured change apply even if the process
+ * died before writing it back. This exists because the **lock compares a
+ * proposal against the store**: left to drift, the store would hold the
+ * pre-loosening values, a new proposal would be measured against the wrong
+ * baseline, and the delay the user has already served would be re-armed —
+ * rolling back a loosening they had earned.
+ */
+fun maturedProposal(
+    pending: PendingChange?,
+    nowEpochMillis: Long,
+    nowElapsedRealtime: Long,
+): LockedSettings? =
+    pending
+        ?.takeIf { hasMatured(it, nowEpochMillis, nowElapsedRealtime) }
+        ?.proposed
+
+/**
  * The settings actually in force. Readers derive rather than wait to be told,
  * so a matured change applies even if nothing has written it back yet.
  */

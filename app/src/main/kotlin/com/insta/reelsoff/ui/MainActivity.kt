@@ -64,5 +64,9 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         viewModel.refreshServiceStatus()
         viewModel.refreshInstalledPackages()
+        // A held change can mature while this screen is closed — which is the
+        // usual case for a delay measured in hours. Writing it back here keeps
+        // the store from drifting behind the values already in force.
+        viewModel.commitAnyMaturedChange()
     }
 }
