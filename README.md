@@ -58,7 +58,7 @@ Les fixtures de test sont nettoyées, et un test le vérifie à chaque exécutio
 
 ```bash
 ./gradlew build                                   # tout, y compris le lint
-./gradlew :detection:test :app:testDebugUnitTest  # 256 tests JVM
+./gradlew :detection:test :app:testDebugUnitTest  # 266 tests JVM
 ./gradlew :app:installDebug                       # installe sur un appareil branché
 ./gradlew :app:connectedDebugAndroidTest          # 24 tests instrumentés — DÉSINSTALLE l'app
 ```

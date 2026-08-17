@@ -15,7 +15,7 @@ retour arrière la plupart du temps, ou un appui sur un nœud précis pour Explo
 | Snapchat | `SPOTLIGHT` | `spotlight_container` |
 | Snapchat | `DISCOVER` | la colonne d'actions `context_vertical_actions/...` |
 
-**Statut au 2026-08-17.** 256 tests JVM verts et **24 tests instrumentés passés sur
+**Statut au 2026-08-17.** 266 tests JVM verts et **24 tests instrumentés passés sur
 l'appareil** — une première : ils ne compilaient plus du tout, `BlockEventDaoTest` appelant
 `dao.since(...)`, une requête retirée du DAO quand l'écran est passé aux `Flow`, et personne
 n'ayant relancé `compileDebugAndroidTestKotlin` depuis. Un `@Test` qui ne compile pas se compte
@@ -126,7 +126,7 @@ bleu-vert, filets d'un pixel à la place des cartes. Verrouillée en clair.
 
 ```bash
 ./gradlew build                                   # tout
-./gradlew :detection:test :app:testDebugUnitTest  # 256 tests JVM
+./gradlew :detection:test :app:testDebugUnitTest  # 266 tests JVM
 ./gradlew :app:installDebug                       # installe sur l'appareil
 # tests instrumentés : --tests ne marche PAS sur cette version d'AGP, utiliser :
 ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=<fqcn>
