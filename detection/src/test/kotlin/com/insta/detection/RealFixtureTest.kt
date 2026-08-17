@@ -270,8 +270,9 @@ class RealFixtureTest {
  * Until these existed, those rules were verified on the device and by nothing
  * else: an identifier renamed upstream would have been discovered by the user,
  * on a surface that silently stopped being blocked. Snapchat is the sharper
- * case — roughly 60% of its identifiers are obfuscated, so its rules rest on a
- * handful of survivors.
+ * case — measured across these three fixtures, 241 of the 343 nodes that carry a
+ * non-empty identifier are obfuscated, i.e. 70%, so its rules rest on a handful
+ * of survivors.
  *
  * Every `contentDescription` in these trees is `[scrubbed]`, all of them rather
  * than a chosen subset: the raw captures carried a group name and a contact's
@@ -289,12 +290,12 @@ class MultiAppFixtureTest {
     private fun fixture(name: String): ScreenSnapshot =
         json.decodeFromString(resource("/fixtures/$name.json"))
 
-    private val classifier = ScreenClassifier(
-        when (val result = RuleSetParser.parse(resource("/rules.json"))) {
-            is ParseResult.Success -> result.ruleSet
-            is ParseResult.Failure -> error("shipped rules are invalid: ${result.message}")
-        },
-    )
+    private val ruleSet = when (val result = RuleSetParser.parse(resource("/rules.json"))) {
+        is ParseResult.Success -> result.ruleSet
+        is ParseResult.Failure -> error("shipped rules are invalid: ${result.message}")
+    }
+
+    private val classifier = ScreenClassifier(ruleSet)
 
     @Test
     fun `the shorts player is detected at the high tier`() {
@@ -353,6 +354,38 @@ class MultiAppFixtureTest {
 
         assertTrue(hasColumn("snapchat_discover"))
         assertFalse(hasColumn("snapchat_story"))
+    }
+
+    @Test
+    fun `no shorts signal names an id the youtube home feed also shows`() {
+        // The trap this test exists for, measured rather than guessed. The rules
+        // used to carry `reel_progress_bar` as a second SHORTS signal; it matches
+        // nothing in the Shorts capture, so it was removed. The obvious
+        // replacement is `reel_time_bar`, the one `reel_*` id left in that
+        // capture — and it is ALSO on the home feed, with full-screen bounds
+        // {0, 0, 1080, 2424}, so `requireOnScreen` would not filter it out.
+        // Adopting it would block the YouTube feed.
+        //
+        // Stated as a property rather than as that one id, so any future signal
+        // borrowed from the wrong screen is caught the same way.
+        val onHomeFeed = fixture("youtube_home").nodes
+            .filter { it.bounds.isOnScreen }
+            .mapNotNull { it.viewId }
+            .toSet()
+
+        for ((packageName, app) in ruleSet.apps) {
+            val shorts = app.surfaces[Surface.SHORTS] ?: continue
+            for (signal in shorts.signals) {
+                val value = signal.value ?: continue
+                // Compared on the bare id: the home capture is YouTube's, while a
+                // signal may belong to one of the two other YouTube variants.
+                val bare = value.substringAfter(":id/")
+                assertFalse(
+                    "$packageName/SHORTS rests on $value, which the YouTube home feed also shows",
+                    onHomeFeed.any { it.substringAfter(":id/") == bare },
+                )
+            }
+        }
     }
 
     @Test

@@ -62,7 +62,7 @@ class AllowanceQuotaTest {
     @Test
     fun `a closed pass consumes nothing beyond what was already banked`() {
         val state = AllowanceState(day = dayOf(17), consumedMillis = 60_000)
-        assertEquals(60_000L, consumedMillisAt(settings, state, at(17, 20, 30), PARIS))
+        assertEquals(60_000L, consumedMillisAt(state, at(17, 20, 30), PARIS))
         assertEquals(240_000L, remainingMillis(settings, state, at(17, 20, 30), PARIS))
     }
 
@@ -70,14 +70,14 @@ class AllowanceQuotaTest {
     fun `an open pass consumes wall-clock time as it runs`() {
         val opened = at(17, 20, 30)
         val state = AllowanceState(day = dayOf(17), consumedMillis = 60_000, passOpenedAtEpochMillis = opened)
-        assertEquals(120_000L, consumedMillisAt(settings, state, opened + 60_000, PARIS))
+        assertEquals(120_000L, consumedMillisAt(state, opened + 60_000, PARIS))
         assertEquals(180_000L, remainingMillis(settings, state, opened + 60_000, PARIS))
     }
 
     @Test
     fun `a state from an earlier day reads as a fresh quota`() {
         val state = AllowanceState(day = dayOf(16), consumedMillis = 300_000)
-        assertEquals(0L, consumedMillisAt(settings, state, at(17, 20, 30), PARIS))
+        assertEquals(0L, consumedMillisAt(state, at(17, 20, 30), PARIS))
         assertEquals(300_000L, remainingMillis(settings, state, at(17, 20, 30), PARIS))
     }
 

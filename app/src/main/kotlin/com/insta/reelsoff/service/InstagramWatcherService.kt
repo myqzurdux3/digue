@@ -26,9 +26,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.retry
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -63,6 +66,15 @@ class InstagramWatcherService : AccessibilityService() {
     @Volatile
     private var ruleSet: RuleSet = RuleSet(version = 0, apps = emptyMap())
 
+    /**
+     * What [publishDeclaredPackages] last wrote successfully, so it can close the
+     * loop it feeds itself. Only ever touched under [publishLock].
+     */
+    private var lastPublishedPackages: Set<String>? = null
+
+    /** Serialises the compare-and-write in [publishDeclaredPackages]. */
+    private val publishLock = Mutex()
+
     private var captureIndex = 0
     private var sessionStamp = 0L
 
@@ -79,6 +91,7 @@ class InstagramWatcherService : AccessibilityService() {
             captureIndex = 0
             captureStartedWallMillis = 0L
             captureSession.arm()
+            purgeOldCaptures()
             publishCaptureStatus(CaptureStatus(armedAtEpochMillis = sessionStamp))
             Log.i(TAG, "capture session armed")
         }
@@ -142,54 +155,28 @@ class InstagramWatcherService : AccessibilityService() {
             )
             reloadRules()
 
-            // Collect settings changes on IO scope. A DataStore read can fail with an
-            // IOException; retry rather than give up, since completing the flow here
-            // would freeze `settings` at whatever it last held — including a stale
-            // "enabled" value the UI has since disagreed with (F2). Retries never stop
-            // — the service must keep trying to pick up the user's settings for as
-            // long as it runs — which also means this flow never completes
-            // exceptionally, so a `.catch` after this `retry` would be unreachable
-            // dead code (deleted; see below for what serves its fail-closed intent
-            // instead). Log from the retry predicate itself, on every attempt, so a
-            // permanently broken DataStore stays visible instead of failing silently
-            // forever. While retries are ongoing, `settings` simply stays at the
-            // `@Volatile` default declared above — `BlockSettings()`, i.e.
-            // blockedSurfaces = {REELS, EXPLORE} — which is already the
-            // fail-closed value (both surfaces blocked), not a stale permissive one.
-            scope.launch {
-                runCatching {
-                    SettingsStore(applicationContext).settings
-                        .retry { e ->
-                            Log.e(TAG, "settings read failed, retrying", e)
-                            delay(1_000)
-                            true
-                        }
-                        .collectLatest {
-                            settings = it
-                            applyDeclaredPackages(it.blockedSurfaces)
-                        }
-                }.onFailure {
-                    if (it is CancellationException) throw it
-                    Log.e(TAG, "settings collection launch failed", it)
-                }
-            }
-
-            // The quota's three streams follow the same shape as the settings
-            // collector above, and for the same reasons: retry forever rather
-            // than complete, since a completed flow would freeze the value at
-            // whatever it last held; and never let anything escape, since these
-            // run in a coroutine whose failure would take the service with it.
+            // Four independent collectors, all through the same helper — see
+            // collectSetting for the retry-forever rule and why the fields it
+            // writes are safe to leave at their defaults meanwhile.
             //
-            // Deliberately not folded into one combined flow: each of the three
-            // is independently useful, and a single combine would stall all
-            // three on whichever one was failing.
-            collectAllowance("allowance settings", { SettingsStore(it).allowanceSettings }) {
+            // For `settings` in particular, that default is `BlockSettings()`,
+            // i.e. blockedSurfaces = {REELS, EXPLORE}: already the fail-closed
+            // value (both surfaces blocked), not a stale permissive one (F2).
+            //
+            // Deliberately not folded into one combined flow: each is
+            // independently useful, and a single combine would stall all four on
+            // whichever one was failing.
+            collectSetting("settings", { SettingsStore(it).settings }) {
+                settings = it
+                applyDeclaredPackages(it.blockedSurfaces)
+            }
+            collectSetting("allowance settings", { SettingsStore(it).allowanceSettings }) {
                 allowanceSettings = it
             }
-            collectAllowance("allowance state", { SettingsStore(it).allowanceState }) {
+            collectSetting("allowance state", { SettingsStore(it).allowanceState }) {
                 allowanceState = it
             }
-            collectAllowance("pending change", { SettingsStore(it).pendingChange }) {
+            collectSetting("pending change", { SettingsStore(it).pendingChange }) {
                 pendingChange = it
             }
 
@@ -256,16 +243,26 @@ class InstagramWatcherService : AccessibilityService() {
     }
 
     /**
-     * Mirrors one of the quota's DataStore streams into a `@Volatile` field.
+     * Mirrors one DataStore stream into a `@Volatile` field.
      *
-     * Retries forever rather than completing: a completed flow would pin the
-     * field at whatever it last held, including a stale value the user has since
-     * changed. The field's declared default is the strict one, so a stream that
-     * never delivers leaves blocking untouched.
+     * Retries forever rather than completing: a DataStore read can fail with an
+     * IOException, and a completed flow would pin the field at whatever it last
+     * held — including a stale value the user has since changed. Retrying without
+     * end also means the flow never completes exceptionally, so a `.catch` after
+     * the `retry` would be unreachable. Every field this writes declares the
+     * strict value as its default, so a stream that never delivers leaves
+     * blocking exactly as it is rather than opening a hole.
+     *
+     * Logs from the retry predicate itself, on every attempt, so a permanently
+     * broken DataStore stays visible instead of failing silently forever.
+     *
+     * Nothing escapes: this runs in a coroutine whose failure would take the
+     * service down with it, and Android may answer that by disabling the service
+     * for good.
      */
-    private fun <T> collectAllowance(
+    private fun <T> collectSetting(
         what: String,
-        stream: (Context) -> kotlinx.coroutines.flow.Flow<T>,
+        stream: (Context) -> Flow<T>,
         assign: (T) -> Unit,
     ) {
         scope.launch {
@@ -319,18 +316,39 @@ class InstagramWatcherService : AccessibilityService() {
      * This writes to the same DataStore the settings collector above reads
      * (`SettingsStore(...).settings`), so every publish re-emits settings and
      * re-runs applyDeclaredPackages, which calls back in here — a self-feeding
-     * loop. It terminates only because DataStore suppresses writes that would
-     * not change the stored value; it is not idempotent by construction. If this
-     * ever writes something derived from more than `packages` (e.g. a timestamp),
-     * the loop stops terminating.
+     * loop.
+     *
+     * The guard below is what stops it, and it is deliberately in this code
+     * rather than borrowed from the storage layer. It used to terminate only
+     * because DataStore happens to suppress a write that would not change the
+     * stored value: a property of a library, not of this app, and one that a
+     * single added field — a timestamp, say — would quietly cost us. Now the loop
+     * closes here, where the reason it closes is visible.
+     *
+     * The value is recorded only once the write has actually landed, which is
+     * what keeps the guard from swallowing a retry: a publish that failed leaves
+     * the field alone, so the next settings emission tries again.
+     *
+     * Compare and write happen **inside one mutex**, not around the launch. Read
+     * on the calling thread and written on IO, the check would have raced: two
+     * quick surface toggles produce publishes A then B, `scope.launch` does not
+     * order them, and B landing before A leaves the store holding A while the
+     * field says B — after which the guard suppresses every correction and the
+     * "Applications observées" line stays wrong for good. Serialising makes the
+     * last publish started the last one stored.
      */
     private fun publishDeclaredPackages(packages: Set<String>) {
         scope.launch {
-            runCatching { SettingsStore(applicationContext).setDeclaredPackages(packages) }
-                .onFailure {
+            publishLock.withLock {
+                if (packages == lastPublishedPackages) return@withLock
+                runCatching {
+                    SettingsStore(applicationContext).setDeclaredPackages(packages)
+                    lastPublishedPackages = packages
+                }.onFailure {
                     if (it is CancellationException) throw it
                     Log.e(TAG, "could not publish declared packages", it)
                 }
+            }
         }
     }
 
@@ -372,15 +390,37 @@ class InstagramWatcherService : AccessibilityService() {
 
         // Frequently null during screen transitions. Nothing to do but skip.
         val root = rootInActiveWindow ?: return
+        decide(root, packageName)
+    }
+
+    /**
+     * The whole decision for one event, split out of [handle] only to keep that
+     * one about the guards and this one about the work.
+     *
+     * Note what is deliberately absent: nothing here recycles an
+     * `AccessibilityNodeInfo`. `recycle()` is a no-op from API 33, `minSdk` is 26,
+     * and the versions in between are the ones this project has no device for —
+     * so recycling would be code that never runs where it can be observed and only
+     * runs where it cannot. Recycling a node the platform's own cache still holds
+     * throws later, from inside the framework, on an unrelated call; caught by the
+     * guard around `onAccessibilityEvent`, it would leave a bound service that
+     * blocks nothing. See the follow-up note in CLAUDE.md.
+     */
+    private fun decide(root: AccessibilityNodeInfo, packageName: String) {
+        // One reading of the wall clock for the whole event. Three separate calls
+        // used to serve the snapshot, the quota and the logged episode, so the row
+        // written to the history was not stamped with the instant that decided it.
+        val now = System.currentTimeMillis()
+
         val snapshot = walker.walk(
             root = AccessibilityNodeLike(root),
             packageName = packageName,
-            capturedAtMillis = System.currentTimeMillis(),
+            capturedAtMillis = now,
         )
 
         if (captureSession.shouldCapture()) {
             writeCapture(snapshot)
-            if (captureStartedWallMillis == 0L) captureStartedWallMillis = System.currentTimeMillis()
+            if (captureStartedWallMillis == 0L) captureStartedWallMillis = now
             publishCaptureStatus(
                 CaptureStatus(
                     armedAtEpochMillis = sessionStamp,
@@ -397,7 +437,6 @@ class InstagramWatcherService : AccessibilityService() {
         // both are derived here rather than read. Everything unreadable lands on
         // the strict side: passIsOpen needs every one of its conditions, and the
         // fields above default to "no quota, no pass, nothing pending".
-        val now = System.currentTimeMillis()
         val effective = effectiveSettings(
             stored = LockedSettings(allowanceSettings, settings.blockedSurfaces),
             pending = pendingChange,
@@ -431,7 +470,7 @@ class InstagramWatcherService : AccessibilityService() {
 
         if (decision.recordEpisode) {
             val event = BlockEvent(
-                epochMillis = System.currentTimeMillis(),
+                epochMillis = now,
                 surface = classification.surface.name,
                 ruleTier = decision.tier?.name ?: "UNKNOWN",
             )
@@ -500,6 +539,7 @@ class InstagramWatcherService : AccessibilityService() {
      * Only on-screen candidates count. Instagram pre-mounts the neighbouring tab
      * with collapsed or negative bounds, so an off-screen search field is a real
      * possibility, and clicking one would do nothing while looking like success.
+     *
      */
     private fun clickNode(root: AccessibilityNodeInfo, viewId: String?): Boolean {
         if (viewId == null) return false
@@ -513,11 +553,79 @@ class InstagramWatcherService : AccessibilityService() {
         return target.performAction(AccessibilityNodeInfo.ACTION_CLICK)
     }
 
+    private fun captureDirectory(): File =
+        File(getExternalFilesDir(null), "captures").apply { mkdirs() }
+
+    /**
+     * Deletes the snapshots left by earlier sessions, when a new one is armed.
+     *
+     * These files hold real personal data — the project has measured it: contact
+     * names and previews of private conversations arrive inside
+     * `contentDescription`, which this app does read. They sit in app-specific
+     * external storage, which the user's own file manager can open, and nothing
+     * used to remove them, so every capture ever taken accumulated there until
+     * the app was uninstalled.
+     *
+     * External storage is kept rather than `filesDir` on purpose: the project's
+     * own recipe pulls these files off the device without `run-as`, and moving
+     * them would break it. Clearing them at each arming does not make the
+     * exposure zero — it bounds it to one session instead of to the app's whole
+     * history, which is the part that was actually indefensible.
+     *
+     * Deletes only files of a **strictly earlier** session, matched on the stamp in
+     * their own name. Skipping "the session just armed" would have been enough for
+     * one arming and wrong for two: the capture button is only hidden once the
+     * status has come back through DataStore, so a double press sends two
+     * broadcasts, and the two purges run on IO in no particular order. A late
+     * purge for session 1 would then have deleted session 2's files. Ordering by
+     * stamp makes that impossible rather than unlikely.
+     *
+     * Matches the naming pattern too, so anything else parked in that directory —
+     * a scrubbed derivative, say — is left alone.
+     */
+    private fun purgeOldCaptures() {
+        val current = sessionStamp
+        scope.launch {
+            runCatching {
+                captureDirectory().listFiles()
+                    ?.filter { file -> stampOf(file.name)?.let { it < current } == true }
+                    ?.forEach { it.delete() }
+            }.onFailure {
+                if (it is CancellationException) throw it
+                Log.e(TAG, "could not purge earlier captures", it)
+            }
+        }
+    }
+
+    /** The session stamp in `capture-<stamp>-<index>.json`, or null if not one of ours. */
+    private fun stampOf(fileName: String): Long? = CAPTURE_NAME.matchEntire(fileName)
+        ?.groupValues?.get(1)?.toLongOrNull()
+
+    /**
+     * Writes one snapshot, off the main thread.
+     *
+     * Encoding a several-hundred-node tree to indented JSON and writing it is
+     * hundreds of kilobytes of work, and this used to happen inline — on the main
+     * thread, inside `onAccessibilityEvent`, every three seconds for a whole
+     * minute. It is exactly what the episode insert refuses to do a few lines
+     * above, for exactly the same reason: it shows up as jank inside the app being
+     * watched.
+     *
+     * The file name is claimed here, synchronously, so the numbering stays
+     * sequential however the writes interleave.
+     */
     private fun writeCapture(snapshot: ScreenSnapshot) {
-        val directory = File(getExternalFilesDir(null), "captures").apply { mkdirs() }
-        val file = File(directory, "capture-%d-%03d.json".format(sessionStamp, captureIndex++))
-        file.writeText(json.encodeToString(snapshot))
-        Log.i(TAG, "wrote ${file.absolutePath} (${snapshot.nodes.size} nodes)")
+        val name = "capture-%d-%03d.json".format(sessionStamp, captureIndex++)
+        scope.launch {
+            runCatching {
+                val file = File(captureDirectory(), name)
+                file.writeText(json.encodeToString(snapshot))
+                Log.i(TAG, "wrote ${file.absolutePath} (${snapshot.nodes.size} nodes)")
+            }.onFailure {
+                if (it is CancellationException) throw it
+                Log.e(TAG, "could not write capture", it)
+            }
+        }
     }
 
     companion object {
@@ -525,5 +633,8 @@ class InstagramWatcherService : AccessibilityService() {
         const val ACTION_RELOAD_RULES = "com.insta.reelsoff.RELOAD_RULES"
 
         private const val TAG = "ReelsOff"
+
+        /** `capture-<stamp>-<index>.json`, the only files purging is allowed to touch. */
+        private val CAPTURE_NAME = Regex("""capture-(\d+)-\d+\.json""")
     }
 }

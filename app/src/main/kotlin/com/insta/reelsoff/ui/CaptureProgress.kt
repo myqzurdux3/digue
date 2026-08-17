@@ -8,13 +8,13 @@ import com.insta.reelsoff.service.CaptureSession
  *
  * Derived from the timestamps the service publishes rather than stored, so the
  * screen cannot claim a session is running after its deadline has passed — which
- * it would, since the service can only write a final status if Instagram happens
+ * it would, since the service can only write a final status if a watched app happens
  * to send one more event.
  */
 enum class CapturePhase {
     IDLE,
 
-    /** Armed, waiting for the user to reach Instagram. Nothing written yet. */
+    /** Armed, waiting for the user to reach a watched app. Nothing written yet. */
     WAITING,
 
     RUNNING,

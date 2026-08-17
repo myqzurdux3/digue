@@ -227,6 +227,35 @@ class RuleSetParserTest {
     }
 
     @Test
+    fun `a blank click target is rejected`() {
+        // Absent means "leave the screen the ordinary way", which is what every
+        // surface but Explore wants. Present-but-empty is a mistake, and it would
+        // reach the service, find no node, and fall back to that same exit — a
+        // rule that reads as configured and does none of what it says.
+        val raw = """
+            {
+              "version": 2,
+              "apps": {
+                "com.instagram.android": {
+                  "surfaces": {
+                    "EXPLORE": {
+                      "clickViewId": "   ",
+                      "signals": [
+                        { "tier": "HIGH", "type": "VIEW_ID", "value": "search_tab" }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+        """.trimIndent()
+
+        val result = RuleSetParser.parse(raw)
+
+        assertTrue(result is ParseResult.Failure)
+    }
+
+    @Test
     fun `a mistyped new field degrades instead of throwing`() {
         // The rules file is hand-edited on the phone to repair detection without
         // recompiling, so the day it is wrong the app must degrade, not crash.

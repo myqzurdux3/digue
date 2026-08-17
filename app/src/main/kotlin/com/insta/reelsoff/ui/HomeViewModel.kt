@@ -7,7 +7,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.insta.detection.Surface
 import com.insta.reelsoff.data.AppDatabase
-import com.insta.reelsoff.data.BlockEvent
 import com.insta.reelsoff.data.BlockSettings
 import com.insta.reelsoff.data.CaptureStatus
 import com.insta.reelsoff.data.DailyCount
@@ -20,16 +19,17 @@ import com.insta.reelsoff.data.dailyWatched
 import com.insta.reelsoff.service.AllowanceSettings
 import com.insta.reelsoff.service.AllowanceState
 import com.insta.reelsoff.service.LockedSettings
+import com.insta.reelsoff.service.PassClosure
 import com.insta.reelsoff.service.PendingChange
 import com.insta.reelsoff.service.armChange
 import com.insta.reelsoff.service.closureOf
 import com.insta.reelsoff.service.forcedClosureOf
 import com.insta.reelsoff.service.maturedProposal
 import com.insta.reelsoff.service.openPass
-import com.insta.reelsoff.service.settle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -40,6 +40,8 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -167,55 +169,79 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     @OptIn(ExperimentalCoroutinesApi::class)
     private val passes = windowTick.flatMapLatest { passDao.observeSince(historySinceMillis()) }
 
-    // combine's typed overloads stop at five flows; this screen needs eight, so the
-    // vararg form is used instead, indexed positionally against the argument order below.
-    // Nothing here is type-checked: two Set<String> flows sit next to each other, and
-    // swapping any two indices compiles and runs. Re-read this table against the
-    // argument list whenever either changes.
-    //   0 serviceEnabled                  -> Boolean
-    //   1 settingsStore.settings          -> BlockSettings
-    //   2 events                          -> List<BlockEvent>
-    //   3 settingsStore.ruleLoadStatus    -> RuleLoadStatus
-    //   4 settingsStore.captureStatus     -> CaptureStatus
-    //   5 installedPackages               -> Set<String>
-    //   6 settingsStore.declaredPackages  -> Set<String>
-    //   7 passes                          -> List<PassEvent>
-    val uiState: StateFlow<HomeUiState> = combine(
+    /** The fourteen-day chart, and the one banner derived from the same rows. */
+    private data class HistorySlice(
+        val history: List<DailyCount>,
+        val watched: List<DailyWatched>,
+        val degradedByTier: Boolean,
+    )
+
+    /** Everything about how the app and the service are currently set up. */
+    private data class StatusSlice(
+        val serviceEnabled: Boolean,
+        val settings: BlockSettings,
+        val ruleLoadStatus: RuleLoadStatus,
+        val captureStatus: CaptureStatus,
+    )
+
+    /** Which apps are on the phone, and which the service may actually observe. */
+    private data class PackagesSlice(
+        val installed: Set<String>,
+        val declared: Set<String>,
+    )
+
+    // Three typed groups rather than one eight-argument combine.
+    //
+    // combine's typed overloads stop at five flows, so eight forced the vararg
+    // form — an Array<Any?> read by index, with eight unchecked casts and a table
+    // in a comment for a type system. Two Set<String> sat next to each other, and
+    // swapping their indices compiled and ran. Nesting typed combines makes that
+    // mistake impossible to write instead of merely documented.
+    //
+    // It also fixes what the shape cost at runtime. The chart is rebuilt from
+    // every event in the window, and in one flat combine that happened on every
+    // emission of all eight sources — including captureStatus, which the service
+    // writes every three seconds for the length of a capture, and which cannot
+    // change a single bar. Now the rebuild lives in `historySlice` and only its
+    // own two sources can trigger it; the others re-use the value already
+    // computed. Same reasoning that moved the countdown out of here entirely.
+    private val historySlice: Flow<HistorySlice> = combine(events, passes) { dayEvents, passEvents ->
+        val today = LocalDate.now(zone)
+        HistorySlice(
+            history = dailyCounts(dayEvents, zone, today, HISTORY_DAYS),
+            watched = dailyWatched(passEvents, zone, today, HISTORY_DAYS),
+            degradedByTier = isDegraded(dayEvents),
+        )
+    }
+
+    private val statusSlice: Flow<StatusSlice> = combine(
         serviceEnabled,
         settingsStore.settings,
-        events,
         settingsStore.ruleLoadStatus,
         settingsStore.captureStatus,
-        installedPackages,
-        settingsStore.declaredPackages,
-        passes,
-    ) { values ->
-        @Suppress("UNCHECKED_CAST")
-        val enabled = values[0] as Boolean
-        @Suppress("UNCHECKED_CAST")
-        val settings = values[1] as BlockSettings
-        @Suppress("UNCHECKED_CAST")
-        val dayEvents = values[2] as List<BlockEvent>
-        @Suppress("UNCHECKED_CAST")
-        val ruleLoadStatus = values[3] as RuleLoadStatus
-        @Suppress("UNCHECKED_CAST")
-        val captureStatus = values[4] as CaptureStatus
-        @Suppress("UNCHECKED_CAST")
-        val installed = values[5] as Set<String>
-        @Suppress("UNCHECKED_CAST")
-        val declared = values[6] as Set<String>
-        @Suppress("UNCHECKED_CAST")
-        val passEvents = values[7] as List<PassEvent>
+        ::StatusSlice,
+    )
+
+    private val packagesSlice: Flow<PackagesSlice> =
+        combine(installedPackages, settingsStore.declaredPackages, ::PackagesSlice)
+
+    val uiState: StateFlow<HomeUiState> = combine(
+        historySlice,
+        statusSlice,
+        packagesSlice,
+    ) { history, status, packages ->
         HomeUiState(
-            serviceEnabled = enabled,
-            settings = settings,
-            history = dailyCounts(dayEvents, zone, LocalDate.now(zone), HISTORY_DAYS),
-            degraded = isDegraded(dayEvents) || ruleLoadStatus.error != null,
-            ruleLoadError = ruleLoadStatus.error,
-            captureStatus = captureStatus,
-            installedPackages = installed,
-            declaredPackages = declared,
-            watched = dailyWatched(passEvents, zone, LocalDate.now(zone), HISTORY_DAYS),
+            serviceEnabled = status.serviceEnabled,
+            settings = status.settings,
+            history = history.history,
+            // The two causes are folded here rather than in the slice: one is a
+            // property of the recent blocks, the other of the last rule load.
+            degraded = history.degradedByTier || status.ruleLoadStatus.error != null,
+            ruleLoadError = status.ruleLoadStatus.error,
+            captureStatus = status.captureStatus,
+            installedPackages = packages.installed,
+            declaredPackages = packages.declared,
+            watched = history.watched,
         )
     }
         // Both DataStore (IOException) and Room (SQLiteException) can throw out of this
@@ -283,6 +309,36 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AllowanceUiState())
 
     /**
+     * Serialises every settings write.
+     *
+     * All of them read the store, decide, then write — and they are launched from
+     * five different UI gestures into a scope that lets them interleave at every
+     * suspension point. Two taps in quick succession therefore both read the
+     * pre-change value and both wrote a `pending_change`, and the first one
+     * vanished without a trace. The shortest way to see it was to arm a cooldown
+     * and press the window stepper twice.
+     *
+     * Held across the whole read-decide-write sequence, not just the write: it is
+     * the read that goes stale.
+     */
+    private val writes = Mutex()
+
+    /**
+     * Records what a closure was worth, when it was worth anything.
+     *
+     * Both the "Fermer maintenant" button and the settling that happens when a
+     * pass is reopened go through here, so a duration reaches the history the same
+     * way whichever ended the pass. A zero — a pass carried over from a day that
+     * no longer has a budget — is not a row.
+     */
+    private suspend fun bank(closure: PassClosure?, nowEpochMillis: Long) {
+        if (closure == null || closure.durationMillis <= 0) return
+        passDao.insert(
+            PassEvent(epochMillis = nowEpochMillis, durationMillis = closure.durationMillis),
+        )
+    }
+
+    /**
      * Writes a matured pending change into the store and clears it.
      *
      * Readers do not depend on this — `effectiveSettings` derives the in-force
@@ -292,6 +348,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
      * lock compares a *proposal* against the store.
      *
      * Idempotent, and a no-op when nothing is pending or nothing has matured.
+     *
+     * The writes below are not one transaction — up to seven separate DataStore
+     * edits — and the order is what makes an interruption safe rather than a
+     * migration half-applied. `pending_change` is cleared **last**, and every
+     * reader derives the settings in force through `effectiveSettings`, so as
+     * long as the held change is still there and has matured, its values are the
+     * ones in force whatever else did or did not land. A process killed halfway
+     * repairs itself on the next call. Do not reorder these.
      */
     private suspend fun commitMaturedChange() {
         val proposal = maturedProposal(
@@ -315,7 +379,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
      * store would otherwise stay behind the values already in force.
      */
     fun commitAnyMaturedChange() {
-        viewModelScope.launch { commitMaturedChange() }
+        viewModelScope.launch { writes.withLock { commitMaturedChange() } }
     }
 
     /**
@@ -329,7 +393,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun writeThroughLock(
         proposed: (LockedSettings) -> LockedSettings,
         applyTightening: suspend () -> Unit,
-    ) {
+    ) = writes.withLock {
         // Before comparing anything: a matured change is already in force as far
         // as every reader is concerned, but it is not in the store yet. Comparing
         // against the stale stored value would measure the proposal against the
@@ -383,20 +447,48 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Settles first, so a pass that expired while the screen was closed is
-     * banked rather than reopened — [openPass] refuses an already-open pass, and
-     * an expired one still carries a nonzero opening stamp.
+     * Settles first, so a pass that expired while the screen was closed is banked
+     * rather than reopened — [openPass] refuses an already-open pass, and an
+     * expired one still carries a nonzero opening stamp.
+     *
+     * Settling used to go through `settle`, which banks the elapsed time into the
+     * state and returns — writing no `pass_event` row. The minutes were charged
+     * against the quota, correctly, and then vanished from the chart. The service
+     * covers the ordinary case, since it notices the expiry at its next event; it
+     * cannot cover this one, because a user who left the watched app before the
+     * pass ran out sends the service no event at all, and then it is this screen
+     * that settles first. The figure the whole quota exists to move was the one
+     * being under-reported.
+     *
+     * Half the gap remains, and deliberately: a pass carried over from an earlier
+     * day still records nothing. `closePass` discards its time because the day it
+     * belonged to no longer has a budget to charge, and putting those minutes on
+     * today would be a worse lie than omitting them.
      */
     fun openPass() {
         viewModelScope.launch {
-            // Same reason as in writeThroughLock: a matured change may have
-            // widened the window or raised the quota, and reading the stale store
-            // would refuse a pass the user is entitled to.
-            commitMaturedChange()
-            val settings = settingsStore.allowanceSettings.first()
-            val now = System.currentTimeMillis()
-            val settled = settle(settings, settingsStore.allowanceState.first(), now, zone)
-            settingsStore.setAllowanceState(openPass(settings, settled, now, zone))
+            writes.withLock {
+                // Same reason as in writeThroughLock: a matured change may have
+                // widened the window or raised the quota, and reading the stale
+                // store would refuse a pass the user is entitled to.
+                commitMaturedChange()
+                val settings = settingsStore.allowanceSettings.first()
+                val now = System.currentTimeMillis()
+                val stored = settingsStore.allowanceState.first()
+
+                val closure = closureOf(settings, stored, now, zone)
+                val settled = closure?.state ?: stored
+
+                // State first, row second — the same order as closePass, and the
+                // order matters. Banking first and then failing to write the state
+                // would leave a pass that is still open and already expired in the
+                // store: the service would settle it again at its next event and
+                // insert a SECOND row for the same minutes. This way a failure
+                // between the two loses the row, which under-reports — the side
+                // that does not invent watched time.
+                settingsStore.setAllowanceState(openPass(settings, settled, now, zone))
+                bank(closure, now)
+            }
         }
     }
 
@@ -407,22 +499,22 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun closePass() {
         viewModelScope.launch {
-            val now = System.currentTimeMillis()
-            val closure = forcedClosureOf(
-                settingsStore.allowanceSettings.first(),
-                settingsStore.allowanceState.first(),
-                now,
-                zone,
-            ) ?: return@launch
-            settingsStore.setAllowanceState(closure.state)
-            if (closure.durationMillis > 0) {
-                passDao.insert(PassEvent(epochMillis = now, durationMillis = closure.durationMillis))
+            writes.withLock {
+                val now = System.currentTimeMillis()
+                val closure = forcedClosureOf(
+                    settingsStore.allowanceSettings.first(),
+                    settingsStore.allowanceState.first(),
+                    now,
+                    zone,
+                ) ?: return@withLock
+                settingsStore.setAllowanceState(closure.state)
+                bank(closure, now)
             }
         }
     }
 
     /** Cancelling a held loosening is itself a tightening, so it lands at once. */
     fun cancelPendingChange() {
-        viewModelScope.launch { settingsStore.setPendingChange(null) }
+        viewModelScope.launch { writes.withLock { settingsStore.setPendingChange(null) } }
     }
 }

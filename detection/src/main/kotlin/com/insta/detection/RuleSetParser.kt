@@ -51,6 +51,13 @@ object RuleSetParser {
                 if (surface == Surface.OTHER) {
                     return ParseResult.Failure("surface \"OTHER\" cannot carry rules")
                 }
+                // A present-but-blank click target would reach the service, find
+                // nothing, and fall back to leaving the screen — a rule that looks
+                // configured and does nothing of what it says. Absent is fine and
+                // means "exit the ordinary way"; blank is a mistake.
+                if (rules.clickViewId != null && rules.clickViewId.isBlank()) {
+                    return ParseResult.Failure("a clickViewId must not be blank")
+                }
                 rules.signals.forEach { signal ->
                     validate(signal)?.let { return ParseResult.Failure(it) }
                 }

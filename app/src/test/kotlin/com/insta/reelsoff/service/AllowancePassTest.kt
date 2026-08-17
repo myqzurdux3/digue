@@ -194,6 +194,27 @@ class PassClosureTest {
         assertEquals(dayOf(17), closure.state.day)
     }
 
+    /**
+     * Reopening a pass has to settle the old one first, and settling it is worth a
+     * row in the history.
+     *
+     * The screen used to settle with `settle`, which banks the elapsed time into
+     * the state and hands back nothing else — so the minutes were charged against
+     * the quota, correctly, and disappeared from the chart. This pins the two as
+     * equivalent on the state and shows what the extra return value carries, so
+     * the cheaper-looking call is not reached for again.
+     */
+    @Test
+    fun `settling before reopening yields the very duration settle throws away`() {
+        val opened = openPass(settings, AllowanceState(), at(17, 20, 0), PARIS)
+        val afterExpiry = at(17, 20, 0) + 300_001
+
+        val closure = closureOf(settings, opened, afterExpiry, PARIS)!!
+
+        assertEquals(300_000L, closure.durationMillis)
+        assertEquals(settle(settings, opened, afterExpiry, PARIS), closure.state)
+    }
+
     @Test
     fun `settling twice records once`() {
         val opened = openPass(settings, AllowanceState(), at(17, 20, 0), PARIS)

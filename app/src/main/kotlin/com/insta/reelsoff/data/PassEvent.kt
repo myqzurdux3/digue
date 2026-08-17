@@ -2,7 +2,6 @@ package com.insta.reelsoff.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -33,32 +32,22 @@ data class DailyWatched(
 
 /**
  * Buckets passes into local days, oldest first, including empty days so the
- * figures line up with [dailyCounts] index for index.
- *
- * Same shape and same reason as [dailyCounts]: local-day boundaries depend on
- * the time zone, which java.time handles and a SQLite date expression does not.
+ * figures line up with [dailyCounts] index for index — which they do by
+ * construction, both going through [bucketByDay].
  */
 fun dailyWatched(
     events: List<PassEvent>,
     zone: ZoneId,
     today: LocalDate,
     days: Int,
-): List<DailyWatched> {
-    val firstDay = today.minusDays((days - 1).toLong())
-    val perDay = mutableMapOf<LocalDate, Long>()
-
-    for (event in events) {
-        val date = Instant.ofEpochMilli(event.epochMillis).atZone(zone).toLocalDate()
-        if (date < firstDay || date > today) continue
-        // A negative duration cannot happen from closePass, which floors its
-        // elapsed time at zero — but the database outlives any one build, so a row
-        // written by a version that did not is dropped rather than subtracted.
-        if (event.durationMillis <= 0) continue
-        perDay.merge(date, event.durationMillis, Long::plus)
+): List<DailyWatched> =
+    bucketByDay(events, zone, today, days, PassEvent::epochMillis) { date, ofThatDay ->
+        DailyWatched(
+            date = date,
+            // A negative duration cannot happen from closePass, which floors its
+            // elapsed time at zero — but the database outlives any one build, so a
+            // row written by a version that did not is dropped rather than
+            // subtracted.
+            millis = ofThatDay.filter { it.durationMillis > 0 }.sumOf { it.durationMillis },
+        )
     }
-
-    return (0 until days).map { offset ->
-        val date = firstDay.plusDays(offset.toLong())
-        DailyWatched(date, perDay[date] ?: 0)
-    }
-}

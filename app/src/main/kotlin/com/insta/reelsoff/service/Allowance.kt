@@ -73,9 +73,12 @@ fun windowContains(settings: AllowanceSettings, minute: Int): Boolean {
  * Deliberately not capped at the quota: a pass whose process died can run past
  * it, and reporting the true figure beats reporting a tidy one. Every consumer
  * goes through [remainingMillis], which floors at zero.
+ *
+ * Takes no [AllowanceSettings] on purpose — spent time is a fact about the
+ * state and the clock, and nothing about the budget can change it. It used to
+ * take one and never read it.
  */
 fun consumedMillisAt(
-    settings: AllowanceSettings,
     state: AllowanceState,
     nowEpochMillis: Long,
     zone: ZoneId,
@@ -95,7 +98,7 @@ fun remainingMillis(
     state: AllowanceState,
     nowEpochMillis: Long,
     zone: ZoneId,
-): Long = (settings.quotaMillis - consumedMillisAt(settings, state, nowEpochMillis, zone))
+): Long = (settings.quotaMillis - consumedMillisAt(state, nowEpochMillis, zone))
     .coerceAtLeast(0)
 
 /**
@@ -199,9 +202,11 @@ data class PassClosure(
  * running, or one still running. Both the service and the UI go through here, so
  * "a pass ended" is decided once rather than in two places that could disagree.
  *
- * A pass carried over from an earlier day yields null: [closePass] discards its
- * time, because the day it belonged to no longer has a budget to charge, and
- * inventing a duration for it would put time on the wrong day.
+ * A pass carried over from an earlier day is NOT null — the state still has to
+ * be written back, since [closePass] resets it onto today — but its duration is
+ * zero, and callers record nothing for a zero. [closePass] discards that time
+ * because the day it belonged to no longer has a budget to charge, and inventing
+ * a duration for it would put time on the wrong day.
  */
 fun closureOf(
     settings: AllowanceSettings,

@@ -27,28 +27,19 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.insta.detection.Surface
 import com.insta.reelsoff.R
-import com.insta.reelsoff.data.CaptureStatus
 import com.insta.reelsoff.data.DailyCount
 import com.insta.reelsoff.service.AllowanceSettings
-import kotlinx.coroutines.delay
 import java.util.Locale
-import java.time.format.TextStyle as JavaTextStyle
 
 private val PAGE_MARGIN = 28.dp
 
@@ -182,35 +173,33 @@ fun HomeScreen(
 }
 
 /**
- * Which switch label a surface's toggle carries, inside its app's [Section].
+ * Both names a surface goes by on this screen: the wording on its switch, and the
+ * short one used in the daily breakdown line.
  *
- * `OTHER` falls back to an empty string rather than throwing: it never actually
- * reaches here (`surfaceGroups()` never emits it), but this screen shares a
- * process with the accessibility service, so a wrong label beats a crash.
+ * One table rather than two parallel `when`s, so a new surface cannot arrive with
+ * a switch and no breakdown name — the shape that was there before needed the
+ * same enum spelled out twice, with the same fallback justified twice.
+ *
+ * `OTHER` maps to nothing rather than throwing: it never actually reaches here,
+ * since `surfaceGroups()` never emits it and `breakdownSurfaces()` filters it
+ * out, but this screen shares a process with the accessibility service, so a
+ * missing label beats a crash.
  */
-@Composable
-private fun switchLabel(surface: Surface): String = when (surface) {
-    Surface.REELS -> stringResource(R.string.block_reels)
-    Surface.EXPLORE -> stringResource(R.string.block_explore)
-    Surface.SHORTS -> stringResource(R.string.block_shorts)
-    Surface.SPOTLIGHT -> stringResource(R.string.block_spotlight)
-    Surface.DISCOVER -> stringResource(R.string.block_discover)
-    Surface.OTHER -> ""
-}
+private val SURFACE_LABELS: Map<Surface, Pair<Int, Int>> = mapOf(
+    Surface.REELS to (R.string.block_reels to R.string.reels),
+    Surface.EXPLORE to (R.string.block_explore to R.string.explore),
+    Surface.SHORTS to (R.string.block_shorts to R.string.shorts),
+    Surface.SPOTLIGHT to (R.string.block_spotlight to R.string.spotlight),
+    Surface.DISCOVER to (R.string.block_discover to R.string.discover),
+)
 
-/**
- * The short display name for a surface, used in the daily breakdown line.
- * `OTHER` is unreachable (see [switchLabel]) and falls back the same way.
- */
 @Composable
-private fun shortLabel(surface: Surface): String = when (surface) {
-    Surface.REELS -> stringResource(R.string.reels)
-    Surface.EXPLORE -> stringResource(R.string.explore)
-    Surface.SHORTS -> stringResource(R.string.shorts)
-    Surface.SPOTLIGHT -> stringResource(R.string.spotlight)
-    Surface.DISCOVER -> stringResource(R.string.discover)
-    Surface.OTHER -> ""
-}
+private fun switchLabel(surface: Surface): String =
+    SURFACE_LABELS[surface]?.first?.let { stringResource(it) } ?: ""
+
+@Composable
+private fun shortLabel(surface: Surface): String =
+    SURFACE_LABELS[surface]?.second?.let { stringResource(it) } ?: ""
 
 @Composable
 private fun Wordmark() {
@@ -343,8 +332,9 @@ private fun TodayTotal(total: Int, today: DailyCount?) {
     Column {
         Counter(
             value = total,
-            // No label: the enclosing Section is already titled "Aujourd'hui",
-            // and repeating it under the figure read as a stutter on the device.
+            // The label says what the figure counts, not where it sits: the
+            // enclosing Section is already titled "Aujourd'hui", and repeating
+            // that under the figure read as a stutter on the device.
             label = stringResource(R.string.today_blocks),
             // One utterance ("Retenu 3 fois") rather than a screen reader stitching
             // together the bare number and the small-caps label separately.

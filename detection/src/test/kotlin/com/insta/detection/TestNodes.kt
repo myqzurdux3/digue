@@ -24,8 +24,8 @@ fun node(
     bounds = bounds,
 )
 
-fun snapshot(nodes: List<NodeSummary>) =
-    ScreenSnapshot("com.instagram.android", 0L, nodes)
+fun snapshot(nodes: List<NodeSummary>, packageName: String = "com.instagram.android") =
+    ScreenSnapshot(packageName, 0L, nodes)
 
 /**
  * A five-tab bottom bar sitting at the bottom of a 2400px-tall screen,

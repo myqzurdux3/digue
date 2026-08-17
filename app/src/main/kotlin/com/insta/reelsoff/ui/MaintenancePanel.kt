@@ -28,53 +28,46 @@ import kotlinx.coroutines.delay
 @Composable
 fun MaintenanceSection(state: HomeUiState, onStartCapture: () -> Unit) {
     Section(title = stringResource(R.string.maintenance_title)) {
-
-            // Both of these only matter when something has gone wrong, so they sit at
-            // the foot of the page rather than above the numbers the user came for.
-            Text(
-                text = stringResource(R.string.battery_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = EncreDouce,
-            )
-            Spacer(Modifier.height(10.dp))
-            // state.declaredPackages is what the service last actually assigned to
-            // serviceInfo.packageNames, published by InstagramWatcherService itself
-            // right after a successful assignment (see DeclaredPackages.kt and
-            // applyDeclaredPackages) — not recomputed here from the rule set and not
-            // filtered by the installed-app detection the `groups` above use. That
-            // makes this line true of what happened, not of what should have
-            // happened: it cannot claim success for an assignment that threw, and it
-            // cannot go stale relative to a hand-edited rules.json override the way a
-            // ViewModel-side recomputation could.
-            val observedLabels = state.declaredPackages
-                .mapNotNull { packageName -> labelForPackage(packageName) }
-                .map { stringResource(it) }
-                .distinct()
-                .sorted()
-            Text(
-                text = stringResource(
-                    R.string.declared_packages,
-                    if (observedLabels.isEmpty()) "—" else observedLabels.joinToString(", "),
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = EncreDouce,
-            )
-            Spacer(Modifier.height(14.dp))
-            CaptureControl(
-                status = state.captureStatus,
-                serviceEnabled = state.serviceEnabled,
-                onStartCapture = onStartCapture,
-            )
+        // Both of these only matter when something has gone wrong, so they sit at
+        // the foot of the page rather than above the numbers the user came for.
+        Text(
+            text = stringResource(R.string.battery_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = EncreDouce,
+        )
+        Spacer(Modifier.height(10.dp))
+        // Reports what the service actually declared, not what it should have —
+        // see the field's own documentation on HomeUiState for why that
+        // distinction is the whole point of this line.
+        val observedLabels = state.declaredPackages
+            .mapNotNull { packageName -> labelForPackage(packageName) }
+            .map { stringResource(it) }
+            .distinct()
+            .sorted()
+        Text(
+            text = stringResource(
+                R.string.declared_packages,
+                if (observedLabels.isEmpty()) "—" else observedLabels.joinToString(", "),
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = EncreDouce,
+        )
+        Spacer(Modifier.height(14.dp))
+        CaptureControl(
+            status = state.captureStatus,
+            serviceEnabled = state.serviceEnabled,
+            onStartCapture = onStartCapture,
+        )
     }
 }
 
 /**
- * A repair tool, not a daily control: it recalibrates the rules when Instagram
- * drifts. Kept reachable, but given the least weight on the page.
+ * A repair tool, not a daily control: it recalibrates the rules when a watched
+ * app drifts. Kept reachable, but given the least weight on the page.
  *
  * It used to be a bare button whose only feedback was a line in logcat, so the
- * three ways it can quietly do nothing — service off, never reaching Instagram,
- * window already over — all looked exactly like a working press.
+ * three ways it can quietly do nothing — service off, never reaching a watched
+ * app, window already over — all looked exactly like a working press.
  */
 @Composable
 private fun CaptureControl(

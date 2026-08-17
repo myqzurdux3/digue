@@ -34,7 +34,8 @@ class AllowanceUiStateTest {
         allowanceState: AllowanceState = AllowanceState(),
         pending: PendingChange? = null,
         now: Long = at(17, 20, 30),
-    ) = allowanceUiState(settings, allowanceState, pending, blocked, now, 50_000, PARIS)
+        nowElapsedRealtime: Long = 50_000,
+    ) = allowanceUiState(settings, allowanceState, pending, blocked, now, nowElapsedRealtime, PARIS)
 
     @Test
     fun `a disabled quota reports itself off and offers nothing`() {
@@ -87,16 +88,63 @@ class AllowanceUiStateTest {
 
     @Test
     fun `an unmatured pending change is reported with the time it still has to wait`() {
+        // Coherent by construction, the way armChange builds one: the deadline is
+        // the arming instant plus the cooldown, on both clocks at once.
         val pending = PendingChange(
             proposed = LockedSettings(settings.copy(quotaMillis = 600_000), blocked),
             effectiveAtEpochMillis = at(17, 20, 30) + 3_600_000,
             armedAtElapsedRealtime = 50_000,
-            cooldownMillis = 24 * 3_600_000,
+            cooldownMillis = 3_600_000,
         )
         val ui = state(pending = pending)
         assertEquals(3_600_000L, ui.pendingInMillis)
         // Still the stored quota, not the proposed one.
         assertEquals(300_000L, ui.quotaMillis)
+    }
+
+    /**
+     * The wall clock belongs to the user, and winding it forward is the obvious
+     * way to try to hurry a loosening along. `hasMatured` refuses, because elapsed
+     * real time has not moved — and the panel has to say the same thing. Counting
+     * on the wall clock alone, it read "actif dans 0 s" for as long as the real
+     * cooldown had left to run: the lock held and the screen explained nothing.
+     */
+    @Test
+    fun `winding the wall clock forward does not run the countdown down`() {
+        val pending = PendingChange(
+            proposed = LockedSettings(settings.copy(quotaMillis = 600_000), blocked),
+            // Already in the past as far as the wall clock is concerned.
+            effectiveAtEpochMillis = at(17, 20, 30) - 7 * 24 * 3_600_000L,
+            armedAtElapsedRealtime = 50_000,
+            cooldownMillis = 3_600_000,
+        )
+
+        // Barely any real time has passed since arming.
+        val ui = state(pending = pending, nowElapsedRealtime = 50_000 + 1_000)
+
+        assertEquals(3_600_000L - 1_000L, ui.pendingInMillis)
+        assertEquals("the change must not be in force", 300_000L, ui.quotaMillis)
+    }
+
+    /**
+     * A reboot resets elapsed real time, so there is nothing left to measure the
+     * cooldown against and the wall clock decides alone — `hasMatured` says so,
+     * and the countdown must not go on claiming a wait that can no longer be
+     * checked.
+     */
+    @Test
+    fun `after a reboot the countdown follows the wall clock alone`() {
+        val pending = PendingChange(
+            proposed = LockedSettings(settings.copy(quotaMillis = 600_000), blocked),
+            effectiveAtEpochMillis = at(17, 20, 30) + 600_000,
+            armedAtElapsedRealtime = 9_000_000,
+            cooldownMillis = 24 * 3_600_000,
+        )
+
+        // Below the armed value: the phone restarted.
+        val ui = state(pending = pending, nowElapsedRealtime = 4_000)
+
+        assertEquals(600_000L, ui.pendingInMillis)
     }
 
     @Test

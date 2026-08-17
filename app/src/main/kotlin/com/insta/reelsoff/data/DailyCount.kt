@@ -1,7 +1,6 @@
 package com.insta.reelsoff.data
 
 import com.insta.detection.Surface
-import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -26,34 +25,25 @@ data class DailyCount(
 
 /**
  * Buckets events into local days, oldest first, including empty days so the
- * chart keeps a stable width.
- *
- * Done in Kotlin rather than SQL because local-day boundaries depend on the
- * time zone, which java.time handles and a SQLite date expression does not.
+ * chart keeps a stable width. The windowing itself lives in [bucketByDay], which
+ * [dailyWatched] shares, so the two series line up index for index.
  */
 fun dailyCounts(
     events: List<BlockEvent>,
     zone: ZoneId,
     today: LocalDate,
     days: Int,
-): List<DailyCount> {
-    val firstDay = today.minusDays((days - 1).toLong())
-    val perDay = mutableMapOf<LocalDate, MutableMap<Surface, Int>>()
-
-    for (event in events) {
-        val date = Instant.ofEpochMilli(event.epochMillis).atZone(zone).toLocalDate()
-        if (date < firstDay || date > today) continue
-        // An unrecognised name is dropped rather than counted: the database
-        // outlives any one build, so a row written by a newer version — or by a
-        // surface since removed — must not break the chart.
-        val surface = Surface.entries
-            .firstOrNull { it.name == event.surface && it != Surface.OTHER }
-            ?: continue
-        perDay.getOrPut(date) { mutableMapOf() }.merge(surface, 1, Int::plus)
+): List<DailyCount> =
+    bucketByDay(events, zone, today, days, BlockEvent::epochMillis) { date, ofThatDay ->
+        val counts = mutableMapOf<Surface, Int>()
+        for (event in ofThatDay) {
+            // An unrecognised name is dropped rather than counted: the database
+            // outlives any one build, so a row written by a newer version — or by
+            // a surface since removed — must not break the chart.
+            val surface = Surface.entries
+                .firstOrNull { it.name == event.surface && it != Surface.OTHER }
+                ?: continue
+            counts.merge(surface, 1, Int::plus)
+        }
+        DailyCount(date, counts)
     }
-
-    return (0 until days).map { offset ->
-        val date = firstDay.plusDays(offset.toLong())
-        DailyCount(date, perDay[date].orEmpty())
-    }
-}

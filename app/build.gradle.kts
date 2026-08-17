@@ -23,6 +23,15 @@ android {
         compose = true
     }
 
+    // No `release` block on purpose, and it is worth saying rather than leaving
+    // as an omission. `./gradlew build` therefore produces an unminified, unsigned
+    // release APK, which is harmless because the app is only ever installed as
+    // debug. Turning on R8 is not a free win here: an accessibility service is
+    // reached by name from a system setting, and the rule set is deserialized
+    // reflectively, so minification would have to be proven on the device before
+    // it could be trusted — and a service Android silently refuses to bind is the
+    // worst failure this project has.
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -52,8 +61,11 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    // lifecycle-runtime-compose alone, for collectAsStateWithLifecycle. The
+    // ViewModel arrives through activity-compose's `by viewModels()`, so
+    // lifecycle-viewmodel-compose was never used; lifecycle-runtime-ktx was
+    // declared and never called, and comes in under this one anyway. Both were
+    // removed and the build verified without them.
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.datastore.preferences)
     implementation(libs.room.runtime)
@@ -62,8 +74,11 @@ dependencies {
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
-    implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.material3)
+    // Kept although nothing here declares a @Preview: this is what the Layout
+    // Inspector talks to, and it ships in debug builds only. The matching
+    // `ui-tooling-preview` was dropped — with no previews it earned nothing, and
+    // it was a release dependency.
     debugImplementation(libs.compose.ui.tooling)
 
     testImplementation(libs.junit)

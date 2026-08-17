@@ -132,6 +132,72 @@ class ScreenClassifierTest {
         assertEquals(Tier.HIGH, result.tier)
     }
 
+    /**
+     * Two surfaces of one app, same tier, both matching. The winner decides which
+     * switch governs the screen, so it must not depend on the order the rules file
+     * happens to list them in — a hand edit reorders a JSON object without meaning
+     * anything by it, and the loser silently stops being blocked.
+     *
+     * Written with the map built in the *wrong* order on purpose: SPOTLIGHT is
+     * declared second here and must still win, being first in [Surface].
+     */
+    @Test
+    fun `within a tier the enum order decides, not the rules file order`() {
+        fun rulesListing(vararg surfaces: Pair<Surface, SurfaceRules>) = RuleSet(
+            version = RULES_VERSION,
+            apps = mapOf("com.snapchat.android" to AppRules(linkedMapOf(*surfaces))),
+        )
+
+        val discover = Surface.DISCOVER to SurfaceRules(
+            listOf(
+                Signal(
+                    Tier.HIGH,
+                    SignalType.VIEW_ID,
+                    value = "context_vertical_actions/context_vertical_action_comment",
+                    requireSelected = false,
+                ),
+            ),
+        )
+        val spotlight = Surface.SPOTLIGHT to SurfaceRules(
+            listOf(
+                Signal(
+                    Tier.HIGH,
+                    SignalType.VIEW_ID,
+                    value = "com.snapchat.android:id/spotlight_container",
+                    requireSelected = false,
+                ),
+            ),
+        )
+
+        val bothPresent = snapshot(
+            listOf(
+                node(index = 0),
+                node(
+                    index = 1,
+                    parentIndex = 0,
+                    depth = 1,
+                    viewId = "com.snapchat.android:id/spotlight_container",
+                ),
+                node(
+                    index = 2,
+                    parentIndex = 0,
+                    depth = 1,
+                    viewId = "context_vertical_actions/context_vertical_action_comment",
+                ),
+            ),
+            packageName = "com.snapchat.android",
+        )
+
+        assertEquals(
+            Surface.SPOTLIGHT,
+            ScreenClassifier(rulesListing(discover, spotlight)).classify(bothPresent).surface,
+        )
+        assertEquals(
+            Surface.SPOTLIGHT,
+            ScreenClassifier(rulesListing(spotlight, discover)).classify(bothPresent).surface,
+        )
+    }
+
     @Test
     fun `requireSelected false matches on mere presence`() {
         val rules = RuleSet(

@@ -4,14 +4,14 @@ package com.insta.reelsoff.service
  * A timed window during which the service dumps view trees to disk.
  *
  * Time-based rather than button-based because the user cannot press a button
- * in this app while Instagram is in the foreground, and pulling down the
+ * in this app while the watched app is in the foreground, and pulling down the
  * notification shade would change the active window — capturing the shade
- * instead of Instagram.
+ * instead of the app being captured.
  *
  * Arming and starting are deliberately separate. The button only *arms* the
- * session; the window opens on the first Instagram event. Starting the clock at
- * the press charged the walk from this app to Instagram against the 60 seconds,
- * which on a real device ate a third of the capture before anything was
+ * session; the window opens on the first event from a watched app. Starting the
+ * clock at the press charged the walk from this app to that one against the 60
+ * seconds, which on a real device ate a third of the capture before anything was
  * recorded. A stale arming expires rather than firing hours later, when the user
  * has long forgotten they pressed it.
  */
@@ -21,10 +21,10 @@ class CaptureSession(
     private val intervalMillis: Long = 3_000,
     private val armTimeoutMillis: Long = ARM_TIMEOUT_MILLIS,
 ) {
-    var armedAtMillis: Long = NEVER
-        private set
+    /** Private: nothing outside reads it. The UI is told through `CaptureStatus`. */
+    private var armedAtMillis: Long = NEVER
 
-    /** [NEVER] until the first Instagram event opens the window. */
+    /** [NEVER] until the first event from a watched app opens the window. */
     var startedAtMillis: Long = NEVER
         private set
 
@@ -61,7 +61,7 @@ class CaptureSession(
     companion object {
         const val DEFAULT_DURATION_MILLIS = 60_000L
 
-        /** How long an armed session waits for Instagram before giving up. */
+        /** How long an armed session waits for a watched app before giving up. */
         const val ARM_TIMEOUT_MILLIS = 5 * 60_000L
     }
 }

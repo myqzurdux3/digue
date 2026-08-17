@@ -1,12 +1,16 @@
 package com.insta.detection
 
 /**
- * Decides which Instagram screen a snapshot shows.
+ * Decides which screen a snapshot shows, for whichever app it came from.
  *
  * Signals are tried most-trusted first, across all surfaces, and the first
- * match wins. When Instagram renames its resource ids the HIGH tier stops
+ * match wins. When an app renames its resource ids the HIGH tier stops
  * answering, the lower tiers keep working, and the reported tier tells the app
  * it is degraded.
+ *
+ * Within one tier, surfaces are tried in [Surface] declaration order — see the
+ * note in [classify] for why that order has to come from the enum rather than
+ * from the rules file.
  */
 class ScreenClassifier(private val ruleSet: RuleSet) {
 
@@ -15,13 +19,33 @@ class ScreenClassifier(private val ruleSet: RuleSet) {
         // never fire here — a second guard behind the system-level package
         // filter, which the service narrows at runtime.
         val appRules = ruleSet.apps[snapshot.packageName] ?: return Classification.OTHER
-        val navBar by lazy { findNavBar(snapshot) }
+        // Both are derived at most once per classification, and only if some
+        // signal actually asks for them. NONE rather than the default
+        // synchronized mode: classify runs on the accessibility service's main
+        // thread and in single-threaded tests, so the lock would be paid on
+        // every read for nothing.
+        val navBar by lazy(LazyThreadSafetyMode.NONE) { findNavBar(snapshot) }
+        // Used to be rebuilt inside matches(), i.e. once per signal per tier —
+        // up to a few dozen full copies of an 800-node list per walk, five walks
+        // a second while scrolling.
+        val onScreenNodes by lazy(LazyThreadSafetyMode.NONE) {
+            snapshot.nodes.filter { it.bounds.isOnScreen }
+        }
 
         for (tier in Tier.entries) {
-            for ((surface, rules) in appRules.surfaces) {
-                val matched = rules.signals
-                    .filter { it.tier == tier }
-                    .any { matches(it, snapshot, navBar) }
+            // Surface.entries order, deliberately, NOT the order the rules file
+            // happens to list them in. A screen can satisfy two surfaces of the
+            // same app at the same tier — Snapchat is the live case, where a
+            // Spotlight video carrying a vertical action column would answer to
+            // both SPOTLIGHT and DISCOVER — and whichever wins decides which
+            // switch governs it. Resting that on the key order of a JSON object,
+            // which a hand edit reorders without meaning to, would let a surface
+            // silently stop being blocked.
+            for (surface in Surface.entries) {
+                val rules = appRules.surfaces[surface] ?: continue
+                val matched = rules.signals.any {
+                    it.tier == tier && matches(it, snapshot, onScreenNodes, navBar)
+                }
                 if (matched) return Classification(surface, tier, rules.clickViewId)
             }
         }
@@ -31,11 +55,10 @@ class ScreenClassifier(private val ruleSet: RuleSet) {
     private fun matches(
         signal: Signal,
         snapshot: ScreenSnapshot,
+        onScreenNodes: List<NodeSummary>,
         navBar: List<NodeSummary>?,
     ): Boolean {
-        val nodes =
-            if (signal.requireOnScreen) snapshot.nodes.filter { it.bounds.isOnScreen }
-            else snapshot.nodes
+        val nodes = if (signal.requireOnScreen) onScreenNodes else snapshot.nodes
 
         if (signal.absentViewIds.isNotEmpty() &&
             nodes.any { it.viewId != null && it.viewId in signal.absentViewIds }

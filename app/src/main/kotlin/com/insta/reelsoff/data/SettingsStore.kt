@@ -221,7 +221,8 @@ class SettingsStore(private val context: Context) {
         context.dataStore.edit { it[DECLARED_PACKAGES] = packages }
     }
 
-    suspend fun clear() {
+    /** Test seam: nothing in production ever wipes the user's settings. */
+    internal suspend fun clear() {
         context.dataStore.edit { it.clear() }
     }
 

@@ -52,9 +52,27 @@ fun allowanceUiState(
     // Reported only while still held: once it is in force it is no longer news,
     // and `effective` already reflects it. A pending change is armed only when
     // isLoosening was true, so the two are never equal at arming time.
+    //
+    // Counted against BOTH clocks, exactly as `hasMatured` decides, so the two can
+    // never disagree. Against the wall clock alone — which is what this used to do
+    // — winding the phone's clock forward a week left the panel reading "actif
+    // dans 0 s" for as long as the real cooldown had left to run. The lock held
+    // throughout, which is the point of the second clock; it was the screen that
+    // told the user nothing about why nothing was happening.
     val stillWaiting = pending
         ?.takeIf { effectiveLocked == storedLocked }
-        ?.let { (it.effectiveAtEpochMillis - nowEpochMillis).coerceAtLeast(0) }
+        ?.let { held ->
+            val byWallClock = held.effectiveAtEpochMillis - nowEpochMillis
+            // Elapsed time below the armed value means the phone rebooted. There is
+            // nothing left to compare against, and `hasMatured` lets the wall clock
+            // decide alone in that case, so this side has to stop objecting.
+            val byElapsedRealtime = if (nowElapsedRealtime < held.armedAtElapsedRealtime) {
+                0L
+            } else {
+                held.cooldownMillis - (nowElapsedRealtime - held.armedAtElapsedRealtime)
+            }
+            maxOf(byWallClock, byElapsedRealtime).coerceAtLeast(0)
+        }
     return AllowanceUiState(
         enabled = effective.enabled,
         quotaMillis = effective.quotaMillis,

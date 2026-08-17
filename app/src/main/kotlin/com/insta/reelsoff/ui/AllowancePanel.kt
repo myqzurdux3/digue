@@ -17,48 +17,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.insta.reelsoff.R
 import com.insta.reelsoff.service.AllowanceSettings
-import java.util.Locale
-
-/**
- * A duration in French, at the coarsest unit that still says something useful:
- * seconds under a minute, minutes and seconds under an hour, hours and minutes
- * above. Always rounds **down**, so a countdown never claims more time than is
- * actually left.
- */
-fun formatDuration(millis: Long): String {
-    val totalSeconds = (millis / 1000).coerceAtLeast(0)
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    val seconds = totalSeconds % 60
-    return when {
-        hours > 0 -> String.format(Locale.FRENCH, "%d h %02d", hours, minutes)
-        minutes > 0 -> String.format(Locale.FRENCH, "%d min %02d s", minutes, seconds)
-        else -> String.format(Locale.FRENCH, "%d s", seconds)
-    }
-}
-
-/**
- * A preset's label: the same duration with nothing that is always zero.
- *
- * [formatDuration] is right for a countdown, where the seconds move, and wrong
- * for a row of five presets — "30 min 00 s" does not fit the width and Compose
- * wraps it to one glyph per line, 16 px wide and 293 tall. Measured on the
- * device, not guessed.
- */
-fun formatChoice(millis: Long): String {
-    val totalSeconds = (millis / 1000).coerceAtLeast(0)
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    return when {
-        hours > 0 && minutes == 0L -> String.format(Locale.FRENCH, "%d h", hours)
-        hours > 0 -> String.format(Locale.FRENCH, "%d h %02d", hours, minutes)
-        else -> String.format(Locale.FRENCH, "%d min", minutes)
-    }
-}
-
-/** Minutes since local midnight, as a wall-clock time. */
-fun formatMinuteOfDay(minuteOfDay: Int): String =
-    String.format(Locale.FRENCH, "%02d h %02d", minuteOfDay / 60, minuteOfDay % 60)
 
 @Composable
 fun AllowancePanel(
@@ -178,6 +136,18 @@ fun AllowancePanel(
                     )
                 }
             }
+            // At most one change is ever held, and the editors below always show
+            // what is in force rather than what is waiting — so a second tap
+            // proposes from the current value again and supersedes the first.
+            // That is the model working as designed, and it is invisible unless
+            // it is said: without this line, stepping the window twice looks like
+            // the app losing the first press.
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = stringResource(R.string.allowance_pending_detail),
+                style = MaterialTheme.typography.bodySmall,
+                color = EncreDouce,
+            )
         }
 
         // Always shown, including when the quota is off — the switch that turns

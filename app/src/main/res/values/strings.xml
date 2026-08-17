@@ -11,7 +11,7 @@
     <string name="capture_done">Terminé : %1$d instantanés enregistrés.</string>
     <string name="capture_missed">Aucun instantané : aucune application surveillée n\'est passée au premier plan.</string>
     <string name="capture_needs_service">Le service est éteint : la capture ne peut pas démarrer.</string>
-    <string name="capture_hint">Appuie, puis ouvre une application dont une surface est allumée et navigue dedans. Seules ces applications-là sont visibles du service. Un instantané est enregistré toutes les 3 secondes.</string>
+    <string name="capture_hint">Appuie, puis ouvre une application dont une surface est allumée et navigue dedans. Seules ces applications-là sont visibles du service. Un instantané est enregistré toutes les 3 secondes. Les instantanés des captures précédentes sont effacés au démarrage : ils contiennent de vraies données personnelles, récupère-les avant d\'en relancer une.</string>
     <string name="service_on">Service actif</string>
     <string name="service_off">Service inactif</string>
     <string name="service_off_detail">Rien n\'est bloqué tant que le service est éteint.</string>
@@ -55,6 +55,7 @@
     <string name="allowance_close">Fermer maintenant</string>
     <string name="allowance_needs_service">Le service est inactif : un pass ne changerait rien.</string>
     <string name="allowance_pending">Nouveau réglage actif dans %1$s</string>
+    <string name="allowance_pending_detail">Les réglages ci-dessous restent ceux en vigueur. Un nouveau choix remplace celui en attente au lieu de s\'y ajouter.</string>
     <string name="allowance_cancel_pending">Annuler</string>
     <string name="allowance_lock_hint">Tout assouplissement attend %1$s. Un resserrement s\'applique tout de suite.</string>
     <string name="allowance_unlocked">Aucun délai : les réglages se changent librement. Choisir un délai verrouille tout assouplissement à venir — et ce choix-là est immédiat.</string>
