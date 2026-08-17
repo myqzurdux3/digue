@@ -15,9 +15,12 @@ retour arrière la plupart du temps, ou un appui sur un nœud précis pour Explo
 | Snapchat | `SPOTLIGHT` | `spotlight_container` |
 | Snapchat | `DISCOVER` | la colonne d'actions `context_vertical_actions/...` |
 
-**Statut au 2026-08-17 : tout est vérifié sur l'appareil réel de l'utilisateur.** 148 tests
-JVM, 19 tests instrumentés. `main` porte tout sauf la branche `feat/snapchat-discover`
-(Discover Snapchat, validée sur appareil, **non fusionnée**).
+**Statut au 2026-08-17.** Les cinq surfaces sont vérifiées sur l'appareil réel et `main` les
+porte toutes (`feat/snapchat-discover` est fusionnée). 225 tests JVM, 24 tests instrumentés.
+
+La branche `feat/quota-horaire` ajoute le **quota quotidien, la plage horaire et le verrou par
+délai**, vérifiés sur appareil — voir « Quota » plus bas pour la paire de mesures qui le
+prouve et pour ce qui reste couvert par les seuls tests purs.
 
 **Trois comportements fins, déjà livrés et vérifiés, à ne pas casser :**
 
@@ -26,6 +29,10 @@ JVM, 19 tests instrumentés. `main` porte tout sauf la branche `feat/snapchat-di
 2. **Ouvrir l'onglet Explore appuie sur la barre de recherche** au lieu de sortir de l'onglet,
    parce que bloquer Explore bloquait aussi la seule recherche d'Instagram.
 3. **Une story d'un ami sur Snapchat reste regardable**, les vidéos Discover non.
+
+Le quota ne change aucun des trois : quand un laissez-passer est ouvert, le service remet
+simplement un **ensemble vide** de surfaces bloquées au `Blocker`, ce qui est son chemin déjà
+testé « surface non bloquée ». Les règles de détection ne sont pas consultées différemment.
 
 ## Identité et interface
 
@@ -75,11 +82,18 @@ bleu-vert, filets d'un pixel à la place des cartes. Verrouillée en clair.
              RuleSetParser, Classification, ScreenClassifier
 :app         service/  InstagramWatcherService, TreeWalker, NodeLike, AccessibilityNodeLike,
                        Blocker, Clock, NEVER, EventThrottle, CaptureSession, RuleSetLoader,
-                       DeclaredPackages (declaredPackages, packageNamesFor)
+                       DeclaredPackages (declaredPackages, packageNamesFor),
+                       Allowance      (AllowanceSettings, AllowanceState, windowContains,
+                                       remainingMillis, passIsOpen, canOpenPass, openPass,
+                                       closePass, settle)
+                       AllowanceLock  (LockedSettings, PendingChange, isLoosening, armChange,
+                                       hasMatured, effectiveSettings,
+                                       effectiveBlockedSurfaces)
              data/     BlockEvent, BlockEventDao, AppDatabase, DailyCount, dailyCounts,
                        SettingsStore, BlockSettings, RuleLoadStatus, CaptureStatus
              ui/       MainActivity, HomeScreen, HomeViewModel, ServiceStatus, Theme,
-                       CaptureProgress, SurfaceGroups, TodayBreakdown
+                       CaptureProgress, SurfaceGroups, TodayBreakdown,
+                       AllowanceUiState, AllowancePanel, AllowanceEditors
 ```
 
 **Le service ne s'appelle plus que par habitude `InstagramWatcherService`** — il couvre
@@ -89,6 +103,17 @@ les réglages d'accessibilité, exactement comme l'identifiant applicatif. Ne pa
 `:detection` ne connaît jamais `AccessibilityNodeInfo`. Le service traduit l'arbre Android en
 `ScreenSnapshot` neutre, puis appelle une fonction pure. C'est ce qui rend la détection testable
 sur JVM contre de vrais arbres capturés.
+
+**`Allowance` et `AllowanceLock` sont purs mais vivent dans `:app`, pas dans `:detection`** —
+comme `Blocker`. Ils ne reconnaissent aucun écran ; les mettre dans `:detection` élargirait ce
+module à autre chose que de la détection. Ils sont testés sur JVM exactement comme `Blocker`.
+
+**Deux horloges, et il ne faut pas les confondre.** `Clock`/`SystemClock` rend
+`elapsedRealtime`, monotone, dont se servent tous les délais de `Blocker`. Le quota, lui,
+raisonne en **horloge murale plus `ZoneId`**, parce qu'une plage horaire est une question
+d'heure locale et qu'`elapsedRealtime` ne s'y convertit pas. Le verrou utilise **les deux** :
+horloge murale pour l'échéance affichée, `elapsedRealtime` pour empêcher qu'avancer l'horloge
+fasse mûrir un délai.
 
 ## Invariants — à ne jamais casser
 
@@ -282,9 +307,91 @@ liste de paquets d'un service sur l'appareil de test, et un test par le comporte
 pas y suppléer, puisque les réglages conditionnent le blocage de toute façon. Elle repose sur
 le contrat documenté de `setServiceInfo`, plus les tests des deux fonctions pures.
 
+## Quota, plage horaire et verrou
+
+Sur `feat/quota-horaire`. Spec et plan dans `docs/superpowers/`. Cinq minutes de vidéo courte
+par jour, ouvrables seulement dans une plage choisie, et un verrou qui rend tout desserrement
+lent au lieu d'instantané.
+
+**Ce que le verrou ne peut pas atteindre, et qu'il faut dire tel quel :** couper le service
+d'accessibilité dans les réglages Android reste à un geste, et désinstaller Digue aussi. Les
+deux sont hors de l'app. Le verrou protège les réglages *de Digue*, rien d'autre. Un mot de
+passe a été écarté pour cette raison exacte : un secret que l'utilisateur choisit lui-même ne
+vaut rien contre lui-même, alors qu'un délai tient même en connaissant tout le code.
+
+**Le temps se compte à l'horloge murale depuis un déblocage explicite**, pas en temps d'écran
+réellement passé sur les surfaces. Le comptage d'écran est plus juste et a été écarté : le
+service ne reçoit d'événements que des paquets qu'il déclare, donc « il est parti » ne
+s'observe pas, et surtout ça permettrait de **mettre le compteur en pause** en sortant de
+l'app trois secondes. Le bouton « Fermer maintenant » rend le temps non consommé.
+
+Quatre pièges, chacun trouvé en écrivant, chacun capable de vider le verrou de son sens :
+
+1. **`enabled = false` est l'état le plus STRICT, pas le plus permissif.** Le quota *accorde*
+   du temps ; le blocage des surfaces ne dépend pas de lui. Donc **allumer** le quota est un
+   assouplissement (différé) et l'**éteindre** est un resserrement (immédiat). Écrit à
+   l'envers, le verrou se défait en une écriture.
+2. **`cooldownMillis` vaut zéro à l'installation.** Sinon, allumer le quota armerait une
+   attente d'un jour au moment même où l'utilisateur active la fonction. À zéro les réglages
+   s'arrangent librement ; **choisir un délai est un resserrement**, donc immédiat, et
+   verrouille tout ce qui suit. Le verrou s'arme délibérément, en un geste.
+3. **Raccourcir le délai est un assouplissement**, et le délai facturé à l'armement est
+   celui **en vigueur**, jamais celui proposé. Sinon : délai à zéro, applique tout de suite,
+   verrou disparu.
+4. **La maturité exige que les deux horloges soient d'accord.** L'horloge murale est à
+   l'utilisateur : l'avancer d'une semaine ferait mûrir tout changement en attente.
+   `elapsedRealtime` ne se règle pas, il se remet à zéro au redémarrage — ce qui se voit à une
+   valeur inférieure à celle armée, et là l'horloge murale décide seule, faute de mieux.
+   **Cette parade n'existe pas pour la plage horaire ni pour la remise à zéro quotidienne** :
+   la plage *est* une question d'heure locale. Limite assumée.
+
+**La comparaison de deux plages se fait sur un ensemble de 1440 minutes**, pas en arithmétique
+d'intervalle circulaire. Une plage peut être à cheval sur minuit, et c'est exactement là qu'un
+décalage d'un cran transformerait silencieusement un resserrement en assouplissement.
+Une fin **égale** au début est une plage **vide**, jamais ouvrable — entre les deux lectures
+possibles, celle qui bloque.
+
+**`writeThroughLock` dans `HomeViewModel` est la porte unique.** Toute écriture de réglage y
+passe, y compris `setSurfaceBlocked` : un verrou qui ne garderait que le quota se contournerait
+en éteignant REELS. Un resserrement **annule aussi tout changement en attente**, sinon
+l'assouplissement encore armé déferait le resserrement plus tard, sans rien à l'écran pour le
+dire.
+
+**Vérifié sur l'appareil le 2026-08-17**, par paire :
+
+| Geste | Pass ouvert | Pass fermé |
+|---|---|---|
+| Appui long sur l'onglet Reels, puis 13 s d'immobilité | reste sur Reels, **0 épisode** | **2 épisodes** REELS/HIGH, retour au fil |
+
+Vérifié aussi : le décompte descend en direct (57 min 56 s → 57 min 42 s en 14 s) ; choisir un
+délai s'applique **sans attente** et n'arme rien ; augmenter le quota avec un délai en vigueur
+est **retenu** dans `pending_change` avec la bonne échéance ; « Annuler » retire l'attente
+immédiatement ; l'affichage correspond au protobuf au millième près.
+
+**Non vérifié sur appareil**, couvert seulement par les tests purs : le resserrement pendant
+qu'un changement est en attente, et la maturation réelle d'un délai.
+
+### Deux pièges d'outillage, tous deux rencontrés ici
+
+- **`uiautomator dump` échoue en renvoyant 0.** « ERROR: null root node returned by
+  UiTestAutomationBridge » part sur la sortie standard, code 0, et `cat` relit alors le
+  **dump précédent**. Un écran figé dans le passé, et une heure passée à chercher un défaut
+  inexistant. Toujours supprimer le fichier avant, et vérifier que la sortie contient
+  « dumped to ». Sur l'écran Compose de Digue il échoue souvent : passer par
+  `adb exec-out screencap -p`, qui n'a jamais menti.
+- **Ne pas découper le XML à la ligne pour trouver des bornes.** Un nœud porteur de texte et
+  ses ancêtres portent tous un `bounds` ; un `grep | head -1` prend celui du **parent**, et
+  chaque appui atterrit à des centaines de pixels de la cible. Parser le XML.
+- L'instrument le plus fiable reste **le protobuf de DataStore** :
+  `adb shell run-as com.insta.reelsoff cat files/datastore/settings.preferences_pb`, décodé
+  (entrées de map : champ 1 = clé, champ 2 = valeur ; dans la valeur, 1=bool, 3=int, 4=long,
+  5=string, 6=set).
+- **`input tap` est trop bref pour la barre d'onglets d'Instagram** : il ne change pas
+  d'onglet. `adb shell input swipe X Y X Y 120` — un appui de 120 ms — fonctionne.
+
 ## Chantiers de suite, par priorité
 
-1. **Fusionner `feat/snapchat-discover`** — deux commits, validés sur appareil, pas encore
+1. **Fusionner `feat/quota-horaire`** — dix commits, vérifiés sur appareil, pas encore
    dans `main`.
 2. **Aucune fixture pour YouTube ni Snapchat.** Leurs règles marchent, mais rien ne préviendra
    quand un identifiant sera renommé : l'utilisateur le découvrira. Capturer les deux apps et

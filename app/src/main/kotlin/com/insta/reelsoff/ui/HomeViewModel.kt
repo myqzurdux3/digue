@@ -1,6 +1,7 @@
 package com.insta.reelsoff.ui
 
 import android.app.Application
+import android.os.SystemClock
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -13,6 +14,15 @@ import com.insta.reelsoff.data.DailyCount
 import com.insta.reelsoff.data.RuleLoadStatus
 import com.insta.reelsoff.data.SettingsStore
 import com.insta.reelsoff.data.dailyCounts
+import com.insta.reelsoff.service.AllowanceSettings
+import com.insta.reelsoff.service.AllowanceState
+import com.insta.reelsoff.service.LockedSettings
+import com.insta.reelsoff.service.PendingChange
+import com.insta.reelsoff.service.armChange
+import com.insta.reelsoff.service.closePass
+import com.insta.reelsoff.service.maturedProposal
+import com.insta.reelsoff.service.openPass
+import com.insta.reelsoff.service.settle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -21,6 +31,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
@@ -63,6 +74,20 @@ data class HomeUiState(
 ) {
     val todayTotal: Int get() = history.lastOrNull()?.total ?: 0
 }
+
+/**
+ * The surfaces that carry a user-facing switch. `Surface.OTHER` is not one, and
+ * is deliberately not derived from `Surface.entries`: a new blockable surface
+ * must be added here on purpose, and the instrumented test that promises "every
+ * surface" names the same list for the same reason.
+ */
+private val BLOCKABLE_SURFACES = listOf(
+    Surface.REELS,
+    Surface.EXPLORE,
+    Surface.SHORTS,
+    Surface.SPOTLIGHT,
+    Surface.DISCOVER,
+)
 
 private val ALL_KNOWN_PACKAGES = setOf(
     "com.instagram.android",
@@ -125,15 +150,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     @OptIn(ExperimentalCoroutinesApi::class)
     private val events = windowTick.flatMapLatest { dao.observeSince(historySinceMillis()) }
 
-    // combine's typed overloads stop at five flows; this screen now needs seven, so the
+    // combine's typed overloads stop at five flows; this screen needs seven, so the
     // vararg form is used instead, indexed positionally against the argument order below.
-    //   0 serviceEnabled            -> Boolean
-    //   1 settingsStore.settings    -> BlockSettings
-    //   2 events                    -> List<BlockEvent>
-    //   3 settingsStore.ruleLoadStatus  -> RuleLoadStatus
-    //   4 settingsStore.captureStatus   -> CaptureStatus
-    //   5 installedPackages         -> Set<String>
-    //   6 settingsStore.declaredPackages -> Set<String>
+    // Nothing here is type-checked: two Set<String> flows sit next to each other, and
+    // swapping any two indices compiles and runs. Re-read this table against the
+    // argument list whenever either changes.
+    //   0 serviceEnabled                  -> Boolean
+    //   1 settingsStore.settings          -> BlockSettings
+    //   2 events                          -> List<BlockEvent>
+    //   3 settingsStore.ruleLoadStatus    -> RuleLoadStatus
+    //   4 settingsStore.captureStatus     -> CaptureStatus
+    //   5 installedPackages               -> Set<String>
+    //   6 settingsStore.declaredPackages  -> Set<String>
     val uiState: StateFlow<HomeUiState> = combine(
         serviceEnabled,
         settingsStore.settings,
@@ -178,7 +206,187 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
+    /**
+     * The quota's own state, recomputed every second.
+     *
+     * Deliberately its own flow rather than three more arguments to [uiState].
+     * Time passing is not an emission from any DataStore flow, so a countdown
+     * folded into that combine simply froze at the value it had when the pass
+     * opened — measured on the device, where "Pass ouvert — 59 s" stayed at 59 s
+     * for minutes. Recomposing the panel could not fix it: the panel was
+     * redrawing the same stale numbers.
+     *
+     * And it must not be *inside* [uiState] either: that combine also rebuilds
+     * the 14-day chart from every event in the window, which has no business
+     * running once a second.
+     */
+    val allowance: StateFlow<AllowanceUiState> = combine(
+        settingsStore.allowanceSettings,
+        settingsStore.allowanceState,
+        settingsStore.pendingChange,
+        settingsStore.settings,
+        flow {
+            while (true) {
+                emit(Unit)
+                delay(1_000)
+            }
+        },
+    ) { values ->
+        @Suppress("UNCHECKED_CAST")
+        val stored = values[0] as AllowanceSettings
+        @Suppress("UNCHECKED_CAST")
+        val state = values[1] as AllowanceState
+        @Suppress("UNCHECKED_CAST")
+        val pending = values[2] as PendingChange?
+        @Suppress("UNCHECKED_CAST")
+        val blockSettings = values[3] as BlockSettings
+        allowanceUiState(
+            stored = stored,
+            state = state,
+            pending = pending,
+            blockedSurfaces = blockSettings.blockedSurfaces,
+            nowEpochMillis = System.currentTimeMillis(),
+            nowElapsedRealtime = SystemClock.elapsedRealtime(),
+            zone = zone,
+        )
+    }
+        // Same reason as uiState's catch: this screen shares a process with the
+        // accessibility service, so an uncaught DataStore failure here would take
+        // the blocker down with the UI. A default AllowanceUiState reads as "no
+        // quota", which is the strict side.
+        .catch { e ->
+            Log.e(TAG, "allowance state combination failed", e)
+            emit(AllowanceUiState())
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AllowanceUiState())
+
+    /**
+     * Writes a matured pending change into the store and clears it.
+     *
+     * Readers do not depend on this — `effectiveSettings` derives the in-force
+     * values on every read, which is what makes a matured change apply even if
+     * the process died before it could be written back. What this exists for is
+     * to stop the store and the in-force values from drifting apart, because the
+     * lock compares a *proposal* against the store.
+     *
+     * Idempotent, and a no-op when nothing is pending or nothing has matured.
+     */
+    private suspend fun commitMaturedChange() {
+        val proposal = maturedProposal(
+            pending = settingsStore.pendingChange.first(),
+            nowEpochMillis = System.currentTimeMillis(),
+            nowElapsedRealtime = SystemClock.elapsedRealtime(),
+        ) ?: return
+        settingsStore.setAllowanceSettings(proposal.allowance)
+        // Written surface by surface: setSurfaceBlocked is the only writer of that
+        // key, and it carries the migration from the two old booleans. Every
+        // blockable surface is named, so one that is absent from the proposal is
+        // actually switched off rather than left as it was.
+        for (surface in BLOCKABLE_SURFACES) {
+            settingsStore.setSurfaceBlocked(surface, surface in proposal.blockedSurfaces)
+        }
+        settingsStore.setPendingChange(null)
+    }
+
+    /**
+     * Called on resume: a change can mature while the app is closed, and the
+     * store would otherwise stay behind the values already in force.
+     */
+    fun commitAnyMaturedChange() {
+        viewModelScope.launch { commitMaturedChange() }
+    }
+
+    /**
+     * Every settings write in this class goes through here, so what applies at
+     * once and what waits is decided in exactly one place.
+     *
+     * [applyTightening] runs only when the change does not loosen anything; it
+     * is passed rather than performed here because the two writers touch
+     * different keys — the quota's own fields, and the surface switches.
+     */
+    private suspend fun writeThroughLock(
+        proposed: (LockedSettings) -> LockedSettings,
+        applyTightening: suspend () -> Unit,
+    ) {
+        // Before comparing anything: a matured change is already in force as far
+        // as every reader is concerned, but it is not in the store yet. Comparing
+        // against the stale stored value would measure the proposal against the
+        // wrong baseline and re-arm a delay the user has already served — the
+        // loosening they had earned would silently roll back.
+        commitMaturedChange()
+        val current = LockedSettings(
+            settingsStore.allowanceSettings.first(),
+            settingsStore.settings.first().blockedSurfaces,
+        )
+        val armed = armChange(
+            current = current,
+            proposed = proposed(current),
+            nowEpochMillis = System.currentTimeMillis(),
+            nowElapsedRealtime = SystemClock.elapsedRealtime(),
+        )
+        if (armed == null) {
+            applyTightening()
+            // A tightening supersedes anything held: leaving a loosening armed
+            // past it would undo the tightening on its own, later, silently.
+            settingsStore.setPendingChange(null)
+        } else {
+            settingsStore.setPendingChange(armed)
+        }
+    }
+
     fun setSurfaceBlocked(surface: Surface, blocked: Boolean) {
-        viewModelScope.launch { settingsStore.setSurfaceBlocked(surface, blocked) }
+        viewModelScope.launch {
+            writeThroughLock(
+                proposed = { current ->
+                    current.copy(
+                        blockedSurfaces = if (blocked) {
+                            current.blockedSurfaces + surface
+                        } else {
+                            current.blockedSurfaces - surface
+                        },
+                    )
+                },
+                applyTightening = { settingsStore.setSurfaceBlocked(surface, blocked) },
+            )
+        }
+    }
+
+    fun proposeAllowanceSettings(proposed: AllowanceSettings) {
+        viewModelScope.launch {
+            writeThroughLock(
+                proposed = { current -> current.copy(allowance = proposed) },
+                applyTightening = { settingsStore.setAllowanceSettings(proposed) },
+            )
+        }
+    }
+
+    /**
+     * Settles first, so a pass that expired while the screen was closed is
+     * banked rather than reopened — [openPass] refuses an already-open pass, and
+     * an expired one still carries a nonzero opening stamp.
+     */
+    fun openPass() {
+        viewModelScope.launch {
+            // Same reason as in writeThroughLock: a matured change may have
+            // widened the window or raised the quota, and reading the stale store
+            // would refuse a pass the user is entitled to.
+            commitMaturedChange()
+            val settings = settingsStore.allowanceSettings.first()
+            val now = System.currentTimeMillis()
+            val settled = settle(settings, settingsStore.allowanceState.first(), now, zone)
+            settingsStore.setAllowanceState(openPass(settings, settled, now, zone))
+        }
+    }
+
+    fun closePass() {
+        viewModelScope.launch {
+            val current = settingsStore.allowanceState.first()
+            settingsStore.setAllowanceState(closePass(current, System.currentTimeMillis(), zone))
+        }
+    }
+
+    /** Cancelling a held loosening is itself a tightening, so it lands at once. */
+    fun cancelPendingChange() {
+        viewModelScope.launch { settingsStore.setPendingChange(null) }
     }
 }

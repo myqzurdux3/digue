@@ -34,8 +34,12 @@ class MainActivity : ComponentActivity() {
             DigueTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val state by viewModel.uiState.collectAsStateWithLifecycle()
+                    // Collected separately because it re-emits every second, and
+                    // uiState must not: that one rebuilds the 14-day chart.
+                    val allowance by viewModel.allowance.collectAsStateWithLifecycle()
                     HomeScreen(
                         state = state,
+                        allowance = allowance,
                         modifier = Modifier.safeDrawingPadding(),
                         onOpenAccessibilitySettings = {
                             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
@@ -49,6 +53,10 @@ class MainActivity : ComponentActivity() {
                         onSurfaceBlockedChanged = { surface, blocked ->
                             viewModel.setSurfaceBlocked(surface, blocked)
                         },
+                        onOpenPass = viewModel::openPass,
+                        onClosePass = viewModel::closePass,
+                        onCancelPendingChange = viewModel::cancelPendingChange,
+                        onProposeAllowance = viewModel::proposeAllowanceSettings,
                     )
                 }
             }
@@ -60,5 +68,9 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         viewModel.refreshServiceStatus()
         viewModel.refreshInstalledPackages()
+        // A held change can mature while this screen is closed — which is the
+        // usual case for a delay measured in hours. Writing it back here keeps
+        // the store from drifting behind the values already in force.
+        viewModel.commitAnyMaturedChange()
     }
 }

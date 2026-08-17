@@ -31,6 +31,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.time.ZoneId
 
 class InstagramWatcherService : AccessibilityService() {
 
@@ -45,6 +46,18 @@ class InstagramWatcherService : AccessibilityService() {
 
     @Volatile
     private var settings = BlockSettings()
+
+    // All three start at their strictest value — quota disabled, no pass, nothing
+    // pending — so a DataStore that never answers leaves blocking exactly as it
+    // is today rather than opening a hole.
+    @Volatile
+    private var allowanceSettings = AllowanceSettings()
+
+    @Volatile
+    private var allowanceState = AllowanceState()
+
+    @Volatile
+    private var pendingChange: PendingChange? = null
 
     @Volatile
     private var ruleSet: RuleSet = RuleSet(version = 0, apps = emptyMap())
@@ -163,6 +176,26 @@ class InstagramWatcherService : AccessibilityService() {
                     Log.e(TAG, "settings collection launch failed", it)
                 }
             }
+
+            // The quota's three streams follow the same shape as the settings
+            // collector above, and for the same reasons: retry forever rather
+            // than complete, since a completed flow would freeze the value at
+            // whatever it last held; and never let anything escape, since these
+            // run in a coroutine whose failure would take the service with it.
+            //
+            // Deliberately not folded into one combined flow: each of the three
+            // is independently useful, and a single combine would stall all
+            // three on whichever one was failing.
+            collectAllowance("allowance settings", { SettingsStore(it).allowanceSettings }) {
+                allowanceSettings = it
+            }
+            collectAllowance("allowance state", { SettingsStore(it).allowanceState }) {
+                allowanceState = it
+            }
+            collectAllowance("pending change", { SettingsStore(it).pendingChange }) {
+                pendingChange = it
+            }
+
             Log.i(TAG, "service connected")
         } catch (e: Throwable) {
             // Unlike the scope.launch blocks above, this catch guards a lifecycle
@@ -178,6 +211,35 @@ class InstagramWatcherService : AccessibilityService() {
             // Land on the unmatchable sentinel rather than whatever packageNames
             // was declared (or left un-narrowed) before this failure — see F1.
             applyDeclaredPackages(emptySet())
+        }
+    }
+
+    /**
+     * Mirrors one of the quota's DataStore streams into a `@Volatile` field.
+     *
+     * Retries forever rather than completing: a completed flow would pin the
+     * field at whatever it last held, including a stale value the user has since
+     * changed. The field's declared default is the strict one, so a stream that
+     * never delivers leaves blocking untouched.
+     */
+    private fun <T> collectAllowance(
+        what: String,
+        stream: (Context) -> kotlinx.coroutines.flow.Flow<T>,
+        assign: (T) -> Unit,
+    ) {
+        scope.launch {
+            runCatching {
+                stream(applicationContext)
+                    .retry { e ->
+                        Log.e(TAG, "$what read failed, retrying", e)
+                        delay(1_000)
+                        true
+                    }
+                    .collectLatest { assign(it) }
+            }.onFailure {
+                if (it is CancellationException) throw it
+                Log.e(TAG, "$what collection launch failed", it)
+            }
         }
     }
 
@@ -287,7 +349,26 @@ class InstagramWatcherService : AccessibilityService() {
         }
 
         val classification = classifier.classify(snapshot)
-        val decision = blocker.decide(classification, settings.blockedSurfaces)
+
+        // The quota can suspend blocking, and a matured pending change can have
+        // altered the settings without anything having written it back yet — so
+        // both are derived here rather than read. Everything unreadable lands on
+        // the strict side: passIsOpen needs every one of its conditions, and the
+        // fields above default to "no quota, no pass, nothing pending".
+        val now = System.currentTimeMillis()
+        val effective = effectiveSettings(
+            stored = LockedSettings(allowanceSettings, settings.blockedSurfaces),
+            pending = pendingChange,
+            nowEpochMillis = now,
+            nowElapsedRealtime = android.os.SystemClock.elapsedRealtime(),
+        )
+        val blockedNow = effectiveBlockedSurfaces(
+            locked = effective,
+            state = allowanceState,
+            nowEpochMillis = now,
+            zone = ZoneId.systemDefault(),
+        )
+        val decision = blocker.decide(classification, blockedNow)
 
         when (decision.action) {
             BlockAction.BACK -> performGlobalAction(GLOBAL_ACTION_BACK)

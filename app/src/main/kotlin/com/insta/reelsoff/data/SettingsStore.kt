@@ -9,8 +9,13 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.insta.detection.Surface
+import com.insta.reelsoff.service.AllowanceSettings
+import com.insta.reelsoff.service.AllowanceState
+import com.insta.reelsoff.service.PendingChange
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 /**
  * Which surfaces are blocked. A set rather than one boolean per surface: the
@@ -60,6 +65,8 @@ private val Context.dataStore by preferencesDataStore(name = "settings")
 
 class SettingsStore(private val context: Context) {
 
+    private val json = Json { ignoreUnknownKeys = true }
+
     val settings: Flow<BlockSettings> = context.dataStore.data.map { preferences ->
         val stored = preferences[BLOCKED_SURFACES]
         if (stored != null) {
@@ -103,11 +110,76 @@ class SettingsStore(private val context: Context) {
         preferences[DECLARED_PACKAGES] ?: emptySet()
     }
 
-    suspend fun setBlockReels(enabled: Boolean) {
-        context.dataStore.edit { it[BLOCK_REELS] = enabled }
+    val allowanceSettings: Flow<AllowanceSettings> = context.dataStore.data.map { preferences ->
+        val defaults = AllowanceSettings()
+        AllowanceSettings(
+            enabled = preferences[ALLOWANCE_ENABLED] ?: defaults.enabled,
+            quotaMillis = preferences[ALLOWANCE_QUOTA] ?: defaults.quotaMillis,
+            windowStartMinutes = preferences[ALLOWANCE_WINDOW_START] ?: defaults.windowStartMinutes,
+            windowEndMinutes = preferences[ALLOWANCE_WINDOW_END] ?: defaults.windowEndMinutes,
+            cooldownMillis = preferences[ALLOWANCE_COOLDOWN] ?: defaults.cooldownMillis,
+        )
     }
 
-    suspend fun setBlockExplore(enabled: Boolean) {
+    val allowanceState: Flow<AllowanceState> = context.dataStore.data.map { preferences ->
+        AllowanceState(
+            day = preferences[ALLOWANCE_DAY] ?: 0,
+            consumedMillis = preferences[ALLOWANCE_CONSUMED] ?: 0,
+            passOpenedAtEpochMillis = preferences[ALLOWANCE_PASS_OPENED_AT] ?: 0,
+        )
+    }
+
+    /**
+     * Stored as JSON rather than as flat keys: it nests a whole `LockedSettings`,
+     * and a half-written set of flat keys would read back as a change nobody
+     * armed. Unparseable content reads as "nothing pending" — the strict answer,
+     * since a pending change only ever loosens.
+     */
+    val pendingChange: Flow<PendingChange?> = context.dataStore.data.map { preferences ->
+        val raw = preferences[PENDING_CHANGE] ?: return@map null
+        runCatching { json.decodeFromString<PendingChange>(raw) }.getOrNull()
+    }
+
+    suspend fun setAllowanceSettings(settings: AllowanceSettings) {
+        context.dataStore.edit { preferences ->
+            preferences[ALLOWANCE_ENABLED] = settings.enabled
+            preferences[ALLOWANCE_QUOTA] = settings.quotaMillis
+            preferences[ALLOWANCE_WINDOW_START] = settings.windowStartMinutes
+            preferences[ALLOWANCE_WINDOW_END] = settings.windowEndMinutes
+            preferences[ALLOWANCE_COOLDOWN] = settings.cooldownMillis
+        }
+    }
+
+    suspend fun setAllowanceState(state: AllowanceState) {
+        context.dataStore.edit { preferences ->
+            preferences[ALLOWANCE_DAY] = state.day
+            preferences[ALLOWANCE_CONSUMED] = state.consumedMillis
+            preferences[ALLOWANCE_PASS_OPENED_AT] = state.passOpenedAtEpochMillis
+        }
+    }
+
+    suspend fun setPendingChange(change: PendingChange?) {
+        context.dataStore.edit { preferences ->
+            if (change == null) {
+                preferences.remove(PENDING_CHANGE)
+            } else {
+                preferences[PENDING_CHANGE] = json.encodeToString(change)
+            }
+        }
+    }
+
+    /** Test seam: writes content the parser is meant to reject. */
+    internal suspend fun writeRawPendingChangeForTest(raw: String) {
+        context.dataStore.edit { it[PENDING_CHANGE] = raw }
+    }
+
+    /**
+     * Test seam: writes the pre-`BLOCKED_SURFACES` key that the migration in
+     * [settings] still reads. Nothing in production writes it any more, but an
+     * install upgrading from that build has it, and dropping the migration would
+     * silently re-enable a surface the user had switched off.
+     */
+    internal suspend fun writeLegacyBlockExploreForTest(enabled: Boolean) {
         context.dataStore.edit { it[BLOCK_EXPLORE] = enabled }
     }
 
@@ -154,8 +226,19 @@ class SettingsStore(private val context: Context) {
     }
 
     private companion object {
+        // Written by no one since the move to BLOCKED_SURFACES; still read by the
+        // migration above, so an existing install keeps the switches it had.
         val BLOCK_REELS = booleanPreferencesKey("block_reels")
         val BLOCK_EXPLORE = booleanPreferencesKey("block_explore")
+        val ALLOWANCE_ENABLED = booleanPreferencesKey("allowance_enabled")
+        val ALLOWANCE_QUOTA = longPreferencesKey("allowance_quota_millis")
+        val ALLOWANCE_WINDOW_START = intPreferencesKey("allowance_window_start_minutes")
+        val ALLOWANCE_WINDOW_END = intPreferencesKey("allowance_window_end_minutes")
+        val ALLOWANCE_COOLDOWN = longPreferencesKey("allowance_cooldown_millis")
+        val ALLOWANCE_DAY = longPreferencesKey("allowance_day")
+        val ALLOWANCE_CONSUMED = longPreferencesKey("allowance_consumed_millis")
+        val ALLOWANCE_PASS_OPENED_AT = longPreferencesKey("allowance_pass_opened_at")
+        val PENDING_CHANGE = stringPreferencesKey("pending_change")
         val BLOCKED_SURFACES = stringSetPreferencesKey("blocked_surfaces")
         val RULE_SOURCE = stringPreferencesKey("rule_source")
         val RULE_LOAD_ERROR = stringPreferencesKey("rule_load_error")
