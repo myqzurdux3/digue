@@ -45,7 +45,7 @@ class RuleSetLoaderTest {
     fun prefersAValidOverrideFile() {
         override.writeText(
             """
-            { "version": 99, "apps": { "$INSTAGRAM_PACKAGE": { "surfaces": { "REELS": { "signals": [
+            { "version": 2, "apps": { "$INSTAGRAM_PACKAGE": { "surfaces": { "REELS": { "signals": [
               { "tier": "HIGH", "type": "VIEW_ID", "value": "override-marker" }
             ] } } } } }
             """.trimIndent(),
@@ -54,7 +54,11 @@ class RuleSetLoaderTest {
         val loaded = RuleSetLoader(context).load()
 
         assertEquals(RuleSource.OVERRIDE, loaded.source)
-        assertEquals(99, loaded.ruleSet.version)
+        // The version can no longer differ from the bundled rules' (the parser
+        // rejects any other value), so preference is proven by a signal that
+        // only the override file carries, not by the version number.
+        val reelsSignals = loaded.ruleSet.apps[INSTAGRAM_PACKAGE]?.surfaces?.get(Surface.REELS)?.signals
+        assertTrue(reelsSignals.orEmpty().any { it.value == "override-marker" })
     }
 
     @Test

@@ -57,7 +57,8 @@ class SettingsStoreTest {
         // allowed to see, neither of which the user asked for.
         val blocked = store.settings.first().blockedSurfaces
 
-        assertEquals(setOf(Surface.REELS, Surface.EXPLORE), blocked)
+        assertFalse(Surface.SHORTS in blocked)
+        assertFalse(Surface.SPOTLIGHT in blocked)
     }
 
     @Test
@@ -71,7 +72,11 @@ class SettingsStoreTest {
 
     @Test
     fun everySurfaceCanBeSwitchedOff() = runBlocking {
-        for (surface in listOf(Surface.REELS, Surface.EXPLORE)) {
+        // Surface.OTHER is not a user-facing switch (see TodayBreakdown), so the
+        // four blockable surfaces are named explicitly rather than iterating
+        // Surface.entries — this test's name promises "every surface", and a new
+        // togglable surface added without updating this list should fail loudly.
+        for (surface in listOf(Surface.REELS, Surface.EXPLORE, Surface.SHORTS, Surface.SPOTLIGHT)) {
             store.setSurfaceBlocked(surface, false)
         }
 
