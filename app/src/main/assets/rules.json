@@ -5,6 +5,14 @@
       "signals": [
         { "tier": "HIGH", "type": "VIEW_ID",
           "value": "com.instagram.android:id/clips_tab", "requireSelected": true },
+        { "tier": "HIGH", "type": "VIEW_ID",
+          "value": "com.instagram.android:id/clips_viewer_view_pager",
+          "requireSelected": false, "requireOnScreen": true,
+          "absentViewIds": [
+            "com.instagram.android:id/reel_viewer_message_composer",
+            "com.instagram.android:id/reply_bar_container",
+            "com.instagram.android:id/sender_username_or_fullname"
+          ] },
         { "tier": "LOW", "type": "NAV_BAR_INDEX",
           "value": "1", "requireSelected": true }
       ]
