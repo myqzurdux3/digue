@@ -13,7 +13,4 @@ interface PassEventDao {
 
     @Query("SELECT * FROM pass_event WHERE epochMillis >= :sinceMillis ORDER BY epochMillis")
     fun observeSince(sinceMillis: Long): Flow<List<PassEvent>>
-
-    @Query("SELECT * FROM pass_event WHERE epochMillis >= :sinceMillis ORDER BY epochMillis")
-    suspend fun since(sinceMillis: Long): List<PassEvent>
 }

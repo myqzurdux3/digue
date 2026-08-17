@@ -13,7 +13,4 @@ interface BlockEventDao {
 
     @Query("SELECT * FROM block_event WHERE epochMillis >= :sinceMillis ORDER BY epochMillis")
     fun observeSince(sinceMillis: Long): Flow<List<BlockEvent>>
-
-    @Query("SELECT * FROM block_event WHERE epochMillis >= :sinceMillis ORDER BY epochMillis")
-    suspend fun since(sinceMillis: Long): List<BlockEvent>
 }
