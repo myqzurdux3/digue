@@ -36,6 +36,8 @@
     <string name="block_spotlight">Bloquer Spotlight</string>
     <string name="block_discover">Bloquer les vidéos Discover</string>
     <string name="today_total">Retenu %1$d fois</string>
+    <string name="today_watched">Regardé %1$s dans un pass</string>
+    <string name="history_watched">%1$s regardées sur la période</string>
     <string name="declared_packages">Applications observées : %1$s</string>
     <string name="allowance_title">Quota</string>
     <string name="allowance_off">Quota éteint : les surfaces cochées sont bloquées sans exception.</string>
