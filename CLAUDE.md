@@ -16,11 +16,15 @@ retour arrière la plupart du temps, ou un appui sur un nœud précis pour Explo
 | Snapchat | `DISCOVER` | la colonne d'actions `context_vertical_actions/...` |
 
 **Statut au 2026-08-17.** Les cinq surfaces sont vérifiées sur l'appareil réel et `main` les
-porte toutes (`feat/snapchat-discover` est fusionnée). 225 tests JVM, 24 tests instrumentés.
+porte toutes (`feat/snapchat-discover` est fusionnée). 241 tests JVM, 24 tests instrumentés.
 
 Le **quota quotidien, la plage horaire et le verrou par délai** sont dans `main`, vérifiés sur
 appareil — voir « Quota » plus bas pour la paire de mesures qui le prouve et pour ce qui reste
-couvert par les seuls tests purs. Aucune branche en attente de fusion.
+couvert par les seuls tests purs.
+
+La branche `feat/temps-regarde` ajoute la **mesure du temps réellement regardé**. Suite verte,
+mais **rien n'a tourné sur l'appareil** : une autre session y travaillait, donc aucun `adb`.
+La migration Room 1 → 2 est en particulier non jouée — voir « Le temps regardé ».
 
 **Trois comportements fins, déjà livrés et vérifiés, à ne pas casser :**
 
@@ -67,7 +71,7 @@ bleu-vert, filets d'un pixel à la place des cartes. Verrouillée en clair.
 
 ```bash
 ./gradlew build                                   # tout
-./gradlew :detection:test :app:testDebugUnitTest  # 225 tests JVM
+./gradlew :detection:test :app:testDebugUnitTest  # 241 tests JVM
 ./gradlew :app:installDebug                       # installe sur l'appareil
 # tests instrumentés : --tests ne marche PAS sur cette version d'AGP, utiliser :
 ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=<fqcn>
@@ -89,7 +93,9 @@ bleu-vert, filets d'un pixel à la place des cartes. Verrouillée en clair.
                        AllowanceLock  (LockedSettings, PendingChange, isLoosening, armChange,
                                        hasMatured, effectiveSettings,
                                        effectiveBlockedSurfaces)
-             data/     BlockEvent, BlockEventDao, AppDatabase, DailyCount, dailyCounts,
+             data/     BlockEvent, BlockEventDao, AppDatabase (+ MIGRATION_1_2),
+                       DailyCount, dailyCounts, PassEvent, PassEventDao,
+                       DailyWatched, dailyWatched,
                        SettingsStore, BlockSettings, RuleLoadStatus, CaptureStatus
              ui/       MainActivity, HomeScreen, HomeViewModel, ServiceStatus, Theme,
                        CaptureProgress, SurfaceGroups, TodayBreakdown,
@@ -370,6 +376,28 @@ immédiatement ; l'affichage correspond au protobuf au millième près.
 
 **Non vérifié sur appareil**, couvert seulement par les tests purs : le resserrement pendant
 qu'un changement est en attente, et la maturation réelle d'un délai.
+
+### Le temps regardé
+
+Table `pass_event` (instant de fermeture, durée), à côté de `block_event`. Le compte de
+blocages dit à quelle fréquence l'app t'a rattrapé ; celui-ci dit combien de temps tu as
+regardé quand même — c'est le chiffre que le quota existe pour faire baisser.
+
+- **C'est le service qui enregistre.** Un pass qui s'épuise pendant que tu défiles n'est
+  constaté par personne d'autre : l'écran peut être fermé, et les fonctions pures ne font que
+  dériver. `recordAnyClosedPass` le voit à l'événement suivant.
+- **`closureFrom` est le seul endroit où la durée se calcule**, pour que le bouton « Fermer
+  maintenant » et une expiration ne puissent pas raconter deux choses différentes.
+- **La migration 1 → 2 est écrite à la main et `fallbackToDestructiveMigration` est
+  délibérément absent** : il effacerait `block_event`, seule preuve que l'app ait jamais
+  fonctionné. Comme elle n'a pas pu être jouée sur l'appareil, `exportSchema` est activé et un
+  **test JVM compare le `CREATE TABLE` à `app/schemas/…/2.json`**, qui est ce que Room
+  exigera. L'autorité est le JSON, pas le code. Ne pas supprimer `app/schemas/` du dépôt.
+- **Défaut connu, non corrigé** : si tu appuies sur « Fermer maintenant » dans les
+  millisecondes où le pass expire, le service et l'interface peuvent chacun inscrire une
+  ligne, et la journée compte le pass deux fois. Fenêtre minuscule, et l'erreur va dans le
+  sens prudent — elle affiche **plus** de temps regardé, jamais moins.
+- **Non vérifié sur appareil** : la migration elle-même, et l'enregistrement de bout en bout.
 
 ### Deux pièges d'outillage, tous deux rencontrés ici
 
