@@ -160,4 +160,31 @@ class RealFixtureTest {
     fun `the shipped reels rule does not redirect`() {
         assertNull(classifier.classify(fixture("reels")).clickViewId)
     }
+
+    @Test
+    fun `a suggested reel is caught even when the conversation chrome lingers`() {
+        // Redundancy against this app's recurring trap: Instagram does not tear
+        // down the previous screen, so a reply bar left mounted over a suggested
+        // reel would cancel the guard and silently exempt it. The "Suggested"
+        // label is an independent signal that says the reel is algorithmic.
+        val dmReel = fixture("dm_reel")
+        val suggestedLabel = fixture("suggested_reel").nodes
+            .single { it.viewId?.endsWith("suggested_title") == true }
+        val lingering = dmReel.copy(nodes = dmReel.nodes + suggestedLabel)
+
+        val result = classifier.classify(lingering)
+
+        assertEquals(Surface.REELS, result.surface)
+        assertEquals(Tier.HIGH, result.tier)
+    }
+
+    @Test
+    fun `the suggested-reel label is a shipped high-tier signal`() {
+        val signal = ruleSet.surfaces.getValue(Surface.REELS).signals
+            .single { it.value?.endsWith("suggested_title") == true }
+
+        assertEquals(Tier.HIGH, signal.tier)
+        assertTrue("the label must be on screen to count", signal.requireOnScreen)
+        assertFalse("the label is never selected", signal.requireSelected)
+    }
 }
