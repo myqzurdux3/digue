@@ -16,7 +16,7 @@ retour arrière la plupart du temps, ou un appui sur un nœud précis pour Explo
 | Snapchat | `DISCOVER` | la colonne d'actions `context_vertical_actions/...` |
 
 **Statut au 2026-08-17.** Les cinq surfaces sont vérifiées sur l'appareil réel et `main` les
-porte toutes (`feat/snapchat-discover` est fusionnée). 249 tests JVM, 24 tests instrumentés.
+porte toutes (`feat/snapchat-discover` est fusionnée). 250 tests JVM, 24 tests instrumentés.
 
 Le **quota quotidien, la plage horaire et le verrou par délai** sont dans `main`, vérifiés sur
 appareil — voir « Quota » plus bas pour la paire de mesures qui le prouve et pour ce qui reste
@@ -72,7 +72,7 @@ bleu-vert, filets d'un pixel à la place des cartes. Verrouillée en clair.
 
 ```bash
 ./gradlew build                                   # tout
-./gradlew :detection:test :app:testDebugUnitTest  # 249 tests JVM
+./gradlew :detection:test :app:testDebugUnitTest  # 250 tests JVM
 ./gradlew :app:installDebug                       # installe sur l'appareil
 # tests instrumentés : --tests ne marche PAS sur cette version d'AGP, utiliser :
 ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=<fqcn>
@@ -99,8 +99,9 @@ bleu-vert, filets d'un pixel à la place des cartes. Verrouillée en clair.
                        DailyWatched, dailyWatched,
                        SettingsStore, BlockSettings, RuleLoadStatus, CaptureStatus
              ui/       MainActivity, HomeScreen, HomeViewModel, ServiceStatus, Theme,
-                       CaptureProgress, SurfaceGroups, TodayBreakdown,
-                       AllowanceUiState, AllowancePanel, AllowanceEditors
+                       CaptureProgress, SurfaceGroups, TodayBreakdown, HistoryChart,
+                       MaintenancePanel, AllowanceUiState, AllowancePanel,
+                       AllowanceEditors
 ```
 
 **Le service ne s'appelle plus que par habitude `InstagramWatcherService`** — il couvre
@@ -433,10 +434,21 @@ regardé quand même — c'est le chiffre que le quota existe pour faire baisser
   fonctionné. Comme elle n'a pas pu être jouée sur l'appareil, `exportSchema` est activé et un
   **test JVM compare le `CREATE TABLE` à `app/schemas/…/2.json`**, qui est ce que Room
   exigera. L'autorité est le JSON, pas le code. Ne pas supprimer `app/schemas/` du dépôt.
+- **Le temps banqué est plafonné au quota**, et c'est une correction de justesse, pas de
+  coquetterie. Un pass ne se ferme que lorsque quelqu'un le constate — le service a besoin
+  d'un événement d'une app surveillée, l'écran doit être ouvert — donc un pass laissé courir
+  téléphone posé continue d'accumuler de l'horloge murale. Le blocage, lui, était juste :
+  `passIsOpen` passe à faux dès l'épuisement. C'est le **chiffre affiché** qui mentait.
+  Mesuré sur l'appareil : **48 min 36 s annoncées contre un quota de 30 min**.
 - **Défaut connu, non corrigé** : si tu appuies sur « Fermer maintenant » dans les
   millisecondes où le pass expire, le service et l'interface peuvent chacun inscrire une
   ligne, et la journée compte le pass deux fois. Fenêtre minuscule, et l'erreur va dans le
   sens prudent — elle affiche **plus** de temps regardé, jamais moins.
+- **Le bandeau de règles illisibles porte maintenant un bouton « Recharger les règles »**
+  (`ACTION_RELOAD_RULES`). Avant, le statut n'était écrit qu'au `onServiceConnected` : on
+  réparait `rules.json` et le bandeau restait, pendant que le service tournait toujours sur le
+  repli. Rafraîchir le seul statut aurait été pire — il aurait effacé le bandeau en laissant
+  le repli en place.
 - **Vérifié sur appareil le 2026-08-17** : la migration a été jouée en mise à jour depuis une
   base réelle en version 1 (2 lignes `block_event` conservées, `pass_event` créée au schéma
   exact, rien dans logcat), et deux `pass_event` ont été inscrits par le chemin normal.
@@ -480,9 +492,18 @@ regardé quand même — c'est le chiffre que le quota existe pour faire baisser
    `onServiceConnected`, donc le bandeau persiste après réparation jusqu'à reconnexion du
    service ; la cause interpolée est du texte anglais dans une phrase française ;
    `isServiceEnabled` n'a pas de test car le code n'a pas de couture pure pour `Settings.Secure`.
-5. **Non vérifié** : survie à un redémarrage, persistance sur 24 h ; côté quota, le
-   resserrement pendant qu'un changement est en attente, et la maturation réelle d'un délai
-   d'une heure. Commandes dans la recette.
+5. **Non vérifié** : persistance sur 24 h ; côté quota, le resserrement pendant qu'un
+   changement est en attente, et la maturation réelle d'un délai d'une heure.
+
+**Deux points fermés par la mesure le 2026-08-17 :**
+
+- **Survie au redémarrage : oui.** Vérifié après un vrai redémarrage (1 min d'uptime) — le
+  service se relie seul, sans réactivation, et l'état du quota survit.
+- **Le débit d'événements ne coûte rien.** `EventThrottle` est à 200 ms, donc jusqu'à cinq
+  parcours d'arbre par seconde. Mesuré sur `/proc/<pid>/stat` : **2 ticks CPU en 20 s au
+  repos, 105 ticks en 20 s de défilement actif** dans une app surveillée — environ 5 % d'un
+  cœur pendant le défilement, et rien le reste du temps. Trente minutes de défilement par jour
+  font 90 s de CPU. **Ne pas « optimiser » ce réglage** : il n'y a rien à y gagner.
 
 ## Limites produit à connaître
 

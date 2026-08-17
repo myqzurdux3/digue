@@ -156,7 +156,12 @@ fun openPass(
  * comes back unchanged, so whichever of the UI and the service notices first
  * can close it without coordinating with the other.
  */
-fun closePass(state: AllowanceState, nowEpochMillis: Long, zone: ZoneId): AllowanceState {
+fun closePass(
+    settings: AllowanceSettings,
+    state: AllowanceState,
+    nowEpochMillis: Long,
+    zone: ZoneId,
+): AllowanceState {
     if (state.passOpenedAtEpochMillis == 0L) return state
     val today = epochDayOf(nowEpochMillis, zone)
     // A pass opened on an earlier day: its time belongs to that day, which no
@@ -164,7 +169,15 @@ fun closePass(state: AllowanceState, nowEpochMillis: Long, zone: ZoneId): Allowa
     if (state.day != today) return AllowanceState(day = today)
     val elapsed = (nowEpochMillis - state.passOpenedAtEpochMillis).coerceAtLeast(0)
     return state.copy(
-        consumedMillis = state.consumedMillis + elapsed,
+        // Capped at the quota, and this is a correctness fix rather than tidiness.
+        // A pass is only shut when somebody notices — the service needs an event
+        // from a watched app, the screen needs to be open — so one left running
+        // with the phone face down keeps accruing wall clock. Blocking was right
+        // throughout, since passIsOpen goes false the moment the budget runs out;
+        // it is the *reported* figure that would lie, counting as "watched" the
+        // minutes the user was in fact being blocked. Measured on the device:
+        // 48 min 36 s reported against a 30 min quota.
+        consumedMillis = (state.consumedMillis + elapsed).coerceAtMost(settings.quotaMillis),
         passOpenedAtEpochMillis = 0,
     )
 }
@@ -205,10 +218,11 @@ fun closureOf(
  * Both funnel through [closureFrom], so the duration is computed in one place.
  */
 fun forcedClosureOf(
+    settings: AllowanceSettings,
     state: AllowanceState,
     nowEpochMillis: Long,
     zone: ZoneId,
-): PassClosure? = closureFrom(state, closePass(state, nowEpochMillis, zone))
+): PassClosure? = closureFrom(state, closePass(settings, state, nowEpochMillis, zone))
 
 private fun closureFrom(before: AllowanceState, after: AllowanceState): PassClosure? {
     if (after == before) return null
@@ -229,7 +243,7 @@ fun settle(
     zone: ZoneId,
 ): AllowanceState =
     if (state.passOpenedAtEpochMillis != 0L && !passIsOpen(settings, state, nowEpochMillis, zone)) {
-        closePass(state, nowEpochMillis, zone)
+        closePass(settings, state, nowEpochMillis, zone)
     } else {
         state
     }

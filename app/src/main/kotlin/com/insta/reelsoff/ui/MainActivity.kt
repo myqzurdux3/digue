@@ -57,6 +57,12 @@ class MainActivity : ComponentActivity() {
                         onClosePass = viewModel::closePass,
                         onCancelPendingChange = viewModel::cancelPendingChange,
                         onProposeAllowance = viewModel::proposeAllowanceSettings,
+                        onReloadRules = {
+                            sendBroadcast(
+                                Intent(InstagramWatcherService.ACTION_RELOAD_RULES)
+                                    .setPackage(packageName),
+                            )
+                        },
                     )
                 }
             }

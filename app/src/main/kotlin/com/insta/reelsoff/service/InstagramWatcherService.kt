@@ -85,6 +85,24 @@ class InstagramWatcherService : AccessibilityService() {
     }
 
     /**
+     * Re-reads the rules on demand.
+     *
+     * Without this the load status was only ever written in
+     * [onServiceConnected], so a user who repaired a hand-edited rules.json kept
+     * staring at the failure banner until the service happened to reconnect —
+     * and the service kept running on the fallback rules the whole time. The
+     * banner was telling the truth; there was simply no way to act on it.
+     *
+     * Refreshing the *status* alone would have been worse than useless: it would
+     * have cleared the banner while the service still ran on the fallback.
+     */
+    private val reloadReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            reloadRules()
+        }
+    }
+
+    /**
      * Mirrors capture progress to the UI. Failing to publish must never take the
      * service down — the capture itself is unaffected, only its display.
      */
@@ -116,35 +134,13 @@ class InstagramWatcherService : AccessibilityService() {
                 IntentFilter(ACTION_START_CAPTURE),
                 ContextCompat.RECEIVER_NOT_EXPORTED,
             )
-            // RuleSetLoader.load() is designed to never throw, but this callback has no
-            // caller-side try/catch the way onAccessibilityEvent() does — an uncaught throw
-            // here crashes the service, and Android may then disable it for good, leaving the
-            // user believing they are still protected. Belt and braces: fall back to an empty
-            // rule set (blocks nothing, but stays alive) rather than let anything escape.
-            val loaded = try {
-                RuleSetLoader(this).load()
-            } catch (e: Throwable) {
-                if (e is CancellationException) throw e
-                Log.e(TAG, "rule loading failed unexpectedly", e)
-                LoadedRules(RuleSet(version = 0, apps = emptyMap()), RuleSource.BUNDLED, "rule loading failed unexpectedly: ${e.message}")
-            }
-            classifier = ScreenClassifier(loaded.ruleSet)
-            ruleSet = loaded.ruleSet
-            applyDeclaredPackages(settings.blockedSurfaces)
-            Log.i(TAG, "rules loaded from ${loaded.source}${loaded.error?.let { " ($it)" } ?: ""}")
-
-            // Mirror the load outcome into DataStore (F1): the home screen has no other
-            // way to learn the service fell back to bundled rules, or that even those
-            // failed to parse — both of which mean the app can be blocking nothing while
-            // showing "Service actif".
-            scope.launch {
-                runCatching {
-                    SettingsStore(applicationContext).setRuleLoadStatus(loaded.source.name, loaded.error)
-                }.onFailure {
-                    if (it is CancellationException) throw it
-                    Log.e(TAG, "could not persist rule load status", it)
-                }
-            }
+            ContextCompat.registerReceiver(
+                this,
+                reloadReceiver,
+                IntentFilter(ACTION_RELOAD_RULES),
+                ContextCompat.RECEIVER_NOT_EXPORTED,
+            )
+            reloadRules()
 
             // Collect settings changes on IO scope. A DataStore read can fail with an
             // IOException; retry rather than give up, since completing the flow here
@@ -212,6 +208,50 @@ class InstagramWatcherService : AccessibilityService() {
             // Land on the unmatchable sentinel rather than whatever packageNames
             // was declared (or left un-narrowed) before this failure — see F1.
             applyDeclaredPackages(emptySet())
+        }
+    }
+
+    /**
+     * Loads the rules and publishes what happened, at connection time and again
+     * whenever the user asks for a reload.
+     *
+     * RuleSetLoader.load() is designed never to throw, but the callers here have
+     * no try/catch of their own the way onAccessibilityEvent() does — an
+     * uncaught throw crashes the service, and Android may then disable it for
+     * good, leaving the user believing they are still protected. Belt and
+     * braces: fall back to an empty rule set (blocks nothing, but stays alive)
+     * rather than let anything escape.
+     */
+    private fun reloadRules() {
+        val loaded = try {
+            RuleSetLoader(this).load()
+        } catch (e: Throwable) {
+            if (e is CancellationException) throw e
+            Log.e(TAG, "rule loading failed unexpectedly", e)
+            LoadedRules(
+                RuleSet(version = 0, apps = emptyMap()),
+                RuleSource.BUNDLED,
+                "rule loading failed unexpectedly: ${e.message}",
+            )
+        }
+        classifier = ScreenClassifier(loaded.ruleSet)
+        ruleSet = loaded.ruleSet
+        // The declared packages come from the rule set, so a reload that changes
+        // which apps carry surfaces has to redeclare them too.
+        applyDeclaredPackages(settings.blockedSurfaces)
+        Log.i(TAG, "rules loaded from ${loaded.source}${loaded.error?.let { " ($it)" } ?: ""}")
+
+        // Mirror the load outcome into DataStore (F1): the home screen has no other
+        // way to learn the service fell back to bundled rules, or that even those
+        // failed to parse — both of which mean the app can be blocking nothing while
+        // showing "Service actif".
+        scope.launch {
+            runCatching {
+                SettingsStore(applicationContext).setRuleLoadStatus(loaded.source.name, loaded.error)
+            }.onFailure {
+                if (it is CancellationException) throw it
+                Log.e(TAG, "could not persist rule load status", it)
+            }
         }
     }
 
@@ -296,6 +336,7 @@ class InstagramWatcherService : AccessibilityService() {
 
     override fun onDestroy() {
         runCatching { unregisterReceiver(captureReceiver) }
+        runCatching { unregisterReceiver(reloadReceiver) }
         scope.cancel()
         super.onDestroy()
     }
@@ -481,6 +522,7 @@ class InstagramWatcherService : AccessibilityService() {
 
     companion object {
         const val ACTION_START_CAPTURE = "com.insta.reelsoff.START_CAPTURE"
+        const val ACTION_RELOAD_RULES = "com.insta.reelsoff.RELOAD_RULES"
 
         private const val TAG = "ReelsOff"
     }

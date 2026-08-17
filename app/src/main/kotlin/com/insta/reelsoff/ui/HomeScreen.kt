@@ -63,6 +63,7 @@ fun HomeScreen(
     onClosePass: () -> Unit,
     onCancelPendingChange: () -> Unit,
     onProposeAllowance: (AllowanceSettings) -> Unit,
+    onReloadRules: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -85,7 +86,29 @@ fun HomeScreen(
         val ruleLoadError = state.ruleLoadError
         if (ruleLoadError != null) {
             Spacer(Modifier.height(20.dp))
-            Callout(stringResource(R.string.rules_load_warning, ruleLoadError))
+            Callout(stringResource(R.string.rules_load_warning)) {
+                // The diagnostic is an English technical string from the loader.
+                // It sits on its own line, framed as a detail, rather than being
+                // interpolated mid-sentence into French prose.
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.rules_load_detail, ruleLoadError),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EncreDouce,
+                )
+                Spacer(Modifier.height(8.dp))
+                TextButton(
+                    onClick = onReloadRules,
+                    shape = MaterialTheme.shapes.small,
+                    contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.reload_rules),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Accent,
+                    )
+                }
+            }
         } else if (state.degraded) {
             Spacer(Modifier.height(20.dp))
             Callout(stringResource(R.string.degraded_warning))
@@ -126,7 +149,7 @@ fun HomeScreen(
             title = stringResource(R.string.history_title),
             trailing = stringResource(R.string.history_total, state.history.sumOf { it.total }),
         ) {
-            HistoryChart(state.history)
+            HistoryChart(state.history, state.watched)
             if (state.watchedTotalMillis > 0) {
                 Spacer(Modifier.height(12.dp))
                 Text(
@@ -154,44 +177,7 @@ fun HomeScreen(
             }
         }
 
-        Section(title = stringResource(R.string.maintenance_title)) {
-            // Both of these only matter when something has gone wrong, so they sit at
-            // the foot of the page rather than above the numbers the user came for.
-            Text(
-                text = stringResource(R.string.battery_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = EncreDouce,
-            )
-            Spacer(Modifier.height(10.dp))
-            // state.declaredPackages is what the service last actually assigned to
-            // serviceInfo.packageNames, published by InstagramWatcherService itself
-            // right after a successful assignment (see DeclaredPackages.kt and
-            // applyDeclaredPackages) — not recomputed here from the rule set and not
-            // filtered by the installed-app detection the `groups` above use. That
-            // makes this line true of what happened, not of what should have
-            // happened: it cannot claim success for an assignment that threw, and it
-            // cannot go stale relative to a hand-edited rules.json override the way a
-            // ViewModel-side recomputation could.
-            val observedLabels = state.declaredPackages
-                .mapNotNull { packageName -> labelForPackage(packageName) }
-                .map { stringResource(it) }
-                .distinct()
-                .sorted()
-            Text(
-                text = stringResource(
-                    R.string.declared_packages,
-                    if (observedLabels.isEmpty()) "—" else observedLabels.joinToString(", "),
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = EncreDouce,
-            )
-            Spacer(Modifier.height(14.dp))
-            CaptureControl(
-                status = state.captureStatus,
-                serviceEnabled = state.serviceEnabled,
-                onStartCapture = onStartCapture,
-            )
-        }
+        MaintenanceSection(state, onStartCapture)
     }
 }
 
@@ -250,9 +236,14 @@ private fun Wordmark() {
     }
 }
 
-/** A titled band: hairline, small-caps heading, then the content. */
+/**
+ * A titled band: hairline, small-caps heading, then the content.
+ *
+ * Internal rather than private: the maintenance panel lives in its own file and
+ * has to sit in the same band as every other section.
+ */
 @Composable
-private fun Section(
+internal fun Section(
     title: String,
     trailing: String? = null,
     content: @Composable () -> Unit,
@@ -320,76 +311,13 @@ private fun ServiceBlock(enabled: Boolean, onOpenSettings: () -> Unit) {
 }
 
 /**
- * A repair tool, not a daily control: it recalibrates the rules when Instagram
- * drifts. Kept reachable, but given the least weight on the page.
+ * A warning, set as a marginal rule rather than a filled box.
  *
- * It used to be a bare button whose only feedback was a line in logcat, so the
- * three ways it can quietly do nothing — service off, never reaching Instagram,
- * window already over — all looked exactly like a working press.
+ * [extra] carries whatever the reader can do about it — a technical detail, an
+ * action — inside the same rule, so the remedy is not separated from the problem.
  */
 @Composable
-private fun CaptureControl(
-    status: CaptureStatus,
-    serviceEnabled: Boolean,
-    onStartCapture: () -> Unit,
-) {
-    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    val phase = capturePhase(status, now)
-
-    // Ticks only while the display can still change, and stops on its own: a
-    // permanent one-second timer to render a finished session would be waste.
-    LaunchedEffect(status) {
-        while (true) {
-            now = System.currentTimeMillis()
-            val current = capturePhase(status, now)
-            if (current != CapturePhase.WAITING && current != CapturePhase.RUNNING) break
-            delay(1_000)
-        }
-    }
-
-    val message = when {
-        !serviceEnabled -> stringResource(R.string.capture_needs_service)
-        phase == CapturePhase.WAITING -> stringResource(R.string.capture_waiting)
-        phase == CapturePhase.RUNNING -> stringResource(
-            R.string.capture_running,
-            remainingSeconds(status, now),
-            status.count,
-        )
-        phase == CapturePhase.DONE -> stringResource(R.string.capture_done, status.count)
-        phase == CapturePhase.MISSED -> stringResource(R.string.capture_missed)
-        else -> stringResource(R.string.capture_hint)
-    }
-
-    Text(
-        text = message,
-        style = MaterialTheme.typography.bodySmall,
-        color = if (phase == CapturePhase.RUNNING) Accent else EncreDouce,
-    )
-
-    // No button mid-session: pressing it would silently restart the window the
-    // user is already watching count down.
-    if (phase != CapturePhase.WAITING && phase != CapturePhase.RUNNING) {
-        Spacer(Modifier.height(12.dp))
-        TextButton(
-            onClick = onStartCapture,
-            enabled = serviceEnabled,
-            shape = MaterialTheme.shapes.small,
-            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp),
-        ) {
-            Text(
-                text = stringResource(
-                    if (phase == CapturePhase.IDLE) R.string.start_capture else R.string.restart_capture,
-                ),
-                style = MaterialTheme.typography.labelSmall,
-                color = if (serviceEnabled) Accent else EncreDouce,
-            )
-        }
-    }
-}
-
-/** A warning, set as a marginal rule rather than a filled box. */
-@Composable
-private fun Callout(text: String) {
+private fun Callout(text: String, extra: @Composable (() -> Unit)? = null) {
     Row(modifier = Modifier.height(IntrinsicSize.Min)) {
         Box(
             modifier = Modifier
@@ -398,11 +326,14 @@ private fun Callout(text: String) {
                 .background(Alerte),
         )
         Spacer(Modifier.width(14.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = Encre,
-        )
+        Column {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Encre,
+            )
+            extra?.invoke()
+        }
     }
 }
 
@@ -412,7 +343,9 @@ private fun TodayTotal(total: Int, today: DailyCount?) {
     Column {
         Counter(
             value = total,
-            label = stringResource(R.string.today),
+            // No label: the enclosing Section is already titled "Aujourd'hui",
+            // and repeating it under the figure read as a stutter on the device.
+            label = stringResource(R.string.today_blocks),
             // One utterance ("Retenu 3 fois") rather than a screen reader stitching
             // together the bare number and the small-caps label separately.
             modifier = Modifier.clearAndSetSemantics { contentDescription = accessibleTotal },
@@ -448,57 +381,6 @@ private fun Counter(value: Int, label: String, modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.labelSmall,
             color = EncreDouce,
         )
-    }
-}
-
-@Composable
-private fun HistoryChart(history: List<DailyCount>) {
-    val maximum = (history.maxOfOrNull { it.total } ?: 0).coerceAtLeast(1)
-    val lastIndex = history.lastIndex
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(104.dp),
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-            verticalAlignment = Alignment.Bottom,
-        ) {
-            history.forEachIndexed { index, day ->
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height((100.dp * day.total / maximum).coerceAtLeast(2.dp))
-                        .background(
-                            when {
-                                index == lastIndex -> Accent
-                                day.total == 0 -> Filet
-                                else -> Encre
-                            },
-                        ),
-                )
-            }
-        }
-        // The bars stand on this line, so a day with no blocks reads as a zero
-        // rather than as missing data.
-        HorizontalDivider(thickness = 1.dp, color = Encre)
-        Spacer(Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            history.forEachIndexed { index, day ->
-                Text(
-                    text = day.date.dayOfWeek.getDisplayName(JavaTextStyle.NARROW, Locale.FRENCH),
-                    modifier = Modifier.weight(1f),
-                    textAlign = TextAlign.Center,
-                    // Letter spacing is dropped here: on a single glyph it only shifts
-                    // the centred label off its bar.
-                    style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp),
-                    color = if (index == lastIndex) Accent else EncreDouce,
-                )
-            }
-        }
     }
 }
 

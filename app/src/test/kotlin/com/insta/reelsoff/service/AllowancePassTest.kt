@@ -66,7 +66,7 @@ class AllowancePassTest {
     @Test
     fun `closing banks the elapsed time and shuts the pass`() {
         val opened = openPass(settings, AllowanceState(), at(17, 20, 0), PARIS)
-        val closed = closePass(opened, at(17, 20, 0) + 90_000, PARIS)
+        val closed = closePass(settings, opened, at(17, 20, 0) + 90_000, PARIS)
         assertEquals(90_000L, closed.consumedMillis)
         assertEquals(0L, closed.passOpenedAtEpochMillis)
         assertEquals(210_000L, remainingMillis(settings, closed, at(17, 20, 30), PARIS))
@@ -75,7 +75,7 @@ class AllowancePassTest {
     @Test
     fun `closing a shut pass changes nothing`() {
         val closed = AllowanceState(day = dayOf(17), consumedMillis = 90_000)
-        assertEquals(closed, closePass(closed, at(17, 20, 30), PARIS))
+        assertEquals(closed, closePass(settings, closed, at(17, 20, 30), PARIS))
     }
 
     @Test
@@ -85,7 +85,7 @@ class AllowancePassTest {
             consumedMillis = 60_000,
             passOpenedAtEpochMillis = at(16, 23, 59),
         )
-        val closed = closePass(stale, at(17, 0, 30), PARIS)
+        val closed = closePass(settings, stale, at(17, 0, 30), PARIS)
         assertEquals(dayOf(17), closed.day)
         assertEquals(0L, closed.consumedMillis)
         assertEquals(0L, closed.passOpenedAtEpochMillis)
@@ -99,15 +99,27 @@ class AllowancePassTest {
         assertEquals(0L, remainingMillis(settings, settled, at(17, 20, 30), PARIS))
     }
 
-    // Ten minutes of wall clock elapsed on a five-minute quota, and the true
-    // figure is what gets banked. remainingMillis floors at zero anyway, and a
-    // tidied-up number would be a lie in the one place the user can read it.
+    // Ten minutes of wall clock elapsed on a five-minute quota. What is banked is
+    // the quota, not the raw elapsed: past the five-minute mark the pass was shut
+    // as far as blocking was concerned, and counting further would report as
+    // "watched" time the user was in fact being blocked.
     @Test
-    fun `settle shuts a pass once the clock leaves the window`() {
+    fun `settle banks at most the quota, never the raw wall clock`() {
         val opened = openPass(settings, AllowanceState(), at(17, 20, 55), PARIS)
         val settled = settle(settings, opened, at(17, 21, 5), PARIS)
         assertEquals(0L, settled.passOpenedAtEpochMillis)
-        assertEquals(600_000L, settled.consumedMillis)
+        assertEquals(300_000L, settled.consumedMillis)
+    }
+
+    @Test
+    fun `a pass nobody noticed for hours still banks only the quota`() {
+        // Measured on the device: a pass left open with the phone face down
+        // reported 48 min 36 s against a 30 min quota, because nothing had
+        // settled it. Blocking had resumed on time; only the figure was wrong.
+        val opened = openPass(settings, AllowanceState(), at(17, 20, 0), PARIS)
+        val settled = settle(settings, opened, at(17, 20, 0) + 3 * 3_600_000, PARIS)
+
+        assertEquals(300_000L, settled.consumedMillis)
     }
 
     @Test
@@ -154,7 +166,7 @@ class PassClosureTest {
         val closure = closureOf(settings, opened, at(17, 20, 0) + 300_001, PARIS)!!
 
         assertEquals(0L, closure.state.passOpenedAtEpochMillis)
-        assertEquals(300_001L, closure.durationMillis)
+        assertEquals(300_000L, closure.durationMillis)
     }
 
     @Test
@@ -163,8 +175,8 @@ class PassClosureTest {
         val opened = openPass(settings, earlier, at(17, 20, 0), PARIS)
         val closure = closureOf(settings, opened, at(17, 20, 0) + 180_001, PARIS)!!
 
-        assertEquals(180_001L, closure.durationMillis)
-        assertEquals(300_001L, closure.state.consumedMillis)
+        assertEquals(180_000L, closure.durationMillis)
+        assertEquals(300_000L, closure.state.consumedMillis)
     }
 
     @Test

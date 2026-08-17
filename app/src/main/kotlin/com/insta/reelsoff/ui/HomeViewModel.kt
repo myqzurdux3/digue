@@ -408,8 +408,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun closePass() {
         viewModelScope.launch {
             val now = System.currentTimeMillis()
-            val closure = forcedClosureOf(settingsStore.allowanceState.first(), now, zone)
-                ?: return@launch
+            val closure = forcedClosureOf(
+                settingsStore.allowanceSettings.first(),
+                settingsStore.allowanceState.first(),
+                now,
+                zone,
+            ) ?: return@launch
             settingsStore.setAllowanceState(closure.state)
             if (closure.durationMillis > 0) {
                 passDao.insert(PassEvent(epochMillis = now, durationMillis = closure.durationMillis))
