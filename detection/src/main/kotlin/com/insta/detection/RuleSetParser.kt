@@ -10,9 +10,12 @@ sealed interface ParseResult {
 }
 
 @Serializable
+private data class RawAppRules(val surfaces: Map<String, SurfaceRules>)
+
+@Serializable
 private data class RawRuleSet(
     val version: Int,
-    val surfaces: Map<String, SurfaceRules>,
+    val apps: Map<String, RawAppRules>,
 )
 
 /**
@@ -30,20 +33,33 @@ object RuleSetParser {
             return ParseResult.Failure("malformed rules file: ${e.message}")
         }
 
-        val surfaces = mutableMapOf<Surface, SurfaceRules>()
-        for ((name, rules) in decoded.surfaces) {
-            val surface = Surface.entries.firstOrNull { it.name == name }
-                ?: return ParseResult.Failure("unknown surface \"$name\"")
-            if (surface == Surface.OTHER) {
-                return ParseResult.Failure("surface \"OTHER\" cannot carry rules")
-            }
-            rules.signals.forEach { signal ->
-                validate(signal)?.let { return ParseResult.Failure(it) }
-            }
-            surfaces[surface] = rules
+        if (decoded.version != RULES_VERSION) {
+            return ParseResult.Failure(
+                "unsupported rules version ${decoded.version}, expected $RULES_VERSION",
+            )
         }
 
-        return ParseResult.Success(RuleSet(decoded.version, surfaces))
+        val apps = mutableMapOf<String, AppRules>()
+        for ((packageName, rawApp) in decoded.apps) {
+            if (packageName.isBlank()) {
+                return ParseResult.Failure("a package name must not be blank")
+            }
+            val surfaces = mutableMapOf<Surface, SurfaceRules>()
+            for ((name, rules) in rawApp.surfaces) {
+                val surface = Surface.entries.firstOrNull { it.name == name }
+                    ?: return ParseResult.Failure("unknown surface \"$name\"")
+                if (surface == Surface.OTHER) {
+                    return ParseResult.Failure("surface \"OTHER\" cannot carry rules")
+                }
+                rules.signals.forEach { signal ->
+                    validate(signal)?.let { return ParseResult.Failure(it) }
+                }
+                surfaces[surface] = rules
+            }
+            apps[packageName] = AppRules(surfaces)
+        }
+
+        return ParseResult.Success(RuleSet(decoded.version, apps))
     }
 
     /** Returns an error message, or null when the signal is usable. */

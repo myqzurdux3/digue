@@ -51,7 +51,17 @@ data class SurfaceRules(
     val clickViewId: String? = null,
 )
 
+/** The rules for one application. */
+data class AppRules(val surfaces: Map<Surface, SurfaceRules>)
+
 data class RuleSet(
     val version: Int,
-    val surfaces: Map<Surface, SurfaceRules>,
+    val apps: Map<String, AppRules>,
 )
+
+/**
+ * The rules-file format this build understands. Bumped from 1 when rules gained
+ * a package dimension; a file from the older format is rejected rather than
+ * guessed at.
+ */
+const val RULES_VERSION = 2

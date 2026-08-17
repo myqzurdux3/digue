@@ -134,7 +134,7 @@ class RealFixtureTest {
         // feed, profile and direct all carry a leftover clips_viewer_view_pager.
         // Drop requireOnScreen from rules.json and this fails — which is the
         // point: the failure is what stops the feed being blocked.
-        val signal = ruleSet.surfaces.getValue(Surface.REELS).signals
+        val signal = ruleSet.apps.getValue("com.instagram.android").surfaces.getValue(Surface.REELS).signals
             .single { it.value?.endsWith("clips_viewer_view_pager") == true }
 
         assertTrue("the reel-viewer rule must require an on-screen node", signal.requireOnScreen)
@@ -180,7 +180,7 @@ class RealFixtureTest {
 
     @Test
     fun `the suggested-reel label is a shipped high-tier signal`() {
-        val signal = ruleSet.surfaces.getValue(Surface.REELS).signals
+        val signal = ruleSet.apps.getValue("com.instagram.android").surfaces.getValue(Surface.REELS).signals
             .single { it.value?.endsWith("suggested_title") == true }
 
         assertEquals(Tier.HIGH, signal.tier)

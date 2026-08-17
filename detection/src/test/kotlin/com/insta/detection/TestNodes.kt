@@ -61,20 +61,24 @@ fun screenWithNavBar(
 }
 
 val TEST_RULES = RuleSet(
-    version = 1,
-    surfaces = mapOf(
-        Surface.REELS to SurfaceRules(
-            listOf(
-                Signal(Tier.HIGH, SignalType.VIEW_ID, value = "com.instagram.android:id/clips_tab"),
-                Signal(Tier.MEDIUM, SignalType.CONTENT_DESCRIPTION, anyOf = listOf("Reels", "Réels")),
-                Signal(Tier.LOW, SignalType.NAV_BAR_INDEX, value = "2"),
-            ),
-        ),
-        Surface.EXPLORE to SurfaceRules(
-            listOf(
-                Signal(Tier.HIGH, SignalType.VIEW_ID, value = "com.instagram.android:id/search_tab"),
-                Signal(Tier.MEDIUM, SignalType.CONTENT_DESCRIPTION, anyOf = listOf("Search and explore", "Recherche et exploration")),
-                Signal(Tier.LOW, SignalType.NAV_BAR_INDEX, value = "1"),
+    version = RULES_VERSION,
+    apps = mapOf(
+        "com.instagram.android" to AppRules(
+            mapOf(
+                Surface.REELS to SurfaceRules(
+                    listOf(
+                        Signal(Tier.HIGH, SignalType.VIEW_ID, value = "com.instagram.android:id/clips_tab"),
+                        Signal(Tier.MEDIUM, SignalType.CONTENT_DESCRIPTION, anyOf = listOf("Reels", "Réels")),
+                        Signal(Tier.LOW, SignalType.NAV_BAR_INDEX, value = "2"),
+                    ),
+                ),
+                Surface.EXPLORE to SurfaceRules(
+                    listOf(
+                        Signal(Tier.HIGH, SignalType.VIEW_ID, value = "com.instagram.android:id/search_tab"),
+                        Signal(Tier.MEDIUM, SignalType.CONTENT_DESCRIPTION, anyOf = listOf("Search and explore", "Recherche et exploration")),
+                        Signal(Tier.LOW, SignalType.NAV_BAR_INDEX, value = "1"),
+                    ),
+                ),
             ),
         ),
     ),
