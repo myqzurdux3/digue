@@ -149,9 +149,6 @@ Délibérément pas d'algèbre booléenne générale (`not`, `and`, `or` imbriqu
 un seul cas d'usage est connu, et un langage de règles complet est du coût de
 maintenance payé d'avance pour des besoins hypothétiques.
 
-`SignalType.VIEW_ID` accepte désormais `anyOf` en plus de `value`, pour éviter
-d'écrire trois règles identiques à l'identifiant près.
-
 ## Règle ajoutée
 
 Pas de nouvelle surface : **un reel suggéré est un Reel**. La règle rejoint la
@@ -225,7 +222,6 @@ Aucun nouveau compteur, aucune nouvelle section, aucun nouveau réglage.
   comportement actuel et il ne doit pas changer.
 - Interaction des deux : un garde dégénéré **ne supprime pas** un signal qui
   exige des nœuds affichés.
-- `SignalType.VIEW_ID` avec `anyOf`.
 - Non-régression : les règles existantes, sans ces deux champs, classent comme
   avant.
 
