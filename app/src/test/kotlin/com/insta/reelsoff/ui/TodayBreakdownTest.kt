@@ -18,7 +18,7 @@ class TodayBreakdownTest {
 
     @Test
     fun `a surface with a zero count is left out`() {
-        val day = DailyCount(today, reels = 0, explore = 0, shorts = 0, spotlight = 0)
+        val day = DailyCount(today)
 
         assertTrue(breakdownSurfaces(day).isEmpty())
     }
@@ -28,14 +28,14 @@ class TodayBreakdownTest {
         // The switch and the day's log are two different things: a surface that
         // logged blocks earlier today, then got toggled off, must still be visible
         // here or the breakdown stops adding up to the total shown above it.
-        val day = DailyCount(today, reels = 3, explore = 0, shorts = 0, spotlight = 0)
+        val day = DailyCount(today, mapOf(Surface.REELS to 3))
 
         assertEquals(listOf(Surface.REELS), breakdownSurfaces(day))
     }
 
     @Test
     fun `every listed surface's count sums to the day's total`() {
-        val day = DailyCount(today, reels = 5, explore = 0, shorts = 2, spotlight = 1)
+        val day = DailyCount(today, mapOf(Surface.REELS to 5, Surface.SHORTS to 2, Surface.SPOTLIGHT to 1))
 
         val sum = breakdownSurfaces(day).sumOf { day.countFor(it) }
 
@@ -44,7 +44,7 @@ class TodayBreakdownTest {
 
     @Test
     fun `order follows the surface enum, not insertion order`() {
-        val day = DailyCount(today, reels = 1, explore = 1, shorts = 1, spotlight = 1)
+        val day = DailyCount(today, mapOf(Surface.REELS to 1, Surface.EXPLORE to 1, Surface.SHORTS to 1, Surface.SPOTLIGHT to 1))
 
         assertEquals(
             listOf(Surface.REELS, Surface.EXPLORE, Surface.SHORTS, Surface.SPOTLIGHT),

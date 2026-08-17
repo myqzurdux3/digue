@@ -164,6 +164,7 @@ private fun switchLabel(surface: Surface): String = when (surface) {
     Surface.EXPLORE -> stringResource(R.string.block_explore)
     Surface.SHORTS -> stringResource(R.string.block_shorts)
     Surface.SPOTLIGHT -> stringResource(R.string.block_spotlight)
+    Surface.DISCOVER -> stringResource(R.string.block_discover)
     Surface.OTHER -> ""
 }
 
@@ -177,6 +178,7 @@ private fun shortLabel(surface: Surface): String = when (surface) {
     Surface.EXPLORE -> stringResource(R.string.explore)
     Surface.SHORTS -> stringResource(R.string.shorts)
     Surface.SPOTLIGHT -> stringResource(R.string.spotlight)
+    Surface.DISCOVER -> stringResource(R.string.discover)
     Surface.OTHER -> ""
 }
 

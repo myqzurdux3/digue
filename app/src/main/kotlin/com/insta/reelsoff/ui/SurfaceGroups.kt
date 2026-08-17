@@ -35,7 +35,7 @@ private val CATALOGUE = listOf(
     Triple(
         listOf("com.snapchat.android"),
         com.insta.reelsoff.R.string.app_snapchat,
-        listOf(Surface.SPOTLIGHT),
+        listOf(Surface.SPOTLIGHT, Surface.DISCOVER),
     ),
 )
 

@@ -4,18 +4,6 @@ import com.insta.detection.Surface
 import com.insta.reelsoff.data.DailyCount
 
 /**
- * How many of today's blocks belong to [surface]. `OTHER` always reads as 0: it is
- * never tracked by [DailyCount] and never blocked, so there is nothing to count.
- */
-fun DailyCount.countFor(surface: Surface): Int = when (surface) {
-    Surface.REELS -> reels
-    Surface.EXPLORE -> explore
-    Surface.SHORTS -> shorts
-    Surface.SPOTLIGHT -> spotlight
-    Surface.OTHER -> 0
-}
-
-/**
  * Every surface with at least one block logged today, regardless of whether it is
  * still switched on.
  *

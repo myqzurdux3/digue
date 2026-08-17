@@ -12,5 +12,6 @@ enum class Surface {
     EXPLORE,
     SHORTS,
     SPOTLIGHT,
+    DISCOVER,
     OTHER,
 }

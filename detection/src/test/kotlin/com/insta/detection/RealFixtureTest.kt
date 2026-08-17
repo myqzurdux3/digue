@@ -210,19 +210,56 @@ class RealFixtureTest {
     }
 
     @Test
-    fun `every shipped signal names an id from its own package`() {
-        // A copy-paste between app blocks would produce a rule that can never
-        // match, which is this project's worst failure mode: indistinguishable
-        // from one that works.
+    fun `no shipped signal names an id belonging to another package`() {
+        // Guards against copy-paste between app blocks, which would produce a rule
+        // that can never match — this project's worst failure mode, because it is
+        // indistinguishable from one that works.
+        //
+        // An id without a "<package>:id/" prefix is allowed: Snapchat exposes some
+        // of its nodes in its own namespace, e.g.
+        // "context_vertical_actions/context_vertical_action_comment". What is
+        // forbidden is an id prefixed with a DIFFERENT package than the one whose
+        // block it sits in.
         for ((packageName, app) in ruleSet.apps) {
             for ((surface, rules) in app.surfaces) {
                 for (signal in rules.signals.filter { it.type == SignalType.VIEW_ID }) {
+                    val value = signal.value ?: continue
+                    if (!value.contains(":id/")) continue
                     assertTrue(
-                        "$packageName/$surface names ${signal.value}",
-                        signal.value?.startsWith("$packageName:id/") == true,
+                        "$packageName/$surface names $value, which belongs to another package",
+                        value.startsWith("$packageName:id/"),
                     )
                 }
             }
         }
+    }
+
+    @Test
+    fun `snapchat discover is recognised by the published-content action column`() {
+        // Measured on the device: Snapchat plays a Discover video and a friend's
+        // story in the same full-screen `opera_viewer`, so the viewer alone cannot
+        // tell them apart. The vertical action column — comment, favourite, share —
+        // is present on published content and absent from a friend's story. The
+        // subscribe button is NOT a discriminator: it appears on both.
+        val signals = ruleSet.apps
+            .getValue("com.snapchat.android")
+            .surfaces
+            .getValue(Surface.DISCOVER)
+            .signals
+
+        assertEquals(2, signals.size)
+        // The exact ids as measured on the device. Snapchat exposes these in its
+        // own namespace, NOT as "com.snapchat.android:id/..." — writing the usual
+        // package prefix here produces a rule that never fires, which is how this
+        // rule shipped broken the first time.
+        assertEquals(
+            setOf(
+                "context_vertical_actions/context_vertical_action_comment",
+                "context_vertical_actions/context_vertical_action_favorite",
+            ),
+            signals.mapNotNull { it.value }.toSet(),
+        )
+        assertTrue("all must require an on-screen node", signals.all { it.requireOnScreen })
+        assertTrue("none may require selection", signals.none { it.requireSelected })
     }
 }

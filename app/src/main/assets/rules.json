@@ -73,6 +73,16 @@
     },
     "com.snapchat.android": {
       "surfaces": {
+        "DISCOVER": {
+          "signals": [
+            { "tier": "HIGH", "type": "VIEW_ID",
+              "value": "context_vertical_actions/context_vertical_action_comment",
+              "requireSelected": false, "requireOnScreen": true },
+            { "tier": "HIGH", "type": "VIEW_ID",
+              "value": "context_vertical_actions/context_vertical_action_favorite",
+              "requireSelected": false, "requireOnScreen": true }
+          ]
+        },
         "SPOTLIGHT": {
           "signals": [
             { "tier": "HIGH", "type": "VIEW_ID",
