@@ -2,10 +2,15 @@
 <!--
   Same geometry as ic_digue, placed in the 108x108 adaptive-icon foreground.
 
-  The group maps each 48-box point p to p * 1.2 + (25.8, 25.2). The mark's
-  bounding box is 39 x 36, so scaled it spans 46.8 x 43.2 centred on (54, 54),
-  giving a half-diagonal of 31.8 — inside the 66dp-diameter safe circle
+  The group maps each 48-box point p to p * 1.1 + (27.6, 27.6). The mark's
+  bounding box is 39 x 42, so scaled it spans 42.9 x 46.2 centred on (54, 54),
+  giving a half-diagonal of 31.5 — inside the 66dp-diameter safe circle
   (radius 33) that survives every launcher mask, circular included.
+
+  The translate is the same on both axes because the mark sits centred in its own
+  48-box (margins 4.5 across, 3 down). Scale is capped by that safe circle rather
+  than by taste: 1.15 would already reach 32.96, and the point of the rule is to
+  keep a margin, not to graze the limit.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -14,17 +19,25 @@
     android:viewportHeight="108">
 
     <group
-        android:scaleX="1.2"
-        android:scaleY="1.2"
-        android:translateX="25.8"
-        android:translateY="25.2">
+        android:scaleX="1.1"
+        android:scaleY="1.1"
+        android:translateX="27.6"
+        android:translateY="27.6">
 
         <path
-            android:pathData="M4,42 L4,33 C14,33 19,29 24,22 C28,16 30,11 33,11 L33,42 Z"
-            android:fillColor="@color/accent" />
+            android:pathData="M4.5,33 L10.5,33 L10.5,45 L4.5,45 Z"
+            android:fillColor="@color/houle_basse" />
 
         <path
-            android:pathData="M33,6 L43,6 L43,42 L33,42 Z"
+            android:pathData="M14.5,25 L20.5,25 L20.5,45 L14.5,45 Z"
+            android:fillColor="@color/houle_moyenne" />
+
+        <path
+            android:pathData="M24.5,15 L30.5,15 L30.5,45 L24.5,45 Z"
+            android:fillColor="@color/houle_haute" />
+
+        <path
+            android:pathData="M34.5,3 L43.5,3 L43.5,45 L34.5,45 Z"
             android:fillColor="@color/encre" />
     </group>
 </vector>

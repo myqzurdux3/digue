@@ -1,14 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  The mark: water piled against a dike.
+  The mark: the swell, and the dike.
 
-  Two filled shapes, not strokes. The first version was three thin waves plus a
-  bar and read as a punctuation glyph; the second peaked in the middle and read
-  as a hill. Here the water rises as it approaches the wall and is highest where
-  it meets it, which is what being held back looks like. The wall stands taller
-  than the water it holds.
+  Four filled rectangles, bottom-aligned. Three waves rise as they approach the
+  wall; the wall is wider than any of them, taller than all of them, and does not
+  move. The whole idea of the app in four shapes, and it survives being 20px tall
+  in a status bar, which the previous curved silhouette did not.
 
-  Authored in a 48x48 box; ic_launcher_foreground scales this same geometry.
+  Proportions come from design 1A, adapted the way that design adapts itself at
+  small sizes: it widens both the gaps and the wall as the mark shrinks (18/10/26
+  at 120px becomes 3/2/5 at 20px), and an app icon is a small size. Wave heights
+  are within half a percent of the source — 0.286 / 0.476 / 0.714 of full height
+  against 0.283 / 0.483 / 0.717.
+
+  Authored in a 48x48 box, bounding box 39 x 42 centred in it; the two launcher
+  layers scale this same geometry. Change one, change all three.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="48dp"
@@ -17,10 +23,18 @@
     android:viewportHeight="48">
 
     <path
-        android:pathData="M4,42 L4,33 C14,33 19,29 24,22 C28,16 30,11 33,11 L33,42 Z"
-        android:fillColor="@color/accent" />
+        android:pathData="M4.5,33 L10.5,33 L10.5,45 L4.5,45 Z"
+        android:fillColor="@color/houle_basse" />
 
     <path
-        android:pathData="M33,6 L43,6 L43,42 L33,42 Z"
+        android:pathData="M14.5,25 L20.5,25 L20.5,45 L14.5,45 Z"
+        android:fillColor="@color/houle_moyenne" />
+
+    <path
+        android:pathData="M24.5,15 L30.5,15 L30.5,45 L24.5,45 Z"
+        android:fillColor="@color/houle_haute" />
+
+    <path
+        android:pathData="M34.5,3 L43.5,3 L43.5,45 L34.5,45 Z"
         android:fillColor="@color/encre" />
 </vector>

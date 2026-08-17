@@ -3,9 +3,24 @@
   Single source of truth for the palette. Duplicated in Kotlin (ui/Theme.kt) because
   Compose cannot read these at compile time, but the XML side is what the launcher
   icon and the pre-Compose window background use, so the two must stay in step.
+
+  The three `houle_*` are the exception, and deliberately have no Kotlin twin: they
+  exist only inside the mark's vector drawables, which resolve @color themselves.
+  Compose never draws them, so a `val` in Theme.kt would be dead the day it was
+  written. They come from design 1A as a tonal ramp — pale offing, mid swell, the
+  wave about to break — and they are the mark's substance, not a second accent:
+  nothing in the interface may use them.
+
+  `accent` is still declared here even though no drawable references it any more.
+  It is not unused: it is the XML half of Theme.kt's Accent, and the rule above is
+  what it exists for. Do not sweep it as a dead resource.
 -->
 <resources>
     <color name="papier">#FFF4F1EA</color>
     <color name="encre">#FF14100C</color>
     <color name="accent">#FF2E6F6A</color>
+
+    <color name="houle_basse">#FF8FA79B</color>
+    <color name="houle_moyenne">#FF5C8073</color>
+    <color name="houle_haute">#FF2F6553</color>
 </resources>

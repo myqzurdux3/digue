@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Themed-icon layer (Android 13+). Must be a single flat colour: the system
-  recolours it to match the wallpaper, so the water/wall split is dropped here.
-  The two shapes still meet edge to edge, so the silhouette stays readable.
+  recolours it to match the wallpaper, so the four-step ramp is dropped here.
+
+  This mark survives that flattening where the previous one barely did. Its
+  shapes never touch — a gap of 4 against bars of 6 — so the silhouette still
+  reads as three rising waves and a wall once every one of them is the same
+  colour. The old mark had the water meeting the wall edge to edge and relied on
+  the join staying legible.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -11,17 +16,25 @@
     android:viewportHeight="108">
 
     <group
-        android:scaleX="1.2"
-        android:scaleY="1.2"
-        android:translateX="25.8"
-        android:translateY="25.2">
+        android:scaleX="1.1"
+        android:scaleY="1.1"
+        android:translateX="27.6"
+        android:translateY="27.6">
 
         <path
-            android:pathData="M4,42 L4,33 C14,33 19,29 24,22 C28,16 30,11 33,11 L33,42 Z"
+            android:pathData="M4.5,33 L10.5,33 L10.5,45 L4.5,45 Z"
             android:fillColor="#FF000000" />
 
         <path
-            android:pathData="M33,6 L43,6 L43,42 L33,42 Z"
+            android:pathData="M14.5,25 L20.5,25 L20.5,45 L14.5,45 Z"
+            android:fillColor="#FF000000" />
+
+        <path
+            android:pathData="M24.5,15 L30.5,15 L30.5,45 L24.5,45 Z"
+            android:fillColor="#FF000000" />
+
+        <path
+            android:pathData="M34.5,3 L43.5,3 L43.5,45 L34.5,45 Z"
             android:fillColor="#FF000000" />
     </group>
 </vector>
