@@ -33,6 +33,12 @@ data class Signal(
      * calibrated and verified on a device.
      */
     val requireOnScreen: Boolean = false,
+    /**
+     * The signal counts only if NONE of these ids is found. Searched over the
+     * same node set as the positive match, so a leftover, degenerate guard does
+     * not cancel a real block when [requireOnScreen] is set.
+     */
+    val absentViewIds: List<String> = emptyList(),
 )
 
 @Serializable

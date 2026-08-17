@@ -1,6 +1,7 @@
 package com.insta.detection
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -112,5 +113,76 @@ class RuleSetParserTest {
         """.trimIndent()
 
         assertTrue(failureMessage(raw).contains("OTHER"))
+    }
+
+    @Test
+    fun `reads the new signal fields`() {
+        val raw = """
+            {
+              "version": 1,
+              "surfaces": {
+                "REELS": {
+                  "signals": [
+                    { "tier": "HIGH", "type": "VIEW_ID", "value": "pager",
+                      "requireSelected": false, "requireOnScreen": true,
+                      "absentViewIds": ["reply_bar", "sender_name"] }
+                  ]
+                }
+              }
+            }
+        """.trimIndent()
+
+        val result = RuleSetParser.parse(raw)
+
+        assertTrue(result is ParseResult.Success)
+        val signal = (result as ParseResult.Success).ruleSet.surfaces.getValue(Surface.REELS).signals.single()
+        assertTrue(signal.requireOnScreen)
+        assertEquals(listOf("reply_bar", "sender_name"), signal.absentViewIds)
+    }
+
+    @Test
+    fun `the new fields default to the previous behaviour when omitted`() {
+        val raw = """
+            {
+              "version": 1,
+              "surfaces": {
+                "REELS": {
+                  "signals": [
+                    { "tier": "HIGH", "type": "VIEW_ID", "value": "clips_tab" }
+                  ]
+                }
+              }
+            }
+        """.trimIndent()
+
+        val result = RuleSetParser.parse(raw)
+
+        assertTrue(result is ParseResult.Success)
+        val signal = (result as ParseResult.Success).ruleSet.surfaces.getValue(Surface.REELS).signals.single()
+        assertFalse(signal.requireOnScreen)
+        assertTrue(signal.absentViewIds.isEmpty())
+    }
+
+    @Test
+    fun `a blank guard id is rejected`() {
+        // A hand-edited rules file with a stray empty string would otherwise
+        // silently match nothing, which reads exactly like a working rule.
+        val raw = """
+            {
+              "version": 1,
+              "surfaces": {
+                "REELS": {
+                  "signals": [
+                    { "tier": "HIGH", "type": "VIEW_ID", "value": "pager",
+                      "absentViewIds": ["reply_bar", "  "] }
+                  ]
+                }
+              }
+            }
+        """.trimIndent()
+
+        val result = RuleSetParser.parse(raw)
+
+        assertTrue(result is ParseResult.Failure)
     }
 }

@@ -33,6 +33,12 @@ class ScreenClassifier(private val ruleSet: RuleSet) {
             if (signal.requireOnScreen) snapshot.nodes.filter { it.bounds.isOnScreen }
             else snapshot.nodes
 
+        if (signal.absentViewIds.isNotEmpty() &&
+            nodes.any { it.viewId != null && it.viewId in signal.absentViewIds }
+        ) {
+            return false
+        }
+
         return when (signal.type) {
             SignalType.VIEW_ID -> nodes.any { node ->
                 node.viewId == signal.value && node.satisfies(signal)
