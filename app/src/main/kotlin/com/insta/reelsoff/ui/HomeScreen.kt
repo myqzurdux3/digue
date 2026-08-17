@@ -36,9 +36,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.insta.detection.Surface
 import com.insta.reelsoff.R
 import com.insta.reelsoff.data.CaptureStatus
 import com.insta.reelsoff.data.DailyCount
@@ -53,8 +56,7 @@ fun HomeScreen(
     state: HomeUiState,
     onOpenAccessibilitySettings: () -> Unit,
     onStartCapture: () -> Unit,
-    onBlockReelsChanged: (Boolean) -> Unit,
-    onBlockExploreChanged: (Boolean) -> Unit,
+    onSurfaceBlockedChanged: (Surface, Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -84,7 +86,7 @@ fun HomeScreen(
         }
 
         Section(title = stringResource(R.string.today)) {
-            TodayCounters(state.todayReels, state.todayExplore)
+            TodayTotal(state.todayTotal, state.history.lastOrNull())
         }
 
         Section(
@@ -94,18 +96,18 @@ fun HomeScreen(
             HistoryChart(state.history)
         }
 
-        Section(title = stringResource(R.string.blocking_title)) {
-            SwitchRow(
-                label = stringResource(R.string.block_reels),
-                checked = state.settings.blockReels,
-                onCheckedChange = onBlockReelsChanged,
-            )
-            Spacer(Modifier.height(4.dp))
-            SwitchRow(
-                label = stringResource(R.string.block_explore),
-                checked = state.settings.blockExplore,
-                onCheckedChange = onBlockExploreChanged,
-            )
+        val groups = surfaceGroups(installed = state.installedPackages)
+        for (group in groups) {
+            Section(title = stringResource(group.labelResId)) {
+                group.surfaces.forEachIndexed { index, surface ->
+                    if (index > 0) Spacer(Modifier.height(4.dp))
+                    SwitchRow(
+                        label = switchLabel(surface),
+                        checked = surface in state.settings.blockedSurfaces,
+                        onCheckedChange = { onSurfaceBlockedChanged(surface, it) },
+                    )
+                }
+            }
         }
 
         Section(title = stringResource(R.string.maintenance_title)) {
@@ -113,6 +115,29 @@ fun HomeScreen(
             // the foot of the page rather than above the numbers the user came for.
             Text(
                 text = stringResource(R.string.battery_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = EncreDouce,
+            )
+            Spacer(Modifier.height(10.dp))
+            // state.declaredPackages is what the service last actually assigned to
+            // serviceInfo.packageNames, published by InstagramWatcherService itself
+            // right after a successful assignment (see DeclaredPackages.kt and
+            // applyDeclaredPackages) — not recomputed here from the rule set and not
+            // filtered by the installed-app detection the `groups` above use. That
+            // makes this line true of what happened, not of what should have
+            // happened: it cannot claim success for an assignment that threw, and it
+            // cannot go stale relative to a hand-edited rules.json override the way a
+            // ViewModel-side recomputation could.
+            val observedLabels = state.declaredPackages
+                .mapNotNull { packageName -> labelForPackage(packageName) }
+                .map { stringResource(it) }
+                .distinct()
+                .sorted()
+            Text(
+                text = stringResource(
+                    R.string.declared_packages,
+                    if (observedLabels.isEmpty()) "—" else observedLabels.joinToString(", "),
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = EncreDouce,
             )
@@ -124,6 +149,35 @@ fun HomeScreen(
             )
         }
     }
+}
+
+/**
+ * Which switch label a surface's toggle carries, inside its app's [Section].
+ *
+ * `OTHER` falls back to an empty string rather than throwing: it never actually
+ * reaches here (`surfaceGroups()` never emits it), but this screen shares a
+ * process with the accessibility service, so a wrong label beats a crash.
+ */
+@Composable
+private fun switchLabel(surface: Surface): String = when (surface) {
+    Surface.REELS -> stringResource(R.string.block_reels)
+    Surface.EXPLORE -> stringResource(R.string.block_explore)
+    Surface.SHORTS -> stringResource(R.string.block_shorts)
+    Surface.SPOTLIGHT -> stringResource(R.string.block_spotlight)
+    Surface.OTHER -> ""
+}
+
+/**
+ * The short display name for a surface, used in the daily breakdown line.
+ * `OTHER` is unreachable (see [switchLabel]) and falls back the same way.
+ */
+@Composable
+private fun shortLabel(surface: Surface): String = when (surface) {
+    Surface.REELS -> stringResource(R.string.reels)
+    Surface.EXPLORE -> stringResource(R.string.explore)
+    Surface.SHORTS -> stringResource(R.string.shorts)
+    Surface.SPOTLIGHT -> stringResource(R.string.spotlight)
+    Surface.OTHER -> ""
 }
 
 @Composable
@@ -307,10 +361,30 @@ private fun Callout(text: String) {
 }
 
 @Composable
-private fun TodayCounters(reels: Int, explore: Int) {
-    Row(modifier = Modifier.fillMaxWidth()) {
-        Counter(reels, stringResource(R.string.reels), Modifier.weight(1f))
-        Counter(explore, stringResource(R.string.explore), Modifier.weight(1f))
+private fun TodayTotal(total: Int, today: DailyCount?) {
+    val accessibleTotal = stringResource(R.string.today_total, total)
+    Column {
+        Counter(
+            value = total,
+            label = stringResource(R.string.today),
+            // One utterance ("Retenu 3 fois") rather than a screen reader stitching
+            // together the bare number and the small-caps label separately.
+            modifier = Modifier.clearAndSetSemantics { contentDescription = accessibleTotal },
+        )
+        // Every surface with a nonzero count today, blocked or not right now — see
+        // breakdownSurfaces() — so this line's numbers always sum to the total above.
+        // Enum order, which is also the order surfaces are declared in the switch
+        // sections below, so the breakdown reads left to right like the toggles do.
+        val breakdown = breakdownSurfaces(today)
+            .map { surface -> shortLabel(surface) to (today?.countFor(surface) ?: 0) }
+        if (breakdown.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = breakdown.joinToString(" · ") { (label, count) -> "$label : $count" },
+                style = MaterialTheme.typography.bodySmall,
+                color = EncreDouce,
+            )
+        }
     }
 }
 

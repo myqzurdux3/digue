@@ -13,6 +13,7 @@ import androidx.core.content.ContextCompat
 import com.insta.detection.RuleSet
 import com.insta.detection.ScreenClassifier
 import com.insta.detection.ScreenSnapshot
+import com.insta.detection.Surface
 import com.insta.reelsoff.data.AppDatabase
 import com.insta.reelsoff.data.BlockEvent
 import com.insta.reelsoff.data.BlockSettings
@@ -44,6 +45,9 @@ class InstagramWatcherService : AccessibilityService() {
 
     @Volatile
     private var settings = BlockSettings()
+
+    @Volatile
+    private var ruleSet: RuleSet = RuleSet(version = 0, apps = emptyMap())
 
     private var captureIndex = 0
     private var sessionStamp = 0L
@@ -108,9 +112,11 @@ class InstagramWatcherService : AccessibilityService() {
             } catch (e: Throwable) {
                 if (e is CancellationException) throw e
                 Log.e(TAG, "rule loading failed unexpectedly", e)
-                LoadedRules(RuleSet(version = 0, surfaces = emptyMap()), RuleSource.BUNDLED, "rule loading failed unexpectedly: ${e.message}")
+                LoadedRules(RuleSet(version = 0, apps = emptyMap()), RuleSource.BUNDLED, "rule loading failed unexpectedly: ${e.message}")
             }
             classifier = ScreenClassifier(loaded.ruleSet)
+            ruleSet = loaded.ruleSet
+            applyDeclaredPackages(settings.blockedSurfaces)
             Log.i(TAG, "rules loaded from ${loaded.source}${loaded.error?.let { " ($it)" } ?: ""}")
 
             // Mirror the load outcome into DataStore (F1): the home screen has no other
@@ -138,7 +144,7 @@ class InstagramWatcherService : AccessibilityService() {
             // permanently broken DataStore stays visible instead of failing silently
             // forever. While retries are ongoing, `settings` simply stays at the
             // `@Volatile` default declared above — `BlockSettings()`, i.e.
-            // blockReels = true, blockExplore = true — which is already the
+            // blockedSurfaces = {REELS, EXPLORE} — which is already the
             // fail-closed value (both surfaces blocked), not a stale permissive one.
             scope.launch {
                 runCatching {
@@ -148,7 +154,10 @@ class InstagramWatcherService : AccessibilityService() {
                             delay(1_000)
                             true
                         }
-                        .collectLatest { settings = it }
+                        .collectLatest {
+                            settings = it
+                            applyDeclaredPackages(it.blockedSurfaces)
+                        }
                 }.onFailure {
                     if (it is CancellationException) throw it
                     Log.e(TAG, "settings collection launch failed", it)
@@ -164,8 +173,61 @@ class InstagramWatcherService : AccessibilityService() {
             // protected. So, unlike those blocks, this one does not rethrow.
             Log.e(TAG, "onServiceConnected failed unexpectedly", e)
             if (!::classifier.isInitialized) {
-                classifier = ScreenClassifier(RuleSet(version = 0, surfaces = emptyMap()))
+                classifier = ScreenClassifier(RuleSet(version = 0, apps = emptyMap()))
             }
+            // Land on the unmatchable sentinel rather than whatever packageNames
+            // was declared (or left un-narrowed) before this failure — see F1.
+            applyDeclaredPackages(emptySet())
+        }
+    }
+
+    /**
+     * Narrows what Android is allowed to send this service to the packages whose
+     * blocking is switched on.
+     *
+     * Never lets anything escape: this runs inside the settings collector, and an
+     * exception here would take the service down, which Android may answer by
+     * disabling it for good — leaving the user believing they are protected.
+     */
+    private fun applyDeclaredPackages(blocked: Set<Surface>) {
+        runCatching {
+            val packages = declaredPackages(ruleSet, blocked)
+            serviceInfo = serviceInfo.apply {
+                // See packageNamesFor: a null/empty packageNames means "every
+                // app" to Android, so an empty selection must be expressed as
+                // a package that cannot match.
+                packageNames = packageNamesFor(packages)
+            }
+            Log.i(TAG, "declared packages: ${packages.size}")
+            // Only reached once the assignment above has actually succeeded, and
+            // publishes exactly what was assigned (not the sentinel array) — if
+            // the assignment throws, this line never runs and the home screen
+            // keeps showing whatever was last actually declared, rather than
+            // claiming success for a change that never took.
+            publishDeclaredPackages(packages)
+        }.onFailure { Log.e(TAG, "could not narrow declared packages", it) }
+    }
+
+    /**
+     * Mirrors the packages just declared to the UI. Failing to publish must never
+     * take the service down — the declaration itself already succeeded, only its
+     * display is affected.
+     *
+     * This writes to the same DataStore the settings collector above reads
+     * (`SettingsStore(...).settings`), so every publish re-emits settings and
+     * re-runs applyDeclaredPackages, which calls back in here — a self-feeding
+     * loop. It terminates only because DataStore suppresses writes that would
+     * not change the stored value; it is not idempotent by construction. If this
+     * ever writes something derived from more than `packages` (e.g. a timestamp),
+     * the loop stops terminating.
+     */
+    private fun publishDeclaredPackages(packages: Set<String>) {
+        scope.launch {
+            runCatching { SettingsStore(applicationContext).setDeclaredPackages(packages) }
+                .onFailure {
+                    if (it is CancellationException) throw it
+                    Log.e(TAG, "could not publish declared packages", it)
+                }
         }
     }
 
@@ -191,7 +253,11 @@ class InstagramWatcherService : AccessibilityService() {
     override fun onInterrupt() = Unit
 
     private fun handle(event: AccessibilityEvent?) {
-        if (event?.packageName != INSTAGRAM_PACKAGE) return
+        val packageName = event?.packageName?.toString() ?: return
+        // Belt-and-braces: packageNames narrows what Android delivers, but should
+        // that ever widen (see F1), this keeps captures and tree walks scoped to
+        // apps the loaded rule set actually knows about.
+        if (packageName !in ruleSet.apps) return
         // Always consult the throttle (F8): it used to be short-circuited away
         // whenever a capture session was active, which meant a content-changed
         // event walked the tree unthrottled — on the main thread — for the whole
@@ -204,7 +270,7 @@ class InstagramWatcherService : AccessibilityService() {
         val root = rootInActiveWindow ?: return
         val snapshot = walker.walk(
             root = AccessibilityNodeLike(root),
-            packageName = INSTAGRAM_PACKAGE,
+            packageName = packageName,
             capturedAtMillis = System.currentTimeMillis(),
         )
 
@@ -283,7 +349,7 @@ class InstagramWatcherService : AccessibilityService() {
 
     companion object {
         const val ACTION_START_CAPTURE = "com.insta.reelsoff.START_CAPTURE"
-        private const val INSTAGRAM_PACKAGE = "com.instagram.android"
+
         private const val TAG = "ReelsOff"
     }
 }

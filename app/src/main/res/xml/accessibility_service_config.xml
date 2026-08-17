@@ -1,4 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  android:packageNames below is a fail-safe floor, not a cap. Android enforces
+  this attribute, and a null value means EVERY app is visible to the service —
+  the worst possible failure mode for an accessibility service that captures
+  view trees. InstagramWatcherService.applyDeclaredPackages narrows (and can
+  widen, to any other rule-set package) this list at runtime from the user's
+  settings, before anything is processed. But if that runtime call never runs
+  or fails outright — a startup exception, a swallowed assignment — this
+  static value is what Android is left enforcing, so it must never be absent.
+-->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
     android:accessibilityFeedbackType="feedbackGeneric"

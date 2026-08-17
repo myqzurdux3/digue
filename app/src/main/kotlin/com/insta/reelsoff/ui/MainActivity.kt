@@ -46,8 +46,9 @@ class MainActivity : ComponentActivity() {
                                     .setPackage(packageName),
                             )
                         },
-                        onBlockReelsChanged = viewModel::setBlockReels,
-                        onBlockExploreChanged = viewModel::setBlockExplore,
+                        onSurfaceBlockedChanged = { surface, blocked ->
+                            viewModel.setSurfaceBlocked(surface, blocked)
+                        },
                     )
                 }
             }
@@ -58,5 +59,6 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.refreshServiceStatus()
+        viewModel.refreshInstalledPackages()
     }
 }

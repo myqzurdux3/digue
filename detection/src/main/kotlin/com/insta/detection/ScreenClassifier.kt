@@ -11,10 +11,14 @@ package com.insta.detection
 class ScreenClassifier(private val ruleSet: RuleSet) {
 
     fun classify(snapshot: ScreenSnapshot): Classification {
+        // The snapshot names its own package, so the rules for another app can
+        // never fire here — a second guard behind the system-level package
+        // filter, which the service narrows at runtime.
+        val appRules = ruleSet.apps[snapshot.packageName] ?: return Classification.OTHER
         val navBar by lazy { findNavBar(snapshot) }
 
         for (tier in Tier.entries) {
-            for ((surface, rules) in ruleSet.surfaces) {
+            for ((surface, rules) in appRules.surfaces) {
                 val matched = rules.signals
                     .filter { it.tier == tier }
                     .any { matches(it, snapshot, navBar) }

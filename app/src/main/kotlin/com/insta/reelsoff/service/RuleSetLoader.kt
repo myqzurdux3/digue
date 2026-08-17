@@ -62,6 +62,6 @@ class RuleSetLoader(private val context: Context) {
 
     private companion object {
         const val FILE_NAME = "rules.json"
-        val EMPTY_RULE_SET = RuleSet(version = 0, surfaces = emptyMap())
+        val EMPTY_RULE_SET = RuleSet(version = 0, apps = emptyMap())
     }
 }

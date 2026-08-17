@@ -111,11 +111,15 @@ class ScreenClassifierTest {
     @Test
     fun `high tier on explore wins over low tier on reels`() {
         val rules = RuleSet(
-            version = 1,
-            surfaces = mapOf(
-                Surface.REELS to SurfaceRules(listOf(Signal(Tier.LOW, SignalType.NAV_BAR_INDEX, value = "1"))),
-                Surface.EXPLORE to SurfaceRules(
-                    listOf(Signal(Tier.HIGH, SignalType.VIEW_ID, value = "com.instagram.android:id/search_tab")),
+            version = RULES_VERSION,
+            apps = mapOf(
+                "com.instagram.android" to AppRules(
+                    mapOf(
+                        Surface.REELS to SurfaceRules(listOf(Signal(Tier.LOW, SignalType.NAV_BAR_INDEX, value = "1"))),
+                        Surface.EXPLORE to SurfaceRules(
+                            listOf(Signal(Tier.HIGH, SignalType.VIEW_ID, value = "com.instagram.android:id/search_tab")),
+                        ),
+                    ),
                 ),
             ),
         )
@@ -131,15 +135,19 @@ class ScreenClassifierTest {
     @Test
     fun `requireSelected false matches on mere presence`() {
         val rules = RuleSet(
-            version = 1,
-            surfaces = mapOf(
-                Surface.REELS to SurfaceRules(
-                    listOf(
-                        Signal(
-                            Tier.HIGH,
-                            SignalType.VIEW_ID,
-                            value = "com.instagram.android:id/clips_viewer_video_container",
-                            requireSelected = false,
+            version = RULES_VERSION,
+            apps = mapOf(
+                "com.instagram.android" to AppRules(
+                    mapOf(
+                        Surface.REELS to SurfaceRules(
+                            listOf(
+                                Signal(
+                                    Tier.HIGH,
+                                    SignalType.VIEW_ID,
+                                    value = "com.instagram.android:id/clips_viewer_video_container",
+                                    requireSelected = false,
+                                ),
+                            ),
                         ),
                     ),
                 ),
@@ -171,7 +179,7 @@ class ScreenClassifierTest {
      */
     @Test
     fun `empty rule set never classifies anything but OTHER`() {
-        val classifier = ScreenClassifier(RuleSet(version = 0, surfaces = emptyMap()))
+        val classifier = ScreenClassifier(RuleSet(version = 0, apps = emptyMap()))
 
         val result = classifier.classify(
             snapshot(screenWithNavBar(selectedTab = 2, tabViewIds = allTabViewIds, tabDescriptions = allTabDescriptions)),
@@ -202,16 +210,20 @@ class ScreenClassifierTest {
     }
 
     private fun pagerRules(requireOnScreen: Boolean) = RuleSet(
-        version = 1,
-        surfaces = mapOf(
-            Surface.REELS to SurfaceRules(
-                listOf(
-                    Signal(
-                        tier = Tier.HIGH,
-                        type = SignalType.VIEW_ID,
-                        value = "pager",
-                        requireSelected = false,
-                        requireOnScreen = requireOnScreen,
+        version = RULES_VERSION,
+        apps = mapOf(
+            "com.instagram.android" to AppRules(
+                mapOf(
+                    Surface.REELS to SurfaceRules(
+                        listOf(
+                            Signal(
+                                tier = Tier.HIGH,
+                                type = SignalType.VIEW_ID,
+                                value = "pager",
+                                requireSelected = false,
+                                requireOnScreen = requireOnScreen,
+                            ),
+                        ),
                     ),
                 ),
             ),
@@ -280,17 +292,21 @@ class ScreenClassifierTest {
     }
 
     private fun guardedRules(requireOnScreen: Boolean = true) = RuleSet(
-        version = 1,
-        surfaces = mapOf(
-            Surface.REELS to SurfaceRules(
-                listOf(
-                    Signal(
-                        tier = Tier.HIGH,
-                        type = SignalType.VIEW_ID,
-                        value = "pager",
-                        requireSelected = false,
-                        requireOnScreen = requireOnScreen,
-                        absentViewIds = listOf("reply_bar", "sender_name"),
+        version = RULES_VERSION,
+        apps = mapOf(
+            "com.instagram.android" to AppRules(
+                mapOf(
+                    Surface.REELS to SurfaceRules(
+                        listOf(
+                            Signal(
+                                tier = Tier.HIGH,
+                                type = SignalType.VIEW_ID,
+                                value = "pager",
+                                requireSelected = false,
+                                requireOnScreen = requireOnScreen,
+                                absentViewIds = listOf("reply_bar", "sender_name"),
+                            ),
+                        ),
                     ),
                 ),
             ),
@@ -350,15 +366,19 @@ class ScreenClassifierTest {
     @Test
     fun `an empty guard list changes nothing`() {
         val rules = RuleSet(
-            version = 1,
-            surfaces = mapOf(
-                Surface.REELS to SurfaceRules(
-                    listOf(
-                        Signal(
-                            tier = Tier.HIGH,
-                            type = SignalType.VIEW_ID,
-                            value = "pager",
-                            requireSelected = false,
+            version = RULES_VERSION,
+            apps = mapOf(
+                "com.instagram.android" to AppRules(
+                    mapOf(
+                        Surface.REELS to SurfaceRules(
+                            listOf(
+                                Signal(
+                                    tier = Tier.HIGH,
+                                    type = SignalType.VIEW_ID,
+                                    value = "pager",
+                                    requireSelected = false,
+                                ),
+                            ),
                         ),
                     ),
                 ),
@@ -366,5 +386,46 @@ class ScreenClassifierTest {
         )
 
         assertEquals(Surface.REELS, ScreenClassifier(rules).classify(snapshot(listOf(visiblePager))).surface)
+    }
+
+    @Test
+    fun `one app's rules never fire on another app`() {
+        // The system-level package filter is the first guard; this is the second.
+        // A YouTube id that happened to collide with an Instagram one must not
+        // block Instagram, and vice versa.
+        val rules = RuleSet(
+            version = 2,
+            apps = mapOf(
+                "com.google.android.youtube" to AppRules(
+                    mapOf(
+                        Surface.SHORTS to SurfaceRules(
+                            listOf(
+                                Signal(
+                                    tier = Tier.HIGH,
+                                    type = SignalType.VIEW_ID,
+                                    value = "shared_id",
+                                    requireSelected = false,
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val instagramScreen = ScreenSnapshot(
+            packageName = "com.instagram.android",
+            capturedAtMillis = 0L,
+            nodes = listOf(node(index = 0, viewId = "shared_id")),
+        )
+
+        assertEquals(Surface.OTHER, ScreenClassifier(rules).classify(instagramScreen).surface)
+    }
+
+    @Test
+    fun `a package with no rules is never blocked`() {
+        val rules = RuleSet(version = 2, apps = emptyMap())
+        val screen = ScreenSnapshot("com.whatever.app", 0L, listOf(node(index = 0, viewId = "x")))
+
+        assertEquals(Surface.OTHER, ScreenClassifier(rules).classify(screen).surface)
     }
 }

@@ -36,24 +36,29 @@ class RuleSetLoaderTest {
 
         assertEquals(RuleSource.BUNDLED, loaded.source)
         assertNull(loaded.error)
-        assertTrue(loaded.ruleSet.surfaces.containsKey(Surface.REELS))
-        assertTrue(loaded.ruleSet.surfaces.containsKey(Surface.EXPLORE))
+        val instagramSurfaces = loaded.ruleSet.apps[INSTAGRAM_PACKAGE]?.surfaces
+        assertTrue(instagramSurfaces?.containsKey(Surface.REELS) == true)
+        assertTrue(instagramSurfaces?.containsKey(Surface.EXPLORE) == true)
     }
 
     @Test
     fun prefersAValidOverrideFile() {
         override.writeText(
             """
-            { "version": 99, "surfaces": { "REELS": { "signals": [
+            { "version": 2, "apps": { "$INSTAGRAM_PACKAGE": { "surfaces": { "REELS": { "signals": [
               { "tier": "HIGH", "type": "VIEW_ID", "value": "override-marker" }
-            ] } } }
+            ] } } } } }
             """.trimIndent(),
         )
 
         val loaded = RuleSetLoader(context).load()
 
         assertEquals(RuleSource.OVERRIDE, loaded.source)
-        assertEquals(99, loaded.ruleSet.version)
+        // The version can no longer differ from the bundled rules' (the parser
+        // rejects any other value), so preference is proven by a signal that
+        // only the override file carries, not by the version number.
+        val reelsSignals = loaded.ruleSet.apps[INSTAGRAM_PACKAGE]?.surfaces?.get(Surface.REELS)?.signals
+        assertTrue(reelsSignals.orEmpty().any { it.value == "override-marker" })
     }
 
     @Test
@@ -64,7 +69,7 @@ class RuleSetLoaderTest {
 
         assertEquals(RuleSource.BUNDLED, loaded.source)
         assertNotNull(loaded.error)
-        assertTrue(loaded.ruleSet.surfaces.containsKey(Surface.REELS))
+        assertTrue(loaded.ruleSet.apps[INSTAGRAM_PACKAGE]?.surfaces?.containsKey(Surface.REELS) == true)
     }
 
     // Regression test for the Task 8 review finding: a rules.json that exists but
@@ -79,5 +84,9 @@ class RuleSetLoaderTest {
 
         assertEquals(RuleSource.BUNDLED, loaded.source)
         assertNotNull(loaded.error)
+    }
+
+    private companion object {
+        const val INSTAGRAM_PACKAGE = "com.instagram.android"
     }
 }

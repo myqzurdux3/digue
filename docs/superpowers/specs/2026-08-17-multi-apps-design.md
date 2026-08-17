@@ -42,6 +42,29 @@ redéclarer sa liste de paquets à l'exécution via `setServiceInfo`. Un paquet
 n'est donc dans la liste que si son blocage est activé. Snapchat éteint,
 Android ne lui envoie rien.
 
+> **Cette propriété n'est pas vérifiée par la mesure, et ne l'a pas été.**
+> `dumpsys accessibility` **n'expose pas** la liste de paquets d'un service sur
+> l'appareil de test (Android 17) : la ligne du service porte son libellé, ses
+> types d'événements et son délai, rien d'autre, et une recherche insensible à
+> la casse sur tout le dump ne trouve ni `packageNames` ni `packages=`. Un test
+> par le comportement ne peut pas y suppléer : les réglages conditionnent le
+> blocage de toute façon, donc l'app se comporte à l'identique que la
+> déclaration se soit restreinte ou non.
+>
+> Ce qui est réellement établi : les deux fonctions pures qui calculent la liste
+> et la convertissent en tableau sont testées, dont le cas vide qui sépare
+> « n'observer rien » de « tout observer ». Le reste repose sur le contrat
+> documenté de `setServiceInfo`. **À reformuler, ou à démontrer autrement, avant
+> d'être présenté comme une garantie.**
+
+**Un plancher statique reste indispensable.** `android:packageNames` demeure
+déclaré dans la configuration du service, à Instagram seul. Une liste nulle
+signifie **toutes les applications** pour Android, et la déclaration à
+l'exécution peut ne jamais tourner — une exception au démarrage suffit. Le
+plancher n'est pas un plafond : `setServiceInfo` élargit librement au-delà.
+Sans lui, un service qui échoue à se restreindre observerait tout, et une
+capture armée écrirait les arbres de toutes les apps sur le disque.
+
 Conséquences, toutes obligatoires :
 
 - **Les nouvelles apps arrivent éteintes.** Instagram reste allumé — c'est
@@ -118,11 +141,15 @@ Kotlin actif, mis à jour cette semaine — sans attendre nos propres captures.
 | SHORTS | `reel_progress_bar` | Shorts-Blocker |
 | SPOTLIGHT | `spotlight_container` | Scrolless |
 
-**Statut assumé : non vérifié.** Ces règles n'ont **aucune fixture**, donc aucun
-test de non-régression. C'est un écart délibéré à la méthode du projet, et le
-risque est nommé : une règle YouTube trop large couperait des vidéos normales.
-Les deux atténuations sont que les surfaces arrivent éteintes, et que
-`requireOnScreen` s'applique comme partout ailleurs.
+**Statut : vérifiées sur appareil, sans fixture.** L'utilisateur a confirmé sur
+son Pixel 9a que le blocage des Shorts YouTube et de Spotlight Snapchat
+fonctionne, et sans faux positif signalé sur les vidéos YouTube normales. Le
+pari d'emprunter ces identifiants était le point le plus incertain du chantier ;
+il est gagné.
+
+Ce qui manque encore : **aucune fixture, donc aucun test de non-régression.** Le
+jour où YouTube ou Snapchat renommeront un identifiant, rien ne le dira avant
+que l'utilisateur ne le constate. Une capture de chaque app reste à faire.
 
 Deux signaux indépendants pour YouTube plutôt qu'un : ils viennent de deux
 projets différents, donc si l'un est périmé l'autre tient.
