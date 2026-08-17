@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  The mark: three swells rolling in from the left, stopped by a dike.
+  The mark: water piled against a dike.
+
+  Two filled shapes, not strokes. The first version was three thin waves plus a
+  bar and read as a punctuation glyph; the second peaked in the middle and read
+  as a hill. Here the water rises as it approaches the wall and is highest where
+  it meets it, which is what being held back looks like. The wall stands taller
+  than the water it holds.
+
   Authored in a 48x48 box; ic_launcher_foreground scales this same geometry.
-  The swells shorten as they go down so the left edge reads as a diagonal
-  rather than a stack of equal lines.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="48dp"
@@ -12,22 +17,10 @@
     android:viewportHeight="48">
 
     <path
-        android:pathData="M5,16 C9,9.5 14.5,9.5 18.5,16 C22.5,22.5 27,22.5 31,16"
-        android:strokeColor="@color/accent"
-        android:strokeWidth="4"
-        android:strokeLineCap="round" />
-    <path
-        android:pathData="M8.5,25 C12,19 17,19 20.75,25 C24.5,31 27.5,31 31,25"
-        android:strokeColor="@color/accent"
-        android:strokeWidth="4"
-        android:strokeLineCap="round" />
-    <path
-        android:pathData="M12,34 C15,29 19,29 22.5,34 C25.5,38.5 28.5,38.5 31,34"
-        android:strokeColor="@color/accent"
-        android:strokeWidth="4"
-        android:strokeLineCap="round" />
+        android:pathData="M4,42 L4,33 C14,33 19,29 24,22 C28,16 30,11 33,11 L33,42 Z"
+        android:fillColor="@color/accent" />
 
     <path
-        android:pathData="M35,5 L42,5 L42,43 L35,43 Z"
+        android:pathData="M33,6 L43,6 L43,42 L33,42 Z"
         android:fillColor="@color/encre" />
 </vector>

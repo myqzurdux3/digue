@@ -2,10 +2,10 @@
 <!--
   Same geometry as ic_digue, placed in the 108x108 adaptive-icon foreground.
 
-  The group maps each 48-box point p to p * 1.15 + (28.125, 26.4), which puts the
-  mark's bounding box — 39 x 38 including stroke width — centred on (54, 54). Its
-  half-diagonal is then 31.3, inside the 66dp-diameter safe circle (radius 33) that
-  survives every launcher mask, circular included.
+  The group maps each 48-box point p to p * 1.2 + (25.8, 25.2). The mark's
+  bounding box is 39 x 36, so scaled it spans 46.8 x 43.2 centred on (54, 54),
+  giving a half-diagonal of 31.8 — inside the 66dp-diameter safe circle
+  (radius 33) that survives every launcher mask, circular included.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -14,29 +14,17 @@
     android:viewportHeight="108">
 
     <group
-        android:scaleX="1.15"
-        android:scaleY="1.15"
-        android:translateX="28.125"
-        android:translateY="26.4">
+        android:scaleX="1.2"
+        android:scaleY="1.2"
+        android:translateX="25.8"
+        android:translateY="25.2">
 
         <path
-            android:pathData="M5,16 C9,9.5 14.5,9.5 18.5,16 C22.5,22.5 27,22.5 31,16"
-            android:strokeColor="@color/accent"
-            android:strokeWidth="4"
-            android:strokeLineCap="round" />
-        <path
-            android:pathData="M8.5,25 C12,19 17,19 20.75,25 C24.5,31 27.5,31 31,25"
-            android:strokeColor="@color/accent"
-            android:strokeWidth="4"
-            android:strokeLineCap="round" />
-        <path
-            android:pathData="M12,34 C15,29 19,29 22.5,34 C25.5,38.5 28.5,38.5 31,34"
-            android:strokeColor="@color/accent"
-            android:strokeWidth="4"
-            android:strokeLineCap="round" />
+            android:pathData="M4,42 L4,33 C14,33 19,29 24,22 C28,16 30,11 33,11 L33,42 Z"
+            android:fillColor="@color/accent" />
 
         <path
-            android:pathData="M35,5 L42,5 L42,43 L35,43 Z"
+            android:pathData="M33,6 L43,6 L43,42 L33,42 Z"
             android:fillColor="@color/encre" />
     </group>
 </vector>
