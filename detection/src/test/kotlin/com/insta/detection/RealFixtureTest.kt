@@ -187,4 +187,42 @@ class RealFixtureTest {
         assertTrue("the label must be on screen to count", signal.requireOnScreen)
         assertFalse("the label is never selected", signal.requireSelected)
     }
+
+    @Test
+    fun `the shipped file is in the current format`() {
+        assertEquals(RULES_VERSION, ruleSet.version)
+    }
+
+    @Test
+    fun `youtube and snapchat rules are shipped`() {
+        assertTrue(
+            "every YouTube variant must carry SHORTS",
+            listOf(
+                "com.google.android.youtube",
+                "com.google.android.apps.youtube.kids",
+                "app.revanced.android.youtube",
+            ).all { ruleSet.apps[it]?.surfaces?.containsKey(Surface.SHORTS) == true },
+        )
+        assertTrue(
+            "Snapchat must carry SPOTLIGHT",
+            ruleSet.apps["com.snapchat.android"]?.surfaces?.containsKey(Surface.SPOTLIGHT) == true,
+        )
+    }
+
+    @Test
+    fun `every shipped signal names an id from its own package`() {
+        // A copy-paste between app blocks would produce a rule that can never
+        // match, which is this project's worst failure mode: indistinguishable
+        // from one that works.
+        for ((packageName, app) in ruleSet.apps) {
+            for ((surface, rules) in app.surfaces) {
+                for (signal in rules.signals.filter { it.type == SignalType.VIEW_ID }) {
+                    assertTrue(
+                        "$packageName/$surface names ${signal.value}",
+                        signal.value?.startsWith("$packageName:id/") == true,
+                    )
+                }
+            }
+        }
+    }
 }

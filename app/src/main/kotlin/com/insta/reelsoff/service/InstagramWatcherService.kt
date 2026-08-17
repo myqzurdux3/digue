@@ -108,7 +108,7 @@ class InstagramWatcherService : AccessibilityService() {
             } catch (e: Throwable) {
                 if (e is CancellationException) throw e
                 Log.e(TAG, "rule loading failed unexpectedly", e)
-                LoadedRules(RuleSet(version = 0, surfaces = emptyMap()), RuleSource.BUNDLED, "rule loading failed unexpectedly: ${e.message}")
+                LoadedRules(RuleSet(version = 0, apps = emptyMap()), RuleSource.BUNDLED, "rule loading failed unexpectedly: ${e.message}")
             }
             classifier = ScreenClassifier(loaded.ruleSet)
             Log.i(TAG, "rules loaded from ${loaded.source}${loaded.error?.let { " ($it)" } ?: ""}")
@@ -164,7 +164,7 @@ class InstagramWatcherService : AccessibilityService() {
             // protected. So, unlike those blocks, this one does not rethrow.
             Log.e(TAG, "onServiceConnected failed unexpectedly", e)
             if (!::classifier.isInitialized) {
-                classifier = ScreenClassifier(RuleSet(version = 0, surfaces = emptyMap()))
+                classifier = ScreenClassifier(RuleSet(version = 0, apps = emptyMap()))
             }
         }
     }
