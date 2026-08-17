@@ -2,6 +2,7 @@ package com.insta.detection
 
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -137,5 +138,6 @@ class RealFixtureTest {
 
         assertTrue("the reel-viewer rule must require an on-screen node", signal.requireOnScreen)
         assertTrue("the reel-viewer rule must be guarded", signal.absentViewIds.isNotEmpty())
+        assertFalse("the reel-viewer rule must not require selection", signal.requireSelected)
     }
 }
