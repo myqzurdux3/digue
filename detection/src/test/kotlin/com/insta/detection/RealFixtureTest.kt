@@ -210,16 +210,24 @@ class RealFixtureTest {
     }
 
     @Test
-    fun `every shipped signal names an id from its own package`() {
-        // A copy-paste between app blocks would produce a rule that can never
-        // match, which is this project's worst failure mode: indistinguishable
-        // from one that works.
+    fun `no shipped signal names an id belonging to another package`() {
+        // Guards against copy-paste between app blocks, which would produce a rule
+        // that can never match — this project's worst failure mode, because it is
+        // indistinguishable from one that works.
+        //
+        // An id without a "<package>:id/" prefix is allowed: Snapchat exposes some
+        // of its nodes in its own namespace, e.g.
+        // "context_vertical_actions/context_vertical_action_comment". What is
+        // forbidden is an id prefixed with a DIFFERENT package than the one whose
+        // block it sits in.
         for ((packageName, app) in ruleSet.apps) {
             for ((surface, rules) in app.surfaces) {
                 for (signal in rules.signals.filter { it.type == SignalType.VIEW_ID }) {
+                    val value = signal.value ?: continue
+                    if (!value.contains(":id/")) continue
                     assertTrue(
-                        "$packageName/$surface names ${signal.value}",
-                        signal.value?.startsWith("$packageName:id/") == true,
+                        "$packageName/$surface names $value, which belongs to another package",
+                        value.startsWith("$packageName:id/"),
                     )
                 }
             }
@@ -240,9 +248,16 @@ class RealFixtureTest {
             .signals
 
         assertEquals(2, signals.size)
-        assertTrue(
-            "both signals must name an action-column id",
-            signals.all { it.value?.contains("context_vertical_action") == true },
+        // The exact ids as measured on the device. Snapchat exposes these in its
+        // own namespace, NOT as "com.snapchat.android:id/..." — writing the usual
+        // package prefix here produces a rule that never fires, which is how this
+        // rule shipped broken the first time.
+        assertEquals(
+            setOf(
+                "context_vertical_actions/context_vertical_action_comment",
+                "context_vertical_actions/context_vertical_action_favorite",
+            ),
+            signals.mapNotNull { it.value }.toSet(),
         )
         assertTrue("all must require an on-screen node", signals.all { it.requireOnScreen })
         assertTrue("none may require selection", signals.none { it.requireSelected })
