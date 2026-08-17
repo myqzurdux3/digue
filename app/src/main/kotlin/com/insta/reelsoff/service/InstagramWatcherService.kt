@@ -175,6 +175,9 @@ class InstagramWatcherService : AccessibilityService() {
             if (!::classifier.isInitialized) {
                 classifier = ScreenClassifier(RuleSet(version = 0, apps = emptyMap()))
             }
+            // Land on the unmatchable sentinel rather than whatever packageNames
+            // was declared (or left un-narrowed) before this failure — see F1.
+            applyDeclaredPackages(emptySet())
         }
     }
 
@@ -190,9 +193,10 @@ class InstagramWatcherService : AccessibilityService() {
         runCatching {
             val packages = declaredPackages(ruleSet, blocked)
             serviceInfo = serviceInfo.apply {
-                // A null packageNames means "every app" to Android, so an empty
-                // selection must be expressed as a package that cannot match.
-                packageNames = if (packages.isEmpty()) arrayOf(NO_PACKAGE) else packages.toTypedArray()
+                // See packageNamesFor: a null/empty packageNames means "every
+                // app" to Android, so an empty selection must be expressed as
+                // a package that cannot match.
+                packageNames = packageNamesFor(packages)
             }
             Log.i(TAG, "declared packages: ${packages.size}")
             // Only reached once the assignment above has actually succeeded, and
@@ -208,6 +212,14 @@ class InstagramWatcherService : AccessibilityService() {
      * Mirrors the packages just declared to the UI. Failing to publish must never
      * take the service down — the declaration itself already succeeded, only its
      * display is affected.
+     *
+     * This writes to the same DataStore the settings collector above reads
+     * (`SettingsStore(...).settings`), so every publish re-emits settings and
+     * re-runs applyDeclaredPackages, which calls back in here — a self-feeding
+     * loop. It terminates only because DataStore suppresses writes that would
+     * not change the stored value; it is not idempotent by construction. If this
+     * ever writes something derived from more than `packages` (e.g. a timestamp),
+     * the loop stops terminating.
      */
     private fun publishDeclaredPackages(packages: Set<String>) {
         scope.launch {
@@ -242,6 +254,10 @@ class InstagramWatcherService : AccessibilityService() {
 
     private fun handle(event: AccessibilityEvent?) {
         val packageName = event?.packageName?.toString() ?: return
+        // Belt-and-braces: packageNames narrows what Android delivers, but should
+        // that ever widen (see F1), this keeps captures and tree walks scoped to
+        // apps the loaded rule set actually knows about.
+        if (packageName !in ruleSet.apps) return
         // Always consult the throttle (F8): it used to be short-circuited away
         // whenever a capture session was active, which meant a content-changed
         // event walked the tree unthrottled — on the main thread — for the whole
@@ -334,8 +350,6 @@ class InstagramWatcherService : AccessibilityService() {
     companion object {
         const val ACTION_START_CAPTURE = "com.insta.reelsoff.START_CAPTURE"
 
-        /** Matches no installed app; see applyDeclaredPackages. */
-        private const val NO_PACKAGE = "com.insta.reelsoff.none"
         private const val TAG = "ReelsOff"
     }
 }

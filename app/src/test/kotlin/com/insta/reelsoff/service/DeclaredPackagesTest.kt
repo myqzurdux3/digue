@@ -9,6 +9,7 @@ import com.insta.detection.Surface
 import com.insta.detection.SurfaceRules
 import com.insta.detection.Tier
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 private fun rules(vararg entries: Pair<String, Surface>) = RuleSet(
@@ -66,5 +67,27 @@ class DeclaredPackagesTest {
             emptySet<String>(),
             declaredPackages(RuleSet(version = 0, apps = emptyMap()), setOf(Surface.REELS)),
         )
+    }
+
+    @Test
+    fun `an empty selection maps to exactly one unmatchable sentinel`() {
+        val result = packageNamesFor(emptySet())
+
+        assertEquals(1, result.size)
+        assertEquals(NO_PACKAGE, result[0])
+    }
+
+    @Test
+    fun `a non-empty selection maps to exactly those packages`() {
+        val result = packageNamesFor(setOf("com.instagram.android", "com.snapchat.android"))
+
+        assertEquals(setOf("com.instagram.android", "com.snapchat.android"), result.toSet())
+        assertEquals(2, result.size)
+    }
+
+    @Test
+    fun `the mapped result is never empty and never null`() {
+        assertTrue(packageNamesFor(emptySet()).isNotEmpty())
+        assertTrue(packageNamesFor(setOf("com.instagram.android")).isNotEmpty())
     }
 }

@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  No android:packageNames here on purpose: the list is set at runtime from the
-  user's settings, in InstagramWatcherService.applyDeclaredPackages, so a package
-  is visible to the service only while its blocking is switched on. The static
-  attribute would be the union of everything and could not narrow.
-
-  The service sets the list before it processes anything, and an empty list is
-  written as one unmatchable package rather than as null — null means "every
-  app" to Android, which is the opposite of what an empty setting should mean.
+  android:packageNames below is a fail-safe floor, not a cap. Android enforces
+  this attribute, and a null value means EVERY app is visible to the service —
+  the worst possible failure mode for an accessibility service that captures
+  view trees. InstagramWatcherService.applyDeclaredPackages narrows (and can
+  widen, to any other rule-set package) this list at runtime from the user's
+  settings, before anything is processed. But if that runtime call never runs
+  or fails outright — a startup exception, a swallowed assignment — this
+  static value is what Android is left enforcing, so it must never be absent.
 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
@@ -15,4 +15,5 @@
     android:accessibilityFlags="flagReportViewIds|flagIncludeNotImportantViews"
     android:canRetrieveWindowContent="true"
     android:description="@string/accessibility_service_description"
-    android:notificationTimeout="100" />
+    android:notificationTimeout="100"
+    android:packageNames="com.instagram.android" />

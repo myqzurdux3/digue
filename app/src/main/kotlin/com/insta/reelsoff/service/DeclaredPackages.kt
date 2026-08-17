@@ -17,3 +17,17 @@ fun declaredPackages(ruleSet: RuleSet, blocked: Set<Surface>): Set<String> =
     ruleSet.apps
         .filterValues { app -> app.surfaces.keys.any { it in blocked } }
         .keys
+
+/** Matches no installed app; see [packageNamesFor]. Internal so tests can assert against it directly. */
+internal const val NO_PACKAGE = "com.insta.reelsoff.none"
+
+/**
+ * The value to hand to `AccessibilityServiceInfo.packageNames`.
+ *
+ * A null (or empty) array means "every app" to Android, which is the opposite
+ * of what an empty selection should mean here — so an empty [packages] is
+ * mapped onto a single package that cannot match anything, rather than onto
+ * an empty array. The result is therefore never empty and never null.
+ */
+fun packageNamesFor(packages: Set<String>): Array<String> =
+    if (packages.isEmpty()) arrayOf(NO_PACKAGE) else packages.toTypedArray()
