@@ -5,8 +5,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.Rect
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import androidx.core.content.ContextCompat
 import com.insta.detection.RuleSet
 import com.insta.detection.ScreenClassifier
@@ -224,6 +226,11 @@ class InstagramWatcherService : AccessibilityService() {
         when (decision.action) {
             BlockAction.BACK -> performGlobalAction(GLOBAL_ACTION_BACK)
             BlockAction.HOME -> performGlobalAction(GLOBAL_ACTION_HOME)
+            // Falls back to leaving the screen when the node is gone: a redirect
+            // that silently does nothing would leave the user on the very surface
+            // the rule exists to take them off.
+            BlockAction.CLICK ->
+                if (!clickNode(root, decision.clickViewId)) performGlobalAction(GLOBAL_ACTION_BACK)
             BlockAction.NONE -> Unit
         }
 
@@ -244,6 +251,27 @@ class InstagramWatcherService : AccessibilityService() {
             }
             Log.i(TAG, "blocked ${classification.surface} via ${decision.tier}")
         }
+    }
+
+    /**
+     * Presses a node named by the rules, so a surface can be redirected instead of
+     * exited. Returns false when nothing usable was found, which is the caller's
+     * cue to leave the screen the ordinary way.
+     *
+     * Only on-screen candidates count. Instagram pre-mounts the neighbouring tab
+     * with collapsed or negative bounds, so an off-screen search field is a real
+     * possibility, and clicking one would do nothing while looking like success.
+     */
+    private fun clickNode(root: AccessibilityNodeInfo, viewId: String?): Boolean {
+        if (viewId == null) return false
+        val target = root.findAccessibilityNodeInfosByViewId(viewId)
+            .orEmpty()
+            .firstOrNull { node ->
+                val bounds = Rect().also(node::getBoundsInScreen)
+                !bounds.isEmpty
+            }
+            ?: return false
+        return target.performAction(AccessibilityNodeInfo.ACTION_CLICK)
     }
 
     private fun writeCapture(snapshot: ScreenSnapshot) {

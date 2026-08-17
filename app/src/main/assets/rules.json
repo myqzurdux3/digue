@@ -18,6 +18,7 @@
       ]
     },
     "EXPLORE": {
+      "clickViewId": "com.instagram.android:id/action_bar_search_edit_text",
       "signals": [
         { "tier": "HIGH", "type": "VIEW_ID",
           "value": "com.instagram.android:id/search_tab", "requireSelected": true },

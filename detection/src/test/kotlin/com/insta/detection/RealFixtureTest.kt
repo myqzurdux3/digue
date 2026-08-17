@@ -4,6 +4,7 @@ import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -139,5 +140,24 @@ class RealFixtureTest {
         assertTrue("the reel-viewer rule must require an on-screen node", signal.requireOnScreen)
         assertTrue("the reel-viewer rule must be guarded", signal.absentViewIds.isNotEmpty())
         assertFalse("the reel-viewer rule must not require selection", signal.requireSelected)
+    }
+
+    @Test
+    fun `the shipped explore rule redirects to the search field`() {
+        // Blocking Explore also blocks Instagram's only search, so the rule presses
+        // the search field instead of bouncing the user out of the tab. Drop the
+        // click target from rules.json and this fails.
+        val result = classifier.classify(fixture("explore"))
+
+        assertEquals(Surface.EXPLORE, result.surface)
+        assertEquals(
+            "com.instagram.android:id/action_bar_search_edit_text",
+            result.clickViewId,
+        )
+    }
+
+    @Test
+    fun `the shipped reels rule does not redirect`() {
+        assertNull(classifier.classify(fixture("reels")).clickViewId)
     }
 }

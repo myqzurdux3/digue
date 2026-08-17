@@ -2,6 +2,7 @@ package com.insta.detection
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -207,5 +208,49 @@ class RuleSetParserTest {
         val result = RuleSetParser.parse(raw)
 
         assertTrue(result is ParseResult.Failure)
+    }
+
+    @Test
+    fun `reads a surface click target`() {
+        val raw = """
+            {
+              "version": 1,
+              "surfaces": {
+                "EXPLORE": {
+                  "clickViewId": "search_bar",
+                  "signals": [
+                    { "tier": "HIGH", "type": "VIEW_ID", "value": "search_tab" }
+                  ]
+                }
+              }
+            }
+        """.trimIndent()
+
+        val result = RuleSetParser.parse(raw)
+
+        assertTrue(result is ParseResult.Success)
+        val rules = (result as ParseResult.Success).ruleSet.surfaces.getValue(Surface.EXPLORE)
+        assertEquals("search_bar", rules.clickViewId)
+    }
+
+    @Test
+    fun `a surface without a click target keeps the default exit behaviour`() {
+        val raw = """
+            {
+              "version": 1,
+              "surfaces": {
+                "REELS": {
+                  "signals": [
+                    { "tier": "HIGH", "type": "VIEW_ID", "value": "clips_tab" }
+                  ]
+                }
+              }
+            }
+        """.trimIndent()
+
+        val result = RuleSetParser.parse(raw)
+
+        assertTrue(result is ParseResult.Success)
+        assertNull((result as ParseResult.Success).ruleSet.surfaces.getValue(Surface.REELS).clickViewId)
     }
 }
