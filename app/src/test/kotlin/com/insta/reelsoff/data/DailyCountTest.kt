@@ -29,7 +29,7 @@ class DailyCountTest {
         assertEquals(14, counts.size)
         assertEquals(today.minusDays(13), counts.first().date)
         assertEquals(today, counts.last().date)
-        assertEquals(0, counts.last().reels)
+        assertEquals(0, counts.last().countFor(Surface.REELS))
     }
 
     @Test
@@ -42,8 +42,8 @@ class DailyCountTest {
 
         val last = dailyCounts(events, paris, today, days = 14).last()
 
-        assertEquals(2, last.reels)
-        assertEquals(1, last.explore)
+        assertEquals(2, last.countFor(Surface.REELS))
+        assertEquals(1, last.countFor(Surface.EXPLORE))
     }
 
     @Test
@@ -56,8 +56,8 @@ class DailyCountTest {
 
         val last = dailyCounts(events, paris, today, days = 14).last()
 
-        assertEquals(2, last.shorts)
-        assertEquals(1, last.spotlight)
+        assertEquals(2, last.countFor(Surface.SHORTS))
+        assertEquals(1, last.countFor(Surface.SPOTLIGHT))
         assertEquals(3, last.total)
     }
 
@@ -68,15 +68,15 @@ class DailyCountTest {
 
         val counts = dailyCounts(events, paris, today, days = 14)
 
-        assertEquals(1, counts.last().reels)
-        assertEquals(0, counts[counts.size - 2].reels)
+        assertEquals(1, counts.last().countFor(Surface.REELS))
+        assertEquals(0, counts[counts.size - 2].countFor(Surface.REELS))
     }
 
     @Test
     fun `ignores events older than the window`() {
         val events = listOf(event(at(today.minusDays(20), 12), Surface.REELS))
 
-        assertEquals(0, dailyCounts(events, paris, today, days = 14).sumOf { it.reels })
+        assertEquals(0, dailyCounts(events, paris, today, days = 14).sumOf { it.countFor(Surface.REELS) })
     }
 
     @Test
@@ -85,7 +85,22 @@ class DailyCountTest {
 
         val last = dailyCounts(events, paris, today, days = 14).last()
 
-        assertEquals(0, last.reels)
-        assertEquals(0, last.explore)
+        assertEquals(0, last.countFor(Surface.REELS))
+        assertEquals(0, last.countFor(Surface.EXPLORE))
+    }
+
+    @Test
+    fun `an unknown surface name is dropped rather than counted`() {
+        // The database outlives any one build: a row written by a newer version,
+        // or by a surface since removed, must not break the chart.
+        val events = listOf(
+            BlockEvent(epochMillis = at(today, 10), surface = "TIKTOK", ruleTier = Tier.HIGH.name),
+            BlockEvent(epochMillis = at(today, 11), surface = Surface.DISCOVER.name, ruleTier = Tier.HIGH.name),
+        )
+
+        val last = dailyCounts(events, paris, today, days = 14).last()
+
+        assertEquals(1, last.countFor(Surface.DISCOVER))
+        assertEquals(1, last.total)
     }
 }

@@ -225,4 +225,26 @@ class RealFixtureTest {
             }
         }
     }
+
+    @Test
+    fun `snapchat discover is recognised by the published-content action column`() {
+        // Measured on the device: Snapchat plays a Discover video and a friend's
+        // story in the same full-screen `opera_viewer`, so the viewer alone cannot
+        // tell them apart. The vertical action column — comment, favourite, share —
+        // is present on published content and absent from a friend's story. The
+        // subscribe button is NOT a discriminator: it appears on both.
+        val signals = ruleSet.apps
+            .getValue("com.snapchat.android")
+            .surfaces
+            .getValue(Surface.DISCOVER)
+            .signals
+
+        assertEquals(2, signals.size)
+        assertTrue(
+            "both signals must name an action-column id",
+            signals.all { it.value?.contains("context_vertical_action") == true },
+        )
+        assertTrue("all must require an on-screen node", signals.all { it.requireOnScreen })
+        assertTrue("none may require selection", signals.none { it.requireSelected })
+    }
 }
