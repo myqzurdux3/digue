@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.insta.detection.Surface
 import com.insta.reelsoff.data.AppDatabase
 import com.insta.reelsoff.data.BlockSettings
 import com.insta.reelsoff.data.CaptureStatus
@@ -110,11 +111,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
-    fun setBlockReels(enabled: Boolean) {
-        viewModelScope.launch { settingsStore.setBlockReels(enabled) }
-    }
-
-    fun setBlockExplore(enabled: Boolean) {
-        viewModelScope.launch { settingsStore.setBlockExplore(enabled) }
+    fun setSurfaceBlocked(surface: Surface, blocked: Boolean) {
+        viewModelScope.launch { settingsStore.setSurfaceBlocked(surface, blocked) }
     }
 }

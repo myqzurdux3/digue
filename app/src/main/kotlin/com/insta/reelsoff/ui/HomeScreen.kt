@@ -39,6 +39,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.insta.detection.Surface
 import com.insta.reelsoff.R
 import com.insta.reelsoff.data.CaptureStatus
 import com.insta.reelsoff.data.DailyCount
@@ -97,13 +98,13 @@ fun HomeScreen(
         Section(title = stringResource(R.string.blocking_title)) {
             SwitchRow(
                 label = stringResource(R.string.block_reels),
-                checked = state.settings.blockReels,
+                checked = Surface.REELS in state.settings.blockedSurfaces,
                 onCheckedChange = onBlockReelsChanged,
             )
             Spacer(Modifier.height(4.dp))
             SwitchRow(
                 label = stringResource(R.string.block_explore),
-                checked = state.settings.blockExplore,
+                checked = Surface.EXPLORE in state.settings.blockedSurfaces,
                 onCheckedChange = onBlockExploreChanged,
             )
         }

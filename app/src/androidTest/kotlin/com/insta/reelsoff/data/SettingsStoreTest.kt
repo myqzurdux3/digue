@@ -27,8 +27,8 @@ class SettingsStoreTest {
     fun bothSurfacesAreBlockedByDefault() = runBlocking {
         val settings = store.settings.first()
 
-        assertTrue(settings.blockReels)
-        assertTrue(settings.blockExplore)
+        assertTrue(Surface.REELS in settings.blockedSurfaces)
+        assertTrue(Surface.EXPLORE in settings.blockedSurfaces)
         assertEquals(setOf(Surface.REELS, Surface.EXPLORE), settings.blockedSurfaces)
     }
 
@@ -38,8 +38,8 @@ class SettingsStoreTest {
 
         val settings = store.settings.first()
 
-        assertTrue(settings.blockReels)
-        assertFalse(settings.blockExplore)
+        assertTrue(Surface.REELS in settings.blockedSurfaces)
+        assertFalse(Surface.EXPLORE in settings.blockedSurfaces)
         assertEquals(setOf(Surface.REELS), settings.blockedSurfaces)
     }
 
@@ -49,6 +49,44 @@ class SettingsStoreTest {
         store.setBlockExplore(false)
 
         assertTrue(store.settings.first().blockedSurfaces.isEmpty())
+    }
+
+    @Test
+    fun newSurfacesAreOffByDefault() = runBlocking {
+        // Turning them on would both start blocking and widen what the service is
+        // allowed to see, neither of which the user asked for.
+        val blocked = store.settings.first().blockedSurfaces
+
+        assertEquals(setOf(Surface.REELS, Surface.EXPLORE), blocked)
+    }
+
+    @Test
+    fun aSurfaceCanBeSwitchedOnAndOff() = runBlocking {
+        store.setSurfaceBlocked(Surface.SHORTS, true)
+        assertTrue(Surface.SHORTS in store.settings.first().blockedSurfaces)
+
+        store.setSurfaceBlocked(Surface.SHORTS, false)
+        assertFalse(Surface.SHORTS in store.settings.first().blockedSurfaces)
+    }
+
+    @Test
+    fun everySurfaceCanBeSwitchedOff() = runBlocking {
+        for (surface in listOf(Surface.REELS, Surface.EXPLORE)) {
+            store.setSurfaceBlocked(surface, false)
+        }
+
+        assertTrue(store.settings.first().blockedSurfaces.isEmpty())
+    }
+
+    @Test
+    fun theOldBooleansAreCarriedOver() = runBlocking {
+        // A user upgrading from the previous build has the two booleans and no
+        // surface set. Ignoring them would silently re-enable something they had
+        // turned off.
+        store.clear()
+        store.setBlockExplore(false)
+
+        assertEquals(setOf(Surface.REELS), store.settings.first().blockedSurfaces)
     }
 
     @Test

@@ -138,7 +138,7 @@ class InstagramWatcherService : AccessibilityService() {
             // permanently broken DataStore stays visible instead of failing silently
             // forever. While retries are ongoing, `settings` simply stays at the
             // `@Volatile` default declared above — `BlockSettings()`, i.e.
-            // blockReels = true, blockExplore = true — which is already the
+            // blockedSurfaces = {REELS, EXPLORE} — which is already the
             // fail-closed value (both surfaces blocked), not a stale permissive one.
             scope.launch {
                 runCatching {
