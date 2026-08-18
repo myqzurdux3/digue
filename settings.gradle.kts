@@ -14,6 +14,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "reelsoff"
+rootProject.name = "digue"
 include(":detection")
 include(":app")

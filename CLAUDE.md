@@ -83,6 +83,14 @@ Le nom affiché est **« Digue »** (`app_name`). L'identifiant applicatif reste
 d'accessibilité** et l'utilisateur devrait réactiver le service à la main. Changer `app_name`
 seul est sans risque — c'est ce qui a été fait.
 
+**Ce qui porte le nom « Digue » et ce qui garde l'ancien, le 2026-08-18.** Le dossier local
+est `~/Documents/digue`, le dépôt distant `myqzurdux3/digue`, et `rootProject.name` vaut
+`digue` — trois noms d'affichage, sans effet sur ce qui tourne. **Deux identifiants gardent
+`reelsoff` et ne doivent pas être « nettoyés » par cohérence** : `com.insta.reelsoff`, parce
+qu'il est enregistré dans les réglages d'accessibilité d'Android, et le fichier de base
+`reelsoff.db`, parce que le renommer orphelinerait la base de l'utilisateur — c'est-à-dire
+tout l'historique `block_event`, la seule preuve que l'app ait jamais fonctionné.
+
 Direction visuelle : **encre sur papier**. Fond crème mat, encre noir chaud, un seul accent
 bleu-vert, filets d'un pixel à la place des cartes. Verrouillée en clair.
 
