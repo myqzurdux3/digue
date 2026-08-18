@@ -28,20 +28,30 @@ bouge pas.
 Plus un **quota quotidien** — quelques minutes par jour, ouvrables seulement dans une plage
 horaire choisie — et un **verrou** qui rend tout assouplissement lent au lieu d'instantané.
 
-## ⚠️ Ce dépôt doit rester privé
+## Vie privée, et ce qu'il ne faut jamais commiter ici
 
-Deux raisons, dont une qui ne se répare pas en modifiant un fichier :
+Ce dépôt a été privé jusqu'au 2026-08-18, pour deux raisons dont une seule demandait un
+travail réel. Les deux sont traitées :
 
-1. Il documente les habitudes de défilement d'une personne réelle, y compris des relevés
-   horodatés de ce qu'elle a regardé.
-2. **Les commits antérieurs au 2026-08-17 contiennent le numéro de série de son téléphone.**
-   Il a été retiré de l'arbre de travail, pas de l'historique. L'ouvrir demanderait une
-   réécriture d'historique, pas un `git rm`.
+- Les commits antérieurs au 2026-08-17 portaient le **numéro de série du téléphone de test**.
+  L'historique a été réécrit le 2026-08-18 et le dépôt distant recréé, pour qu'aucun objet de
+  l'ancienne histoire ne survive côté serveur.
+- Le dépôt décrit des mesures faites sur un appareil réel — des lignes de logcat horodatées
+  d'une séance de recette. Aucune donnée d'usage n'a été exportée ici : ni base, ni journal de
+  visionnage, ni capture d'écran.
 
-Un incident de confidentialité a déjà eu lieu ici : des captures d'arbres de vues contenant des
-noms de contacts et des extraits de conversations privées ont été commitées, puis purgées et
-l'historique réécrit. **Ne jamais commiter de capture d'écran ni de capture d'arbre brute.**
-Les fixtures de test sont nettoyées, et un test le vérifie à chaque exécution.
+**Un incident de confidentialité a déjà eu lieu**, et c'est la raison de la règle qui suit :
+des captures d'arbres de vues contenant des noms de contacts et des extraits de conversations
+privées ont été commitées, puis purgées et l'historique réécrit.
+
+> **Ne jamais commiter de capture d'écran ni de capture d'arbre brute**, d'aucune des trois
+> apps. Une capture d'arbre porte de vraies données personnelles dans ses
+> `contentDescription`, même si l'app ne lit jamais le champ `text`.
+
+Les fixtures de test versionnées ici sont nettoyées — toutes leurs `contentDescription` valent
+`[scrubbed]`, à l'exception de sept chaînes de chrome Instagram sans contenu personnel — et un
+test le vérifie à chaque exécution, pour qu'une fixture ajoutée sans précaution soit attrapée
+avant d'atterrir.
 
 ## Ce que l'app ne fait pas, par construction
 
@@ -98,3 +108,7 @@ les deux corrections qu'il a fallu lui annuler.
 - Les règles reposent sur des identifiants de ressources internes. Le jour où une de ces apps
   en renomme un, la surface concernée cesse d'être bloquée ; l'app le signale en affichant une
   détection dégradée, mais la réparation demande une nouvelle capture.
+
+## Licence
+
+MIT — voir [`LICENSE`](LICENSE).

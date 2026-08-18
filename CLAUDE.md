@@ -19,10 +19,21 @@ retour arrière la plupart du temps, ou un appui sur un nœud précis pour Explo
 l'appareil** — une première : ils ne compilaient plus du tout, `BlockEventDaoTest` appelant
 `dao.since(...)`, une requête retirée du DAO quand l'écran est passé aux `Flow`, et personne
 n'ayant relancé `compileDebugAndroidTestKotlin` depuis. Un `@Test` qui ne compile pas se compte
-exactement comme un `@Test` qui passe. Arbre propre. Dépôt distant : `github.com/myqzurdux3/digue`, **privé**
-(le dépôt documente les habitudes de l'utilisateur, et les commits antérieurs au 2026-08-17
-portent encore le numéro de série de son téléphone — une ouverture demanderait une réécriture
-d'historique).
+exactement comme un `@Test` qui passe. Arbre propre. Dépôt distant : `github.com/myqzurdux3/digue`, **public depuis le
+2026-08-18**, sous licence MIT.
+
+**Ce qu'il a fallu faire pour l'ouvrir, et ce qu'il ne faut plus refaire.** Les commits
+antérieurs au 2026-08-17 portaient le numéro de série du téléphone dans `CLAUDE.md` et dans
+`docs/superpowers/plans/2026-08-16-recette.md`. Il avait été retiré de l'arbre de travail, pas
+de l'historique. Le 2026-08-18, les 103 commits ont été réécrits (`filter-branch`, remplacement
+par `<retiré>`), les refs de sauvegarde et le reflog effacés, `gc --prune=now` passé, puis **le
+dépôt distant supprimé et recréé** — un force-push aurait laissé les anciens objets servables
+par leur SHA côté GitHub, ce qui ne se contrôle pas depuis le client. Un balayage des 366 blobs
+avant, puis de tous les objets après, sert de preuve : `git log --all` ne suffit pas, il
+parcourt les références et pas les objets.
+
+**Le numéro de série ne doit plus jamais être écrit dans un fichier suivi** — ni ici, ni dans
+`docs/`. `adb devices` le donne quand on en a besoin.
 
 Vérifié sur son appareil : les cinq surfaces, le quota avec sa plage horaire et son verrou, la
 migration Room 1 → 2, l'enregistrement du temps regardé, et la **survie à un redémarrage**.
