@@ -43,12 +43,15 @@ Every switch is independent, and **new surfaces arrive switched off**.
 
 ## What it looks like
 
-| The allowance and its lock | What the app held back |
-|---|---|
-| <img src="docs/screenshots/quota.en.png" alt="Home screen: service on, a five-minute allowance openable between 8pm and 10pm, 24-hour lock" width="380"> | <img src="docs/screenshots/historique.en.png" alt="Today's counter, the breakdown per surface, and a chart of the last fourteen days" width="380"> |
+The single screen, whole, split in two at a section hairline.
 
-> Demonstration figures, produced on an emulator. No real usage data appears anywhere in this
-> repository.
+<p align="center">
+  <img src="docs/screenshots/ecran-1.en.png" width="380" alt="Top of the screen: the name, the service on, a five-minute allowance openable between 20:00 and 22:00 with its 24-hour lock, then today's counter and its breakdown per surface">
+  <img src="docs/screenshots/ecran-2.en.png" width="380" alt="Bottom of the screen: the chart of the last fourteen days, blocks and time watched, then the five switches split across Instagram, YouTube and Snapchat">
+</p>
+
+> Demonstration figures, written into the database by hand before the shot. No real usage data
+> appears anywhere in this repository.
 
 The interface is in **French and English**. French is picked automatically on a French phone,
 English everywhere else, and Android 13+ lets the app's language be changed without touching

@@ -186,9 +186,17 @@ deux sens avec `cmd locale set-app-locales`, écran complet en copie d'écran.
   celui que GitHub affiche par défaut, `README.en.md` l'anglais. Les deux se renvoient l'un à
   l'autre en tête de page. Aucun test ne les compare — c'est de la prose, pas des clés — donc
   **toute retouche de l'un doit être portée à la main dans l'autre**. Les copies d'écran
-  (`docs/screenshots/`) existent aussi en double, `*.png` et `*.en.png`, prises sur l'émulateur
-  avec des **données de démonstration insérées à la main** dans la base : aucun chiffre d'usage
-  réel n'est publié, et la légende le dit sous l'image.
+  (`docs/screenshots/`) existent aussi en double, `ecran-{1,2}.png` et `ecran-{1,2}.en.png`.
+  **Recette pour les refaire**, parce qu'elle n'est pas devinable : sauvegarder la base et le
+  protobuf, y écrire des **données de démonstration**, puis `adb shell wm size 1080x5050` — la
+  hauteur d'affichage agrandie fait tenir tout l'écran dans **une seule** copie, ce qui évite
+  les fragments recadrés qui avaient été livrés d'abord. Couper ensuite aux filets de section,
+  jamais au milieu d'un bloc. Terminer par `wm size reset` et la restauration de la sauvegarde.
+  **Le français et l'anglais n'ont pas la même hauteur** : l'anglais déborde de 5000 px, d'où
+  les deux valeurs. Aucun chiffre d'usage réel n'est publié, et la légende le dit sous l'image.
+  Piège rencontré en le faisant : `am force-stop` entre deux prises éteint le service, et la
+  copie suivante montre « Service inactif » avec une mise en page décalée — passer par
+  `KEYCODE_HOME` puis `am start`.
 - **`TranslationsTest` interdit la dérive** : mêmes clés des deux côtés, mêmes arguments
   positionnels par clé, aucune valeur identique hors noms de marque, et chaque langue du
   sélecteur a bien un dossier. Une clé oubliée d'un côté ne plante pas et ne casse pas le

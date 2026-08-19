@@ -43,12 +43,15 @@ Chaque interrupteur est indépendant, et **les surfaces nouvelles arrivent étei
 
 ## À quoi ça ressemble
 
-| Le quota et son verrou | Ce que l'app retient |
-|---|---|
-| <img src="docs/screenshots/quota.png" alt="Écran d'accueil : service actif, quota de 5 minutes ouvrable de 20 h à 22 h, verrou de 24 h" width="380"> | <img src="docs/screenshots/historique.png" alt="Compteur du jour, répartition par surface, et graphique des quatorze derniers jours" width="380"> |
+L'écran unique, en entier, coupé en deux à un filet de section.
 
-> Chiffres de démonstration, produits sur un émulateur. Aucune donnée d'usage réelle ne figure
-> dans ce dépôt.
+<p align="center">
+  <img src="docs/screenshots/ecran-1.png" width="380" alt="Haut de l'écran : le nom, le service actif, le quota de 5 minutes ouvrable de 20 h à 22 h avec son verrou de 24 h, puis le compteur du jour et sa répartition par surface">
+  <img src="docs/screenshots/ecran-2.png" width="380" alt="Bas de l'écran : le graphique des quatorze derniers jours, blocages et temps regardé, puis les cinq interrupteurs répartis entre Instagram, YouTube et Snapchat">
+</p>
+
+> Chiffres de démonstration, écrits à la main dans la base avant la prise de vue. Aucune donnée
+> d'usage réelle ne figure dans ce dépôt.
 
 L'interface est en **français et en anglais**. Le français est choisi automatiquement sur un
 téléphone en français, l'anglais partout ailleurs, et Android 13+ laisse changer la langue de
