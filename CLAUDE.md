@@ -12,10 +12,10 @@ retour arrière la plupart du temps, ou un appui sur un nœud précis pour Explo
 | Instagram | `REELS` | `clips_tab`, et le lecteur `clips_viewer_view_pager` |
 | Instagram | `EXPLORE` | `search_tab` — **redirige** vers la recherche au lieu de sortir |
 | YouTube | `SHORTS` | `reel_player_page_container`, `reel_progress_bar` |
-| Snapchat | `SPOTLIGHT` | `spotlight_container` |
-| Snapchat | `DISCOVER` | la colonne d'actions `context_vertical_actions/...` |
+| Snapchat | `SPOTLIGHT` | `spotlight_container`, ou le cœur `favorite` du rail droit |
+| Snapchat | `DISCOVER` | la colonne d'actions `context_vertical_actions/...`, ou le bouton d'abonnement |
 
-**Statut au 2026-08-19.** 276 tests JVM verts et **24 tests instrumentés passés sur
+**Statut au 2026-08-19.** 283 tests JVM verts et **24 tests instrumentés passés sur
 l'appareil** — une première : ils ne compilaient plus du tout, `BlockEventDaoTest` appelant
 `dao.since(...)`, une requête retirée du DAO quand l'écran est passé aux `Flow`, et personne
 n'ayant relancé `compileDebugAndroidTestKotlin` depuis. Un `@Test` qui ne compile pas se compte
@@ -187,7 +187,7 @@ deux sens avec `cmd locale set-app-locales`, écran complet en copie d'écran.
 
 ```bash
 ./gradlew build                                   # tout
-./gradlew :detection:test :app:testDebugUnitTest  # 276 tests JVM
+./gradlew :detection:test :app:testDebugUnitTest  # 283 tests JVM
 ./gradlew :app:installDebug                       # installe sur l'appareil
 # tests instrumentés : --tests ne marche PAS sur cette version d'AGP, utiliser :
 ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=<fqcn>
@@ -333,12 +333,52 @@ instantanés sur 46 s sans interaction, marqueurs présents du premier au dernie
 Spotlight, Discover **et** la story d'ami. Toute règle qui s'appuierait dessus bloquerait les
 trois. Le discriminant est la **colonne d'actions verticale**, absente des stories d'amis.
 
-Sur `chrome_subscribe_button`, deux mesures se contredisent. La première le donnait présent
-des deux côtés, donc inutilisable ; la capture du 2026-08-17 le montre présent côté Discover
-et **absent** côté story. Un échantillon ne renverse pas une mesure antérieure, et la règle
-n'a pas été touchée : la colonne d'actions marche dans les deux lectures. À trancher avec
-d'autres captures avant d'y toucher — et se souvenir que l'analyse d'origine tronquait les
-identifiants après le dernier `/`, ce qui a déjà produit une conclusion fausse ici.
+**`chrome_subscribe_button` est un discriminant, et le contraire a été écrit ici pendant
+deux jours.** L'analyse d'origine le donnait présent des deux côtés, donc inutilisable ; elle
+tronquait les identifiants après le dernier `/`, ce que ce fichier signale déjà comme ayant
+produit une conclusion fausse ici même. Un test portait la phrase « the subscribe button is
+NOT a discriminator: it appears on both » alors que **les fixtures commitées à côté de lui
+disaient l'inverse** : `snapchat_discover` porte
+`context_chrome_header/chrome_subscribe_button` à l'écran, `snapchat_story` non. Ce n'est donc
+pas un échantillon qui renverse une mesure antérieure — c'est la preuve déjà présente au dépôt
+qui n'avait jamais été relue. Troisième arbre concordant le 2026-08-19, voir ci-dessous.
+
+**La story de publieur qui se glisse dans la grille** — signalée par l'utilisateur le
+2026-08-19, arbre relevé sur son téléphone pendant qu'elle était à l'écran. Appuyer sur une
+tuile de la grille Spotlight ouvre presque toujours un Spotlight, que `spotlight_container`
+attrape ; de temps en temps c'est la story d'un publieur, et **elle ne porte ni ce conteneur ni
+la colonne d'actions**. Aucun signal ne se déclenchait, donc rien n'était bloqué. Elle porte en
+revanche le bouton d'abonnement — on s'abonne à un publieur, jamais à un ami, ce qui est
+exactement ce qui rend ce signal sûr pour le comportement fin n° 3. Fixture
+`snapchat_publisher_story`, plus quatre tests dont une **propriété** : aucun signal Snapchat ne
+peut nommer un identifiant que la story d'ami affiche aussi.
+
+**Un Spotlight sans `spotlight_container`** — deuxième trou signalé le 2026-08-19, arbre relevé
+pendant que la vidéo tournait. Copie d'écran à l'appui : un Spotlight parfaitement ordinaire,
+plein écran, rail de droite avec cœur, commentaires, repartage, partage, piste musicale en bas
+— et **aucun `spotlight_container`**. L'unique signal de la surface ne pouvait pas le voir, donc
+la vidéo allait au bout. Le remplaçant est `com.snapchat.android:id/favorite`, le cœur du rail,
+mesuré en x 948..1066 dans les deux arbres Spotlight.
+
+**Et `requireOnScreen` n'est pas décoratif sur ce signal-là.** `favorite` existe aussi dans la
+capture Discover, avec `left=2028` et `right=1080` — une largeur négative, la forme résiduelle
+exacte que le drapeau sert à rejeter. Sans lui, ce signal happerait Discover : **`SPOTLIGHT`
+précède `DISCOVER` dans l'énumération `Surface`**, donc il gagnerait l'égalité au même palier et
+Discover basculerait silencieusement sous le mauvais interrupteur. Absent des deux stories,
+d'ami comme de publieur. Fixture `snapchat_spotlight_no_container`, trois tests.
+
+**Les deux correctifs sont vérifiés sur l'appareil**, pas seulement sur JVM : `block_event` #63
+en `SPOTLIGHT`/`HIGH` au moment où la vidéo coincée s'est fermée, et l'écran retombé à 88 nœuds
+sans lecteur.
+
+**Trois écrans négatifs mesurés le 2026-08-19 et non versionnés** : appareil photo, onglet
+chat, et l'écran obtenu en sortant de la story. Aucun ne porte le bouton d'abonnement, et
+aucun ne porte `opera_viewer` — le lecteur plein écran n'existe donc que dans les lecteurs.
+Relevés par `uiautomator dump`, **pas** par la capture de l'app : cet instrument rend moins de
+nœuds (130 contre 237-306 pour un écran comparable). Pour une fixture **positive** le sens est
+sûr — une règle qui se déclenche sur un sous-ensemble se déclenche aussi sur le tout — mais un
+négatif relevé ainsi prouve moins qu'il n'en a l'air, et c'est pourquoi ces trois-là sont
+restés hors du dépôt.
 
 **`reel_progress_bar` n'apparaît pas** dans la capture Shorts du 2026-08-17 — `youtube_shorts.json`
 porte treize identifiants `reel_*` distincts, pas celui-là. Le premier signal
@@ -491,7 +531,8 @@ Leçons :
 - Ne jamais commiter de capture d'écran ni de capture d'arbre brute, d'aucune des trois apps.
 - **Les fixtures YouTube et Snapchat existent depuis le 2026-08-17** :
   `youtube_shorts`, `youtube_home`, `snapchat_spotlight`, `snapchat_discover`,
-  `snapchat_story`. Trois sont des cas **négatifs** — l'accueil YouTube et la story d'ami ne
+  `snapchat_story`, plus `snapchat_publisher_story` depuis le 2026-08-19. Trois sont des cas
+  **négatifs** — l'accueil YouTube et la story d'ami ne
   doivent pas être bloqués. Toutes les `contentDescription` valent `[scrubbed]`, sans
   exception : les arbres bruts portaient un nom de groupe et l'aperçu d'un message dans une
   bannière de notification. Un test l'affirme, pour qu'une fixture ajoutée sans précaution
@@ -658,6 +699,14 @@ regardé quand même — c'est le chiffre que le quota existe pour faire baisser
   `adb shell run-as com.insta.reelsoff cat files/datastore/settings.preferences_pb`, décodé
   (entrées de map : champ 1 = clé, champ 2 = valeur ; dans la valeur, 1=bool, 3=int, 4=long,
   5=string, 6=set).
+- **Un `input swipe` sur une vidéo n'engendre aucun événement d'accessibilité.** Mesuré le
+  2026-08-19 en vérifiant le correctif Spotlight : geste envoyé, écran identique au nœud près
+  (181 nœuds, `favorite` toujours à l'écran), **aucune ligne** dans `block_event` — le correctif
+  paraissait mort alors qu'il était bon. Un vrai changement d'état de fenêtre l'a bloqué dans la
+  seconde : `KEYCODE_HOME` puis `am start`. C'est la troisième fois qu'un geste synthétique fait
+  conclure à tort qu'une chose qui marche est cassée. **Pour éprouver une détection, changer
+  d'application, ou faire toucher l'écran par l'utilisateur — jamais `input swipe` sur du
+  contenu.**
 - **`input tap` est trop bref pour la barre d'onglets d'Instagram** : il ne change pas
   d'onglet. `adb shell input swipe X Y X Y 120` — un appui de 120 ms — fonctionne.
 

@@ -239,15 +239,25 @@ class RealFixtureTest {
         // Measured on the device: Snapchat plays a Discover video and a friend's
         // story in the same full-screen `opera_viewer`, so the viewer alone cannot
         // tell them apart. The vertical action column — comment, favourite, share —
-        // is present on published content and absent from a friend's story. The
-        // subscribe button is NOT a discriminator: it appears on both.
+        // is present on published content and absent from a friend's story.
+        //
+        // This comment used to end "the subscribe button is NOT a discriminator:
+        // it appears on both", and that was wrong. It came from the analysis that
+        // truncated identifiers after the last "/". The fixtures committed
+        // alongside it already disagreed — `snapchat_discover` carries
+        // `context_chrome_header/chrome_subscribe_button` on screen and
+        // `snapchat_story` does not — so this is not one fresh sample overturning
+        // a measurement, it is the repository's own evidence finally being read.
+        // A publisher story caught on the device on 2026-08-19 was the third tree
+        // to agree, and it is the reason the signal was added: it carries neither
+        // `spotlight_container` nor the action column, so nothing blocked it.
         val signals = ruleSet.apps
             .getValue("com.snapchat.android")
             .surfaces
             .getValue(Surface.DISCOVER)
             .signals
 
-        assertEquals(2, signals.size)
+        assertEquals(3, signals.size)
         // The exact ids as measured on the device. Snapchat exposes these in its
         // own namespace, NOT as "com.snapchat.android:id/..." — writing the usual
         // package prefix here produces a rule that never fires, which is how this
@@ -256,6 +266,7 @@ class RealFixtureTest {
             setOf(
                 "context_vertical_actions/context_vertical_action_comment",
                 "context_vertical_actions/context_vertical_action_favorite",
+                "context_chrome_header/chrome_subscribe_button",
             ),
             signals.mapNotNull { it.value }.toSet(),
         )
@@ -347,6 +358,125 @@ class MultiAppFixtureTest {
     }
 
     @Test
+    fun `a publisher story reached from the grid is blocked at the high tier`() {
+        // The case the user hit: tapping a tile in the Snapchat grid mostly opens
+        // a Spotlight, which `spotlight_container` catches — but a publisher's
+        // story slips in among them now and then, and it carries neither that
+        // container nor the vertical action column. Nothing fired, so nothing was
+        // blocked. Measured on the device on 2026-08-19, on such a story caught
+        // in the act.
+        val result = classifier.classify(fixture("snapchat_publisher_story"))
+
+        assertEquals(Surface.DISCOVER, result.surface)
+        assertEquals(Tier.HIGH, result.tier)
+    }
+
+    @Test
+    fun `neither older snapchat signal saw the publisher story`() {
+        // Why the rule needed a third signal rather than a wider version of the
+        // two it had. Stated over the tree so that a future edit which drops the
+        // subscribe button cannot pass by widening one of the others instead.
+        val ids = fixture("snapchat_publisher_story").nodes
+            .filter { it.bounds.isOnScreen }
+            .mapNotNull { it.viewId }
+            .toSet()
+
+        assertFalse(ids.any { it.endsWith("spotlight_container") })
+        assertFalse(ids.any { it.contains("context_vertical_action") })
+    }
+
+    @Test
+    fun `a spotlight video without its container is still blocked`() {
+        // Second gap reported by the user on 2026-08-19, tree taken while the
+        // video was on screen: an ordinary Spotlight — full-screen, right-hand
+        // rail with heart, comments, repost, share, music track — that carries no
+        // `spotlight_container` at all. The one signal SPOTLIGHT had could not see
+        // it, so it played to the end.
+        val result = classifier.classify(fixture("snapchat_spotlight_no_container"))
+
+        assertEquals(Surface.SPOTLIGHT, result.surface)
+        assertEquals(Tier.HIGH, result.tier)
+    }
+
+    @Test
+    fun `that spotlight really is missing the container it is named after`() {
+        // Guards the fixture itself. If a later capture replaced this tree with
+        // one that does carry the container, the test above would keep passing
+        // for the wrong reason and the `favorite` signal would look load-bearing
+        // when nothing exercised it.
+        val onScreen = fixture("snapchat_spotlight_no_container").nodes
+            .filter { it.bounds.isOnScreen }
+            .mapNotNull { it.viewId }
+            .toSet()
+
+        assertFalse(onScreen.any { it.endsWith("spotlight_container") })
+        assertTrue(onScreen.contains("com.snapchat.android:id/favorite"))
+    }
+
+    @Test
+    fun `the heart is on screen in spotlight and only a leftover elsewhere`() {
+        // `favorite` is the heart on the Spotlight rail, measured at x 948..1066
+        // in both Spotlight trees. It also appears in the Discover capture — but
+        // with left 2028 and right 1080, a negative width, which is the leftover
+        // shape `requireOnScreen` exists to reject. Without that flag this signal
+        // would pull Discover into SPOTLIGHT, since SPOTLIGHT comes first in the
+        // Surface enum and so wins a tie at the same tier.
+        fun heart(name: String) = fixture(name).nodes
+            .filter { it.viewId == "com.snapchat.android:id/favorite" }
+
+        assertTrue(heart("snapchat_spotlight").any { it.bounds.isOnScreen })
+        assertTrue(heart("snapchat_spotlight_no_container").any { it.bounds.isOnScreen })
+        assertTrue(heart("snapchat_discover").isNotEmpty())
+        assertFalse(heart("snapchat_discover").any { it.bounds.isOnScreen })
+        assertTrue(heart("snapchat_story").isEmpty())
+        assertTrue(heart("snapchat_publisher_story").isEmpty())
+    }
+
+    @Test
+    fun `the subscribe button separates published content from a friend`() {
+        // You subscribe to a publisher, never to a friend — which is why this id
+        // can widen DISCOVER without touching the behaviour the user asked for by
+        // name. Two independent measurements say it is there on published content
+        // (the Discover capture of 2026-08-17, the publisher story of 2026-08-19)
+        // and one says it is absent from a friend's story.
+        //
+        // An older analysis claimed it sat on both sides. That analysis truncated
+        // identifiers after the last "/", which is documented in CLAUDE.md as
+        // having produced a false conclusion here before; these three trees are
+        // read whole.
+        fun hasSubscribeButton(name: String) = fixture(name).nodes.any {
+            it.viewId == "context_chrome_header/chrome_subscribe_button" && it.bounds.isOnScreen
+        }
+
+        assertTrue(hasSubscribeButton("snapchat_discover"))
+        assertTrue(hasSubscribeButton("snapchat_publisher_story"))
+        assertFalse(hasSubscribeButton("snapchat_story"))
+        assertFalse(hasSubscribeButton("snapchat_spotlight"))
+    }
+
+    @Test
+    fun `no snapchat signal names an id a friend's story shows`() {
+        // The property behind "a friend's story stays watchable", stated over the
+        // rules rather than over one outcome: any signal borrowed from the wrong
+        // screen is caught here, not on the user's phone.
+        val onFriendStory = fixture("snapchat_story").nodes
+            .filter { it.bounds.isOnScreen }
+            .mapNotNull { it.viewId }
+            .toSet()
+
+        val snapchat = ruleSet.apps.getValue("com.snapchat.android")
+        for ((surface, rules) in snapchat.surfaces) {
+            for (signal in rules.signals) {
+                val value = signal.value ?: continue
+                assertFalse(
+                    "$surface rests on $value, which a friend's story also shows",
+                    value in onFriendStory,
+                )
+            }
+        }
+    }
+
+    @Test
     fun `the vertical action column is what separates discover from a story`() {
         fun hasColumn(name: String) = fixture(name).nodes.any {
             it.viewId?.contains("context_vertical_action") == true && it.bounds.isOnScreen
@@ -396,6 +526,7 @@ class MultiAppFixtureTest {
         val descriptions = listOf(
             "youtube_shorts", "youtube_home",
             "snapchat_spotlight", "snapchat_discover", "snapchat_story",
+            "snapchat_publisher_story", "snapchat_spotlight_no_container",
         ).flatMap { name -> fixture(name).nodes.mapNotNull { it.contentDescription } }
 
         assertEquals(setOf("[scrubbed]"), descriptions.toSet())

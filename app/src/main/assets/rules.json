@@ -80,6 +80,9 @@
               "requireSelected": false, "requireOnScreen": true },
             { "tier": "HIGH", "type": "VIEW_ID",
               "value": "context_vertical_actions/context_vertical_action_favorite",
+              "requireSelected": false, "requireOnScreen": true },
+            { "tier": "HIGH", "type": "VIEW_ID",
+              "value": "context_chrome_header/chrome_subscribe_button",
               "requireSelected": false, "requireOnScreen": true }
           ]
         },
@@ -87,6 +90,9 @@
           "signals": [
             { "tier": "HIGH", "type": "VIEW_ID",
               "value": "com.snapchat.android:id/spotlight_container",
+              "requireSelected": false, "requireOnScreen": true },
+            { "tier": "HIGH", "type": "VIEW_ID",
+              "value": "com.snapchat.android:id/favorite",
               "requireSelected": false, "requireOnScreen": true }
           ]
         }

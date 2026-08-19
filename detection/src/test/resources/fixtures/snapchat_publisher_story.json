@@ -1,0 +1,2216 @@
+{
+ "packageName": "com.snapchat.android",
+ "capturedAtMillis": 0,
+ "nodes": [
+  {
+   "index": 0,
+   "parentIndex": -1,
+   "depth": 0,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 0,
+    "right": 1080,
+    "bottom": 2424
+   }
+  },
+  {
+   "index": 1,
+   "parentIndex": 0,
+   "depth": 1,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.LinearLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 0,
+    "right": 1080,
+    "bottom": 2424
+   }
+  },
+  {
+   "index": 2,
+   "parentIndex": 1,
+   "depth": 2,
+   "indexInParent": 0,
+   "viewId": "android:id/content",
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 0,
+    "right": 1080,
+    "bottom": 2424
+   }
+  },
+  {
+   "index": 3,
+   "parentIndex": 2,
+   "depth": 3,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 0,
+    "right": 1080,
+    "bottom": 2424
+   }
+  },
+  {
+   "index": 4,
+   "parentIndex": 3,
+   "depth": 4,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/base_open_view",
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 0,
+    "right": 1080,
+    "bottom": 2424
+   }
+  },
+  {
+   "index": 5,
+   "parentIndex": 4,
+   "depth": 5,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 0,
+    "right": 1080,
+    "bottom": 2424
+   }
+  },
+  {
+   "index": 6,
+   "parentIndex": 5,
+   "depth": 6,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 0,
+    "right": 1080,
+    "bottom": 2424
+   }
+  },
+  {
+   "index": 7,
+   "parentIndex": 6,
+   "depth": 7,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 0,
+    "right": 1080,
+    "bottom": 2424
+   }
+  },
+  {
+   "index": 8,
+   "parentIndex": 7,
+   "depth": 8,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/ptr_container",
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 0,
+    "right": 1080,
+    "bottom": 2177
+   }
+  },
+  {
+   "index": 9,
+   "parentIndex": 8,
+   "depth": 9,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.ImageView",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 479,
+    "top": 372,
+    "right": 600,
+    "bottom": 446
+   }
+  },
+  {
+   "index": 10,
+   "parentIndex": 8,
+   "depth": 9,
+   "indexInParent": 1,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 479,
+    "top": 372,
+    "right": 600,
+    "bottom": 398
+   }
+  },
+  {
+   "index": 11,
+   "parentIndex": 8,
+   "depth": 9,
+   "indexInParent": 2,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "androidx.recyclerview.widget.RecyclerView",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 309,
+    "right": 1080,
+    "bottom": 2177
+   }
+  },
+  {
+   "index": 12,
+   "parentIndex": 11,
+   "depth": 10,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 28,
+    "top": 309,
+    "right": 531,
+    "bottom": 1147
+   }
+  },
+  {
+   "index": 13,
+   "parentIndex": 12,
+   "depth": 11,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/df_large_story",
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 28,
+    "top": 309,
+    "right": 531,
+    "bottom": 1147
+   }
+  },
+  {
+   "index": 14,
+   "parentIndex": 13,
+   "depth": 12,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "javaClass",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 49,
+    "top": 951,
+    "right": 510,
+    "bottom": 1143
+   }
+  },
+  {
+   "index": 15,
+   "parentIndex": 12,
+   "depth": 11,
+   "indexInParent": 1,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 28,
+    "top": 309,
+    "right": 531,
+    "bottom": 1147
+   }
+  },
+  {
+   "index": 16,
+   "parentIndex": 11,
+   "depth": 10,
+   "indexInParent": 1,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 554,
+    "top": 309,
+    "right": 1057,
+    "bottom": 1147
+   }
+  },
+  {
+   "index": 17,
+   "parentIndex": 16,
+   "depth": 11,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/df_large_story",
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 554,
+    "top": 309,
+    "right": 1057,
+    "bottom": 1147
+   }
+  },
+  {
+   "index": 18,
+   "parentIndex": 17,
+   "depth": 12,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "javaClass",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 575,
+    "top": 1087,
+    "right": 775,
+    "bottom": 1127
+   }
+  },
+  {
+   "index": 19,
+   "parentIndex": 17,
+   "depth": 12,
+   "indexInParent": 1,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "javaClass",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 575,
+    "top": 1023,
+    "right": 826,
+    "bottom": 1087
+   }
+  },
+  {
+   "index": 20,
+   "parentIndex": 16,
+   "depth": 11,
+   "indexInParent": 1,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 554,
+    "top": 309,
+    "right": 1057,
+    "bottom": 1147
+   }
+  },
+  {
+   "index": 21,
+   "parentIndex": 11,
+   "depth": 10,
+   "indexInParent": 2,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 28,
+    "top": 1175,
+    "right": 531,
+    "bottom": 2013
+   }
+  },
+  {
+   "index": 22,
+   "parentIndex": 21,
+   "depth": 11,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/df_large_story",
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 28,
+    "top": 1175,
+    "right": 531,
+    "bottom": 2013
+   }
+  },
+  {
+   "index": 23,
+   "parentIndex": 22,
+   "depth": 12,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "javaClass",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 49,
+    "top": 1953,
+    "right": 244,
+    "bottom": 1993
+   }
+  },
+  {
+   "index": 24,
+   "parentIndex": 22,
+   "depth": 12,
+   "indexInParent": 1,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "javaClass",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 49,
+    "top": 1825,
+    "right": 510,
+    "bottom": 1953
+   }
+  },
+  {
+   "index": 25,
+   "parentIndex": 21,
+   "depth": 11,
+   "indexInParent": 1,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 28,
+    "top": 1175,
+    "right": 531,
+    "bottom": 2013
+   }
+  },
+  {
+   "index": 26,
+   "parentIndex": 11,
+   "depth": 10,
+   "indexInParent": 3,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 554,
+    "top": 1175,
+    "right": 1057,
+    "bottom": 2013
+   }
+  },
+  {
+   "index": 27,
+   "parentIndex": 26,
+   "depth": 11,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 554,
+    "top": 1175,
+    "right": 1057,
+    "bottom": 2013
+   }
+  },
+  {
+   "index": 28,
+   "parentIndex": 27,
+   "depth": 12,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "javaClass",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 575,
+    "top": 1822,
+    "right": 725,
+    "bottom": 1871
+   }
+  },
+  {
+   "index": 29,
+   "parentIndex": 27,
+   "depth": 12,
+   "indexInParent": 1,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "javaClass",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 575,
+    "top": 1677,
+    "right": 1057,
+    "bottom": 1822
+   }
+  },
+  {
+   "index": 30,
+   "parentIndex": 26,
+   "depth": 11,
+   "indexInParent": 1,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 554,
+    "top": 1175,
+    "right": 1057,
+    "bottom": 2013
+   }
+  },
+  {
+   "index": 31,
+   "parentIndex": 26,
+   "depth": 11,
+   "indexInParent": 2,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 554,
+    "top": 1175,
+    "right": 1057,
+    "bottom": 2013
+   }
+  },
+  {
+   "index": 32,
+   "parentIndex": 11,
+   "depth": 10,
+   "indexInParent": 4,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 28,
+    "top": 2041,
+    "right": 531,
+    "bottom": 2177
+   }
+  },
+  {
+   "index": 33,
+   "parentIndex": 32,
+   "depth": 11,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/df_large_story",
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 28,
+    "top": 2041,
+    "right": 531,
+    "bottom": 2177
+   }
+  },
+  {
+   "index": 34,
+   "parentIndex": 32,
+   "depth": 11,
+   "indexInParent": 1,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 28,
+    "top": 2041,
+    "right": 531,
+    "bottom": 2177
+   }
+  },
+  {
+   "index": 35,
+   "parentIndex": 11,
+   "depth": 10,
+   "indexInParent": 5,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 554,
+    "top": 2041,
+    "right": 1057,
+    "bottom": 2177
+   }
+  },
+  {
+   "index": 36,
+   "parentIndex": 35,
+   "depth": 11,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/df_large_story",
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 554,
+    "top": 2041,
+    "right": 1057,
+    "bottom": 2177
+   }
+  },
+  {
+   "index": 37,
+   "parentIndex": 35,
+   "depth": 11,
+   "indexInParent": 1,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 554,
+    "top": 2041,
+    "right": 1057,
+    "bottom": 2177
+   }
+  },
+  {
+   "index": 38,
+   "parentIndex": 7,
+   "depth": 8,
+   "indexInParent": 1,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 0,
+    "right": 1080,
+    "bottom": 309
+   }
+  },
+  {
+   "index": 39,
+   "parentIndex": 7,
+   "depth": 8,
+   "indexInParent": 2,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 309,
+    "right": 1080,
+    "bottom": 314
+   }
+  },
+  {
+   "index": 40,
+   "parentIndex": 4,
+   "depth": 5,
+   "indexInParent": 1,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 0,
+    "right": 1080,
+    "bottom": 2424
+   }
+  },
+  {
+   "index": 41,
+   "parentIndex": 40,
+   "depth": 6,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 0,
+    "right": 1080,
+    "bottom": 2424
+   }
+  },
+  {
+   "index": 42,
+   "parentIndex": 41,
+   "depth": 7,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/opera_viewer",
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 0,
+    "right": 1080,
+    "bottom": 2424
+   }
+  },
+  {
+   "index": 43,
+   "parentIndex": 42,
+   "depth": 8,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 0,
+    "right": 1080,
+    "bottom": 2424
+   }
+  },
+  {
+   "index": 44,
+   "parentIndex": 43,
+   "depth": 9,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 45,
+   "parentIndex": 44,
+   "depth": 10,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 46,
+   "parentIndex": 45,
+   "depth": 11,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 47,
+   "parentIndex": 44,
+   "depth": 10,
+   "indexInParent": 1,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 48,
+   "parentIndex": 44,
+   "depth": 10,
+   "indexInParent": 2,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 49,
+   "parentIndex": 44,
+   "depth": 10,
+   "indexInParent": 3,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 50,
+   "parentIndex": 49,
+   "depth": 11,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 51,
+   "parentIndex": 44,
+   "depth": 10,
+   "indexInParent": 4,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": "[scrubbed]",
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 52,
+   "parentIndex": 51,
+   "depth": 11,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 53,
+   "parentIndex": 52,
+   "depth": 12,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 54,
+   "parentIndex": 51,
+   "depth": 11,
+   "indexInParent": 1,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 55,
+   "parentIndex": 54,
+   "depth": 12,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 56,
+   "parentIndex": 55,
+   "depth": 13,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.view.ViewGroup",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 57,
+   "parentIndex": 56,
+   "depth": 14,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/base_image_layer_container",
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 394,
+    "right": 1080,
+    "bottom": 1906
+   }
+  },
+  {
+   "index": 58,
+   "parentIndex": 57,
+   "depth": 15,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 394,
+    "right": 1080,
+    "bottom": 1906
+   }
+  },
+  {
+   "index": 59,
+   "parentIndex": 58,
+   "depth": 16,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.ImageView",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 394,
+    "right": 1080,
+    "bottom": 1906
+   }
+  },
+  {
+   "index": 60,
+   "parentIndex": 51,
+   "depth": 11,
+   "indexInParent": 2,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 61,
+   "parentIndex": 60,
+   "depth": 12,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 62,
+   "parentIndex": 61,
+   "depth": 13,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2148
+   }
+  },
+  {
+   "index": 63,
+   "parentIndex": 62,
+   "depth": 14,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 16,
+    "top": 152,
+    "right": 1064,
+    "bottom": 184
+   }
+  },
+  {
+   "index": 64,
+   "parentIndex": 61,
+   "depth": 13,
+   "indexInParent": 1,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 415
+   }
+  },
+  {
+   "index": 65,
+   "parentIndex": 51,
+   "depth": 11,
+   "indexInParent": 3,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 66,
+   "parentIndex": 65,
+   "depth": 12,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 67,
+   "parentIndex": 66,
+   "depth": 13,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.view.ViewGroup",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2148
+   }
+  },
+  {
+   "index": 68,
+   "parentIndex": 67,
+   "depth": 14,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 16,
+    "top": 178,
+    "right": 1064,
+    "bottom": 271
+   }
+  },
+  {
+   "index": 69,
+   "parentIndex": 68,
+   "depth": 15,
+   "indexInParent": 0,
+   "viewId": "chrome_profile_image_icon",
+   "contentDescription": null,
+   "className": "android.widget.ImageView",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 16,
+    "top": 178,
+    "right": 105,
+    "bottom": 267
+   }
+  },
+  {
+   "index": 70,
+   "parentIndex": 68,
+   "depth": 15,
+   "indexInParent": 1,
+   "viewId": "chrome_title",
+   "contentDescription": "[scrubbed]",
+   "className": "android.widget.TextView",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 131,
+    "top": 178,
+    "right": 316,
+    "bottom": 228
+   }
+  },
+  {
+   "index": 71,
+   "parentIndex": 68,
+   "depth": 15,
+   "indexInParent": 2,
+   "viewId": "chrome_subtitle",
+   "contentDescription": "[scrubbed]",
+   "className": "android.widget.TextView",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 131,
+    "top": 227,
+    "right": 269,
+    "bottom": 270
+   }
+  },
+  {
+   "index": 72,
+   "parentIndex": 68,
+   "depth": 15,
+   "indexInParent": 3,
+   "viewId": "context_chrome_header/chrome_subscribe_button",
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 882,
+    "top": 180,
+    "right": 969,
+    "bottom": 267
+   }
+  },
+  {
+   "index": 73,
+   "parentIndex": 68,
+   "depth": 15,
+   "indexInParent": 4,
+   "viewId": "chrome_action_menu",
+   "contentDescription": null,
+   "className": "android.widget.ImageView",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 976,
+    "top": 180,
+    "right": 1063,
+    "bottom": 267
+   }
+  },
+  {
+   "index": 74,
+   "parentIndex": 66,
+   "depth": 13,
+   "indexInParent": 1,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 1888,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 75,
+   "parentIndex": 74,
+   "depth": 14,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.LinearLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 2148,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 76,
+   "parentIndex": 75,
+   "depth": 15,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.LinearLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 2198,
+    "right": 1080,
+    "bottom": 2324
+   }
+  },
+  {
+   "index": 77,
+   "parentIndex": 76,
+   "depth": 16,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.LinearLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 16,
+    "top": 2198,
+    "right": 890,
+    "bottom": 2324
+   }
+  },
+  {
+   "index": 78,
+   "parentIndex": 77,
+   "depth": 17,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.TextView",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 344,
+    "top": 2229,
+    "right": 562,
+    "bottom": 2292
+   }
+  },
+  {
+   "index": 79,
+   "parentIndex": 76,
+   "depth": 16,
+   "indexInParent": 1,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": "[scrubbed]",
+   "className": "android.view.ViewGroup",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 906,
+    "top": 2198,
+    "right": 1064,
+    "bottom": 2324
+   }
+  },
+  {
+   "index": 80,
+   "parentIndex": 79,
+   "depth": 17,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.ImageView",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 956,
+    "top": 2232,
+    "right": 1014,
+    "bottom": 2290
+   }
+  },
+  {
+   "index": 81,
+   "parentIndex": 44,
+   "depth": 10,
+   "indexInParent": 5,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 82,
+   "parentIndex": 42,
+   "depth": 8,
+   "indexInParent": 1,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 0,
+    "right": 1080,
+    "bottom": 152
+   }
+  },
+  {
+   "index": 83,
+   "parentIndex": 4,
+   "depth": 5,
+   "indexInParent": 2,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 0,
+    "right": 1080,
+    "bottom": 2424
+   }
+  },
+  {
+   "index": 84,
+   "parentIndex": 83,
+   "depth": 6,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": true,
+   "bounds": {
+    "left": 0,
+    "top": 2177,
+    "right": 1080,
+    "bottom": 2424
+   }
+  },
+  {
+   "index": 85,
+   "parentIndex": 84,
+   "depth": 7,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 2198,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 86,
+   "parentIndex": 85,
+   "depth": 8,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.LinearLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 2198,
+    "right": 1080,
+    "bottom": 2361
+   }
+  },
+  {
+   "index": 87,
+   "parentIndex": 86,
+   "depth": 9,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/ngs_map_icon_container",
+   "contentDescription": "[scrubbed]",
+   "className": "android.view.ViewGroup",
+   "isSelected": false,
+   "isClickable": true,
+   "bounds": {
+    "left": 0,
+    "top": 2198,
+    "right": 241,
+    "bottom": 2356
+   }
+  },
+  {
+   "index": 88,
+   "parentIndex": 87,
+   "depth": 10,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 100,
+    "top": 2256,
+    "right": 184,
+    "bottom": 2340
+   }
+  },
+  {
+   "index": 89,
+   "parentIndex": 86,
+   "depth": 9,
+   "indexInParent": 1,
+   "viewId": "com.snapchat.android:id/ngs_chat_icon_container",
+   "contentDescription": "[scrubbed]",
+   "className": "android.view.ViewGroup",
+   "isSelected": false,
+   "isClickable": true,
+   "bounds": {
+    "left": 241,
+    "top": 2198,
+    "right": 440,
+    "bottom": 2356
+   }
+  },
+  {
+   "index": 90,
+   "parentIndex": 89,
+   "depth": 10,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 299,
+    "top": 2256,
+    "right": 383,
+    "bottom": 2340
+   }
+  },
+  {
+   "index": 91,
+   "parentIndex": 89,
+   "depth": 10,
+   "indexInParent": 1,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 346,
+    "top": 2261,
+    "right": 388,
+    "bottom": 2303
+   }
+  },
+  {
+   "index": 92,
+   "parentIndex": 91,
+   "depth": 11,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.ImageView",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 346,
+    "top": 2261,
+    "right": 388,
+    "bottom": 2303
+   }
+  },
+  {
+   "index": 93,
+   "parentIndex": 91,
+   "depth": 11,
+   "indexInParent": 1,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 357,
+    "top": 2262,
+    "right": 376,
+    "bottom": 2302
+   }
+  },
+  {
+   "index": 94,
+   "parentIndex": 93,
+   "depth": 12,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "javaClass",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 357,
+    "top": 2262,
+    "right": 376,
+    "bottom": 2302
+   }
+  },
+  {
+   "index": 95,
+   "parentIndex": 86,
+   "depth": 9,
+   "indexInParent": 2,
+   "viewId": "com.snapchat.android:id/ngs_camera_icon_container",
+   "contentDescription": "[scrubbed]",
+   "className": "android.view.ViewGroup",
+   "isSelected": false,
+   "isClickable": true,
+   "bounds": {
+    "left": 440,
+    "top": 2198,
+    "right": 639,
+    "bottom": 2356
+   }
+  },
+  {
+   "index": 96,
+   "parentIndex": 95,
+   "depth": 10,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": "[scrubbed]",
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 498,
+    "top": 2256,
+    "right": 582,
+    "bottom": 2340
+   }
+  },
+  {
+   "index": 97,
+   "parentIndex": 86,
+   "depth": 9,
+   "indexInParent": 3,
+   "viewId": "com.snapchat.android:id/ngs_community_icon_container",
+   "contentDescription": "[scrubbed]",
+   "className": "android.view.ViewGroup",
+   "isSelected": false,
+   "isClickable": true,
+   "bounds": {
+    "left": 639,
+    "top": 2198,
+    "right": 838,
+    "bottom": 2356
+   }
+  },
+  {
+   "index": 98,
+   "parentIndex": 97,
+   "depth": 10,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 697,
+    "top": 2256,
+    "right": 781,
+    "bottom": 2340
+   }
+  },
+  {
+   "index": 99,
+   "parentIndex": 86,
+   "depth": 9,
+   "indexInParent": 4,
+   "viewId": "com.snapchat.android:id/ngs_spotlight_icon_container",
+   "contentDescription": "[scrubbed]",
+   "className": "android.view.ViewGroup",
+   "isSelected": false,
+   "isClickable": true,
+   "bounds": {
+    "left": 838,
+    "top": 2198,
+    "right": 1079,
+    "bottom": 2356
+   }
+  },
+  {
+   "index": 100,
+   "parentIndex": 99,
+   "depth": 10,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 896,
+    "top": 2256,
+    "right": 980,
+    "bottom": 2340
+   }
+  },
+  {
+   "index": 101,
+   "parentIndex": 99,
+   "depth": 10,
+   "indexInParent": 1,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 943,
+    "top": 2256,
+    "right": 980,
+    "bottom": 2293
+   }
+  },
+  {
+   "index": 102,
+   "parentIndex": 101,
+   "depth": 11,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.ImageView",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 943,
+    "top": 2256,
+    "right": 980,
+    "bottom": 2293
+   }
+  },
+  {
+   "index": 103,
+   "parentIndex": 85,
+   "depth": 8,
+   "indexInParent": 1,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 42,
+    "top": 2225,
+    "right": 1038,
+    "bottom": 2356
+   }
+  },
+  {
+   "index": 104,
+   "parentIndex": 4,
+   "depth": 5,
+   "indexInParent": 3,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2424
+   }
+  },
+  {
+   "index": 105,
+   "parentIndex": 104,
+   "depth": 6,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2424
+   }
+  },
+  {
+   "index": 106,
+   "parentIndex": 105,
+   "depth": 7,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": true,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 139,
+    "bottom": 294
+   }
+  },
+  {
+   "index": 107,
+   "parentIndex": 106,
+   "depth": 8,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 21,
+    "top": 168,
+    "right": 126,
+    "bottom": 273
+   }
+  },
+  {
+   "index": 108,
+   "parentIndex": 106,
+   "depth": 8,
+   "indexInParent": 1,
+   "viewId": "com.snapchat.android:id/neon_header_avatar",
+   "contentDescription": "[scrubbed]",
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 26,
+    "top": 173,
+    "right": 121,
+    "bottom": 268
+   }
+  },
+  {
+   "index": 109,
+   "parentIndex": 108,
+   "depth": 9,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.ImageView",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 26,
+    "top": 175,
+    "right": 121,
+    "bottom": 268
+   }
+  },
+  {
+   "index": 110,
+   "parentIndex": 106,
+   "depth": 8,
+   "indexInParent": 2,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 95,
+    "top": 160,
+    "right": 124,
+    "bottom": 202
+   }
+  },
+  {
+   "index": 111,
+   "parentIndex": 110,
+   "depth": 9,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.ImageView",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 95,
+    "top": 166,
+    "right": 124,
+    "bottom": 195
+   }
+  },
+  {
+   "index": 112,
+   "parentIndex": 105,
+   "depth": 7,
+   "indexInParent": 1,
+   "viewId": "com.snapchat.android:id/hova_header_search_icon",
+   "contentDescription": "[scrubbed]",
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": true,
+   "bounds": {
+    "left": 152,
+    "top": 168,
+    "right": 257,
+    "bottom": 273
+   }
+  },
+  {
+   "index": 113,
+   "parentIndex": 112,
+   "depth": 8,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.ImageView",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 165,
+    "top": 181,
+    "right": 244,
+    "bottom": 260
+   }
+  },
+  {
+   "index": 114,
+   "parentIndex": 105,
+   "depth": 7,
+   "indexInParent": 2,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.TextView",
+   "isSelected": false,
+   "isClickable": true,
+   "bounds": {
+    "left": 457,
+    "top": 152,
+    "right": 623,
+    "bottom": 294
+   }
+  },
+  {
+   "index": 115,
+   "parentIndex": 105,
+   "depth": 7,
+   "indexInParent": 3,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": true,
+   "bounds": {
+    "left": 951,
+    "top": 168,
+    "right": 1056,
+    "bottom": 273
+   }
+  },
+  {
+   "index": 116,
+   "parentIndex": 115,
+   "depth": 8,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 951,
+    "top": 168,
+    "right": 1056,
+    "bottom": 273
+   }
+  },
+  {
+   "index": 117,
+   "parentIndex": 115,
+   "depth": 8,
+   "indexInParent": 1,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.ImageView",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 964,
+    "top": 181,
+    "right": 1043,
+    "bottom": 260
+   }
+  },
+  {
+   "index": 118,
+   "parentIndex": 105,
+   "depth": 7,
+   "indexInParent": 4,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": true,
+   "bounds": {
+    "left": 823,
+    "top": 168,
+    "right": 928,
+    "bottom": 273
+   }
+  },
+  {
+   "index": 119,
+   "parentIndex": 118,
+   "depth": 8,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 823,
+    "top": 168,
+    "right": 928,
+    "bottom": 273
+   }
+  },
+  {
+   "index": 120,
+   "parentIndex": 118,
+   "depth": 8,
+   "indexInParent": 1,
+   "viewId": "com.snapchat.android:id/neon_add_friend_button_container",
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 836,
+    "top": 178,
+    "right": 928,
+    "bottom": 257
+   }
+  },
+  {
+   "index": 121,
+   "parentIndex": 120,
+   "depth": 9,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": "[scrubbed]",
+   "className": "android.widget.ImageView",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 836,
+    "top": 178,
+    "right": 920,
+    "bottom": 257
+   }
+  },
+  {
+   "index": 122,
+   "parentIndex": 105,
+   "depth": 7,
+   "indexInParent": 5,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": true,
+   "bounds": {
+    "left": 694,
+    "top": 168,
+    "right": 799,
+    "bottom": 273
+   }
+  },
+  {
+   "index": 123,
+   "parentIndex": 122,
+   "depth": 8,
+   "indexInParent": 0,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 694,
+    "top": 168,
+    "right": 799,
+    "bottom": 273
+   }
+  },
+  {
+   "index": 124,
+   "parentIndex": 122,
+   "depth": 8,
+   "indexInParent": 1,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.widget.FrameLayout",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 694,
+    "top": 168,
+    "right": 799,
+    "bottom": 273
+   }
+  },
+  {
+   "index": 125,
+   "parentIndex": 124,
+   "depth": 9,
+   "indexInParent": 0,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": "[scrubbed]",
+   "className": "android.widget.ImageView",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 715,
+    "top": 189,
+    "right": 778,
+    "bottom": 252
+   }
+  },
+  {
+   "index": 126,
+   "parentIndex": 3,
+   "depth": 4,
+   "indexInParent": 1,
+   "viewId": "com.snapchat.android:id/0_resource_name_obfuscated",
+   "contentDescription": null,
+   "className": "android.view.SurfaceView",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 152,
+    "right": 1080,
+    "bottom": 2072
+   }
+  },
+  {
+   "index": 127,
+   "parentIndex": 3,
+   "depth": 4,
+   "indexInParent": 2,
+   "viewId": null,
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 2361,
+    "right": 1080,
+    "bottom": 2424
+   }
+  },
+  {
+   "index": 128,
+   "parentIndex": 0,
+   "depth": 1,
+   "indexInParent": 1,
+   "viewId": "android:id/statusBarBackground",
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 0,
+    "right": 1080,
+    "bottom": 152
+   }
+  },
+  {
+   "index": 129,
+   "parentIndex": 0,
+   "depth": 1,
+   "indexInParent": 2,
+   "viewId": "android:id/navigationBarBackground",
+   "contentDescription": null,
+   "className": "android.view.View",
+   "isSelected": false,
+   "isClickable": false,
+   "bounds": {
+    "left": 0,
+    "top": 2361,
+    "right": 1080,
+    "bottom": 2424
+   }
+  }
+ ]
+}
