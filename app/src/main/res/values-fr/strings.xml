@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Digue</string>
+    <string name="tagline">Les fils de vidéos courtes, retenus</string>
+    <string name="accessibility_service_description">Détecte les fils de vidéos courtes — Reels et Explore sur Instagram, Shorts sur YouTube, Spotlight et Discover sur Snapchat — et revient en arrière. Ne lit aucun texte et n\'envoie rien sur le réseau.</string>
+    <string name="open_accessibility_settings">Ouvrir les réglages d\'accessibilité</string>
+    <string name="start_capture">Capturer 60 secondes</string>
+    <string name="restart_capture">Relancer une capture</string>
+    <string name="capture_waiting">En attente — ouvre une application surveillée, le chronomètre démarre là-bas.</string>
+    <string name="capture_missed">Aucun instantané : aucune application surveillée n\'est passée au premier plan.</string>
+    <string name="capture_needs_service">Le service est éteint : la capture ne peut pas démarrer.</string>
+    <string name="captures_personal_data">Ils contiennent de vraies données personnelles. Récupère-les avant de les effacer.</string>
+    <string name="delete_captures">Supprimer les captures</string>
+    <string name="capture_hint">Appuie, puis ouvre une application dont une surface est allumée et navigue dedans. Seules ces applications-là sont visibles du service. Un instantané est enregistré toutes les 3 secondes. Les instantanés des captures précédentes sont effacés au démarrage : ils contiennent de vraies données personnelles, récupère-les avant d\'en relancer une.</string>
+    <string name="service_on">Service actif</string>
+    <string name="service_off">Service inactif</string>
+    <string name="service_off_detail">Rien n\'est bloqué tant que le service est éteint.</string>
+    <string name="battery_hint">Si le service se désactive tout seul, exempte l\'app de l\'optimisation de batterie dans les réglages Android.</string>
+    <string name="today">Aujourd\'hui</string>
+    <string name="reels">Reels</string>
+    <string name="explore">Explore</string>
+    <string name="shorts">Shorts</string>
+    <string name="spotlight">Spotlight</string>
+    <string name="discover">Discover</string>
+    <string name="block_reels">Bloquer les Reels</string>
+    <string name="block_explore">Bloquer Explore</string>
+    <string name="history_title">14 derniers jours</string>
+    <string name="history_total">%1$d au total</string>
+    <string name="maintenance_title">Maintenance</string>
+    <string name="degraded_warning">Détection dégradée : une des applications surveillées a probablement changé. Vérifie rules.json.</string>
+    <string name="rules_load_warning">Règles illisibles : l\'app utilise les règles par défaut. Corrige rules.json, puis recharge.</string>
+    <string name="rules_load_detail">Détail technique : %1$s</string>
+    <string name="reload_rules">Recharger les règles</string>
+    <string name="app_instagram">Instagram</string>
+    <string name="app_youtube">YouTube</string>
+    <string name="app_snapchat">Snapchat</string>
+    <string name="block_shorts">Bloquer les Shorts</string>
+    <string name="block_spotlight">Bloquer Spotlight</string>
+    <string name="block_discover">Bloquer les vidéos Discover</string>
+    <string name="today_blocks">retenus</string>
+    <string name="today_watched">Regardé %1$s dans un pass</string>
+    <string name="chart_blocks">Retenus</string>
+    <string name="chart_watched">Regardé</string>
+    <string name="history_watched">%1$s regardées sur la période</string>
+    <string name="declared_packages">Applications observées : %1$s</string>
+    <string name="allowance_title">Quota</string>
+    <string name="allowance_off">Quota éteint : les surfaces cochées sont bloquées sans exception.</string>
+    <string name="allowance_remaining">%1$s restantes sur %2$s aujourd\'hui</string>
+    <string name="allowance_window">Ouvrable de %1$s à %2$s</string>
+    <string name="allowance_outside_window">Hors plage — ouvrable de %1$s à %2$s</string>
+    <string name="allowance_exhausted">Quota épuisé pour aujourd\'hui</string>
+    <string name="allowance_running">Pass ouvert — %1$s</string>
+    <string name="allowance_open">Ouvrir</string>
+    <string name="allowance_close">Fermer maintenant</string>
+    <string name="allowance_needs_service">Le service est inactif : un pass ne changerait rien.</string>
+    <string name="allowance_pending">Nouveau réglage actif dans %1$s</string>
+    <string name="allowance_pending_detail">Les réglages ci-dessous restent ceux en vigueur. Un nouveau choix remplace celui en attente au lieu de s\'y ajouter.</string>
+    <string name="allowance_cancel_pending">Annuler</string>
+    <string name="allowance_lock_hint">Tout assouplissement attend %1$s. Un resserrement s\'applique tout de suite.</string>
+    <string name="allowance_unlocked">Aucun délai : les réglages se changent librement. Choisir un délai verrouille tout assouplissement à venir — et ce choix-là est immédiat.</string>
+    <string name="allowance_enable">Activer le quota</string>
+    <string name="allowance_quota_label">Durée par jour</string>
+    <string name="allowance_window_label">Plage horaire</string>
+    <string name="allowance_cooldown_label">Délai avant tout assouplissement</string>
+    <string name="allowance_cooldown_none">aucun</string>
+    <string name="allowance_window_from">de %1$s</string>
+    <string name="allowance_window_to">à %1$s</string>
+    <string name="allowance_earlier">Reculer de quinze minutes</string>
+    <string name="allowance_later">Avancer de quinze minutes</string>
+
+    <!-- French counts 0 and 1 as "one"; "fois" simply does not inflect. -->
+    <plurals name="capture_running">
+        <item quantity="one">Capture en cours — %1$d s restantes, %2$d instantané</item>
+        <item quantity="other">Capture en cours — %1$d s restantes, %2$d instantanés</item>
+    </plurals>
+    <plurals name="capture_done">
+        <item quantity="one">Terminé : %1$d instantané enregistré.</item>
+        <item quantity="other">Terminé : %1$d instantanés enregistrés.</item>
+    </plurals>
+    <plurals name="captures_on_disk">
+        <item quantity="one">%1$d instantané sur le disque — %2$s</item>
+        <item quantity="other">%1$d instantanés sur le disque — %2$s</item>
+    </plurals>
+    <plurals name="today_total">
+        <item quantity="one">Retenu %1$d fois</item>
+        <item quantity="other">Retenu %1$d fois</item>
+    </plurals>
+</resources>

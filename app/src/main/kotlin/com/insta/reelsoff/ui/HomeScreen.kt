@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -39,7 +40,6 @@ import com.insta.detection.Surface
 import com.insta.reelsoff.R
 import com.insta.reelsoff.data.DailyCount
 import com.insta.reelsoff.service.AllowanceSettings
-import java.util.Locale
 
 private val PAGE_MARGIN = 28.dp
 
@@ -213,7 +213,7 @@ private fun Wordmark() {
         Spacer(Modifier.width(14.dp))
         Column {
             Text(
-                text = stringResource(R.string.app_name).uppercase(Locale.FRENCH),
+                text = stringResource(R.string.app_name).uppercase(currentLocale()),
                 style = MaterialTheme.typography.titleMedium.copy(letterSpacing = 4.sp),
                 color = Encre,
             )
@@ -246,7 +246,7 @@ internal fun Section(
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
-            text = title.uppercase(Locale.FRENCH),
+            text = title.uppercase(currentLocale()),
             style = MaterialTheme.typography.labelSmall,
             color = EncreDouce,
         )
@@ -329,7 +329,7 @@ private fun Callout(text: String, extra: @Composable (() -> Unit)? = null) {
 
 @Composable
 private fun TodayTotal(total: Int, today: DailyCount?) {
-    val accessibleTotal = stringResource(R.string.today_total, total)
+    val accessibleTotal = pluralStringResource(R.plurals.today_total, total, total)
     Column {
         Counter(
             value = total,
@@ -368,7 +368,7 @@ private fun Counter(value: Int, label: String, modifier: Modifier = Modifier) {
         )
         Spacer(Modifier.height(6.dp))
         Text(
-            text = label.uppercase(Locale.FRENCH),
+            text = label.uppercase(currentLocale()),
             style = MaterialTheme.typography.labelSmall,
             color = EncreDouce,
         )

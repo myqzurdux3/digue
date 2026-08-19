@@ -1,74 +1,101 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  The default, and therefore the fallback for every locale that has no folder of
+  its own. English rather than French for that reason alone: a phone set to
+  Spanish gets this file, and English is the likelier second language.
+  French lives in values-fr/.
+-->
 <resources>
     <string name="app_name">Digue</string>
-    <string name="tagline">Les fils de vidéos courtes, retenus</string>
-    <string name="accessibility_service_description">Détecte les fils de vidéos courtes — Reels et Explore sur Instagram, Shorts sur YouTube, Spotlight et Discover sur Snapchat — et revient en arrière. Ne lit aucun texte et n\'envoie rien sur le réseau.</string>
-    <string name="open_accessibility_settings">Ouvrir les réglages d\'accessibilité</string>
-    <string name="start_capture">Capturer 60 secondes</string>
-    <string name="restart_capture">Relancer une capture</string>
-    <string name="capture_waiting">En attente — ouvre une application surveillée, le chronomètre démarre là-bas.</string>
-    <string name="capture_running">Capture en cours — %1$d s restantes, %2$d instantanés</string>
-    <string name="capture_done">Terminé : %1$d instantanés enregistrés.</string>
-    <string name="capture_missed">Aucun instantané : aucune application surveillée n\'est passée au premier plan.</string>
-    <string name="capture_needs_service">Le service est éteint : la capture ne peut pas démarrer.</string>
-    <string name="captures_on_disk">%1$d instantané(s) sur le disque — %2$s</string>
-    <string name="captures_personal_data">Ils contiennent de vraies données personnelles. Récupère-les avant de les effacer.</string>
-    <string name="delete_captures">Supprimer les captures</string>
-    <string name="capture_hint">Appuie, puis ouvre une application dont une surface est allumée et navigue dedans. Seules ces applications-là sont visibles du service. Un instantané est enregistré toutes les 3 secondes. Les instantanés des captures précédentes sont effacés au démarrage : ils contiennent de vraies données personnelles, récupère-les avant d\'en relancer une.</string>
-    <string name="service_on">Service actif</string>
-    <string name="service_off">Service inactif</string>
-    <string name="service_off_detail">Rien n\'est bloqué tant que le service est éteint.</string>
-    <string name="battery_hint">Si le service se désactive tout seul, exempte l\'app de l\'optimisation de batterie dans les réglages Android.</string>
-    <string name="today">Aujourd\'hui</string>
+    <string name="tagline">Short-video feeds, held back</string>
+    <string name="accessibility_service_description">Spots short-video feeds — Reels and Explore on Instagram, Shorts on YouTube, Spotlight and Discover on Snapchat — and steps back out. Never reads any text, never sends anything over the network.</string>
+    <string name="open_accessibility_settings">Open accessibility settings</string>
+    <string name="start_capture">Capture 60 seconds</string>
+    <string name="restart_capture">Capture again</string>
+    <string name="capture_waiting">Waiting — open a watched app, the timer starts over there.</string>
+    <string name="capture_missed">No snapshot: no watched app came to the foreground.</string>
+    <string name="capture_needs_service">The service is off: the capture cannot start.</string>
+    <string name="captures_personal_data">They hold real personal data. Fetch them before you wipe them.</string>
+    <string name="delete_captures">Delete the captures</string>
+    <string name="capture_hint">Tap, then open an app with one of its surfaces switched on and move around in it. Only those apps are visible to the service. A snapshot is saved every 3 seconds. Snapshots from earlier captures are wiped at start: they hold real personal data, so fetch them before starting another.</string>
+    <string name="service_on">Service on</string>
+    <string name="service_off">Service off</string>
+    <string name="service_off_detail">Nothing is blocked while the service is off.</string>
+    <string name="battery_hint">If the service switches itself off, exempt the app from battery optimisation in the Android settings.</string>
+    <string name="today">Today</string>
     <string name="reels">Reels</string>
     <string name="explore">Explore</string>
     <string name="shorts">Shorts</string>
     <string name="spotlight">Spotlight</string>
     <string name="discover">Discover</string>
-    <string name="block_reels">Bloquer les Reels</string>
-    <string name="block_explore">Bloquer Explore</string>
-    <string name="history_title">14 derniers jours</string>
-    <string name="history_total">%1$d au total</string>
+    <string name="block_reels">Block Reels</string>
+    <string name="block_explore">Block Explore</string>
+    <string name="history_title">Last 14 days</string>
+    <string name="history_total">%1$d in total</string>
     <string name="maintenance_title">Maintenance</string>
-    <string name="degraded_warning">Détection dégradée : une des applications surveillées a probablement changé. Vérifie rules.json.</string>
-    <string name="rules_load_warning">Règles illisibles : l\'app utilise les règles par défaut. Corrige rules.json, puis recharge.</string>
-    <string name="rules_load_detail">Détail technique : %1$s</string>
-    <string name="reload_rules">Recharger les règles</string>
+    <string name="degraded_warning">Detection is degraded: one of the watched apps has probably changed. Check rules.json.</string>
+    <string name="rules_load_warning">Unreadable rules: the app is running on the built-in ones. Fix rules.json, then reload.</string>
+    <string name="rules_load_detail">Technical detail: %1$s</string>
+    <string name="reload_rules">Reload the rules</string>
     <string name="app_instagram">Instagram</string>
     <string name="app_youtube">YouTube</string>
     <string name="app_snapchat">Snapchat</string>
-    <string name="block_shorts">Bloquer les Shorts</string>
-    <string name="block_spotlight">Bloquer Spotlight</string>
-    <string name="block_discover">Bloquer les vidéos Discover</string>
-    <string name="today_blocks">retenus</string>
-    <string name="today_total">Retenu %1$d fois</string>
-    <string name="today_watched">Regardé %1$s dans un pass</string>
-    <string name="chart_blocks">Retenus</string>
-    <string name="chart_watched">Regardé</string>
-    <string name="history_watched">%1$s regardées sur la période</string>
-    <string name="declared_packages">Applications observées : %1$s</string>
-    <string name="allowance_title">Quota</string>
-    <string name="allowance_off">Quota éteint : les surfaces cochées sont bloquées sans exception.</string>
-    <string name="allowance_remaining">%1$s restantes sur %2$s aujourd\'hui</string>
-    <string name="allowance_window">Ouvrable de %1$s à %2$s</string>
-    <string name="allowance_outside_window">Hors plage — ouvrable de %1$s à %2$s</string>
-    <string name="allowance_exhausted">Quota épuisé pour aujourd\'hui</string>
-    <string name="allowance_running">Pass ouvert — %1$s</string>
-    <string name="allowance_open">Ouvrir</string>
-    <string name="allowance_close">Fermer maintenant</string>
-    <string name="allowance_needs_service">Le service est inactif : un pass ne changerait rien.</string>
-    <string name="allowance_pending">Nouveau réglage actif dans %1$s</string>
-    <string name="allowance_pending_detail">Les réglages ci-dessous restent ceux en vigueur. Un nouveau choix remplace celui en attente au lieu de s\'y ajouter.</string>
-    <string name="allowance_cancel_pending">Annuler</string>
-    <string name="allowance_lock_hint">Tout assouplissement attend %1$s. Un resserrement s\'applique tout de suite.</string>
-    <string name="allowance_unlocked">Aucun délai : les réglages se changent librement. Choisir un délai verrouille tout assouplissement à venir — et ce choix-là est immédiat.</string>
-    <string name="allowance_enable">Activer le quota</string>
-    <string name="allowance_quota_label">Durée par jour</string>
-    <string name="allowance_window_label">Plage horaire</string>
-    <string name="allowance_cooldown_label">Délai avant tout assouplissement</string>
-    <string name="allowance_cooldown_none">aucun</string>
-    <string name="allowance_window_from">de %1$s</string>
-    <string name="allowance_window_to">à %1$s</string>
-    <string name="allowance_earlier">Reculer de quinze minutes</string>
-    <string name="allowance_later">Avancer de quinze minutes</string>
+    <string name="block_shorts">Block Shorts</string>
+    <string name="block_spotlight">Block Spotlight</string>
+    <string name="block_discover">Block Discover videos</string>
+    <string name="today_blocks">held back</string>
+    <string name="today_watched">Watched %1$s on a pass</string>
+    <string name="chart_blocks">Held back</string>
+    <string name="chart_watched">Watched</string>
+    <string name="history_watched">%1$s watched over the period</string>
+    <string name="declared_packages">Apps observed: %1$s</string>
+    <string name="allowance_title">Allowance</string>
+    <string name="allowance_off">Allowance off: the ticked surfaces are blocked with no way round.</string>
+    <string name="allowance_remaining">%1$s left of %2$s today</string>
+    <string name="allowance_window">Can be opened from %1$s to %2$s</string>
+    <string name="allowance_outside_window">Outside the window — can be opened from %1$s to %2$s</string>
+    <string name="allowance_exhausted">Allowance spent for today</string>
+    <string name="allowance_running">Pass open — %1$s</string>
+    <string name="allowance_open">Open</string>
+    <string name="allowance_close">Close now</string>
+    <string name="allowance_needs_service">The service is off: a pass would change nothing.</string>
+    <string name="allowance_pending">New setting takes effect in %1$s</string>
+    <string name="allowance_pending_detail">The settings below are still the ones in force. A new choice replaces the pending one instead of stacking on it.</string>
+    <string name="allowance_cancel_pending">Cancel</string>
+    <string name="allowance_lock_hint">Every loosening waits %1$s. A tightening applies at once.</string>
+    <string name="allowance_unlocked">No delay: the settings change freely. Choosing a delay locks every loosening to come — and that choice itself is immediate.</string>
+    <string name="allowance_enable">Turn the allowance on</string>
+    <string name="allowance_quota_label">Time per day</string>
+    <string name="allowance_window_label">Time window</string>
+    <string name="allowance_cooldown_label">Delay before any loosening</string>
+    <string name="allowance_cooldown_none">none</string>
+    <string name="allowance_window_from">from %1$s</string>
+    <string name="allowance_window_to">to %1$s</string>
+    <string name="allowance_earlier">Fifteen minutes earlier</string>
+    <string name="allowance_later">Fifteen minutes later</string>
+
+    <!--
+      Counted quantities, which English inflects and French does not: "1 snapshot"
+      against "1 instantané", but "Retenu 1 fois" like "Retenu 3 fois". The four
+      live here rather than as plain strings so the English build never reads
+      "Held back 1 times". The quantity is the count of things, not necessarily
+      the first argument: capture_running is picked by its snapshots while its
+      seconds sit in %1$d.
+    -->
+    <plurals name="capture_running">
+        <item quantity="one">Capturing — %1$d s left, %2$d snapshot</item>
+        <item quantity="other">Capturing — %1$d s left, %2$d snapshots</item>
+    </plurals>
+    <plurals name="capture_done">
+        <item quantity="one">Done: %1$d snapshot saved.</item>
+        <item quantity="other">Done: %1$d snapshots saved.</item>
+    </plurals>
+    <plurals name="captures_on_disk">
+        <item quantity="one">%1$d snapshot on disk — %2$s</item>
+        <item quantity="other">%1$d snapshots on disk — %2$s</item>
+    </plurals>
+    <plurals name="today_total">
+        <item quantity="one">Held back %1$d time</item>
+        <item quantity="other">Held back %1$d times</item>
+    </plurals>
 </resources>

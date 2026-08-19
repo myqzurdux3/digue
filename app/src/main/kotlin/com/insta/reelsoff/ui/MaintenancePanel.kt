@@ -13,6 +13,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.insta.reelsoff.R
@@ -115,10 +116,11 @@ private fun StoredCaptures(captures: CapturesOnDisk, visible: Boolean, onDelete:
 
     Spacer(Modifier.height(14.dp))
     Text(
-        text = stringResource(
-            R.string.captures_on_disk,
+        text = pluralStringResource(
+            R.plurals.captures_on_disk,
             captures.count,
-            formatBytes(captures.bytes),
+            captures.count,
+            formatBytes(captures.bytes, currentLocale()),
         ),
         style = MaterialTheme.typography.bodySmall,
         color = EncreDouce,
@@ -162,12 +164,16 @@ private fun CaptureControl(
     val message = when {
         !serviceEnabled -> stringResource(R.string.capture_needs_service)
         phase == CapturePhase.WAITING -> stringResource(R.string.capture_waiting)
-        phase == CapturePhase.RUNNING -> stringResource(
-            R.string.capture_running,
+        // The quantity is the snapshot count, not the countdown: it is what the
+        // inflected word refers to. The seconds are just another argument.
+        phase == CapturePhase.RUNNING -> pluralStringResource(
+            R.plurals.capture_running,
+            status.count,
             remainingSeconds(status, now),
             status.count,
         )
-        phase == CapturePhase.DONE -> stringResource(R.string.capture_done, status.count)
+        phase == CapturePhase.DONE ->
+            pluralStringResource(R.plurals.capture_done, status.count, status.count)
         phase == CapturePhase.MISSED -> stringResource(R.string.capture_missed)
         else -> stringResource(R.string.capture_hint)
     }

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!--
       Android 11+ (targetSdk 35 here) hides other apps' package info by default.
@@ -17,11 +18,18 @@
         <package android:name="com.snapchat.android" />
     </queries>
 
+    <!--
+      tools:ignore on localeConfig: the attribute lands in the per-app language
+      picker on Android 13+ and is ignored below, where the app just follows the
+      system locale. That is the intended behaviour, not an oversight.
+    -->
     <application
+        tools:ignore="UnusedAttribute"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
+        android:localeConfig="@xml/locales_config"
         android:supportsRtl="true"
         android:theme="@style/Theme.ReelsOff">
 

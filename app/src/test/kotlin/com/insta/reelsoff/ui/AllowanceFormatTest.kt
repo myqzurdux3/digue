@@ -3,6 +3,7 @@ package com.insta.reelsoff.ui
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.Locale
 
 class AllowanceFormatTest {
 
@@ -31,9 +32,9 @@ class AllowanceFormatTest {
 
     @Test
     fun `a minute of day reads as a local wall-clock time`() {
-        assertEquals("20 h 00", formatMinuteOfDay(20 * 60))
-        assertEquals("00 h 00", formatMinuteOfDay(0))
-        assertEquals("09 h 05", formatMinuteOfDay(9 * 60 + 5))
+        assertEquals("20 h 00", formatMinuteOfDay(20 * 60, Locale.FRENCH))
+        assertEquals("00 h 00", formatMinuteOfDay(0, Locale.FRENCH))
+        assertEquals("09 h 05", formatMinuteOfDay(9 * 60 + 5, Locale.FRENCH))
     }
 }
 
@@ -93,18 +94,60 @@ class AllowanceEditorsTest {
 
     @Test
     fun `a file size reads at the coarsest useful unit`() {
-        assertEquals("0 o", formatBytes(0))
-        assertEquals("999 o", formatBytes(999))
-        assertEquals("1,0 ko", formatBytes(1_000))
-        assertEquals("76,1 ko", formatBytes(76_098))
-        assertEquals("1,0 Mo", formatBytes(1_000_000))
-        assertEquals("2,4 Mo", formatBytes(2_412_345))
+        assertEquals("0 o", formatBytes(0, Locale.FRENCH))
+        assertEquals("999 o", formatBytes(999, Locale.FRENCH))
+        assertEquals("1,0 ko", formatBytes(1_000, Locale.FRENCH))
+        assertEquals("76,1 ko", formatBytes(76_098, Locale.FRENCH))
+        assertEquals("1,0 Mo", formatBytes(1_000_000, Locale.FRENCH))
+        assertEquals("2,4 Mo", formatBytes(2_412_345, Locale.FRENCH))
+    }
+
+    @Test
+    fun `a wall-clock time follows the language, French spelling out the hour`() {
+        assertEquals("20 h 00", formatMinuteOfDay(20 * 60, Locale.FRENCH))
+        assertEquals("20:00", formatMinuteOfDay(20 * 60, Locale.ENGLISH))
+        assertEquals("09:05", formatMinuteOfDay(9 * 60 + 5, Locale.US))
+    }
+
+    @Test
+    fun `a French regional variant is still French`() {
+        // Compared on the language, not the locale: fr-CA and fr-BE would fall
+        // through to English on an equality check.
+        assertEquals("20 h 00", formatMinuteOfDay(20 * 60, Locale.CANADA_FRENCH))
+    }
+
+    @Test
+    fun `an unlisted language falls back to English, as the resource folders do`() {
+        assertEquals("20:00", formatMinuteOfDay(20 * 60, Locale("es")))
+        // The unit name falls back; the decimal mark does not. Spanish writes
+        // "1,0" whatever the unit is called, and that is the right answer — the
+        // number belongs to the reader's locale, only the word is borrowed.
+        assertEquals("1,0 kB", formatBytes(1_000, Locale("es")))
+    }
+
+    @Test
+    fun `a file size carries both the unit name and the decimal mark of its language`() {
+        assertEquals("0 B", formatBytes(0, Locale.ENGLISH))
+        assertEquals("999 B", formatBytes(999, Locale.ENGLISH))
+        assertEquals("1.0 kB", formatBytes(1_000, Locale.ENGLISH))
+        assertEquals("76.1 kB", formatBytes(76_098, Locale.ENGLISH))
+        assertEquals("2.4 MB", formatBytes(2_412_345, Locale.ENGLISH))
+    }
+
+    @Test
+    fun `a duration reads the same in both languages, so it takes no locale`() {
+        // h, min and s are the same symbols either side of the Channel. This is
+        // asserted rather than assumed: the day it stops being true, the test
+        // fails and formatDuration has to grow a locale like the others.
+        assertEquals("21 h 14", formatDuration(21 * 3_600_000L + 14 * 60_000))
+        assertEquals("3 min 20 s", formatDuration(200_000))
+        assertEquals("40 s", formatDuration(40_000))
     }
 
     @Test
     fun `a negative size never shows a minus sign`() {
         // Cannot come from File.length(), but the figure sits next to a delete
         // button and "-1 o à supprimer" would read as a bug in the user's data.
-        assertEquals("0 o", formatBytes(-1))
+        assertEquals("0 o", formatBytes(-1, Locale.FRENCH))
     }
 }

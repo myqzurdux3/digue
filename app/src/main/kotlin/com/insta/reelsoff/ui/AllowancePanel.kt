@@ -53,8 +53,8 @@ fun AllowancePanel(
             Text(
                 text = stringResource(
                     if (state.insideWindow) R.string.allowance_window else R.string.allowance_outside_window,
-                    formatMinuteOfDay(state.windowStartMinutes),
-                    formatMinuteOfDay(state.windowEndMinutes),
+                    formatMinuteOfDay(state.windowStartMinutes, currentLocale()),
+                    formatMinuteOfDay(state.windowEndMinutes, currentLocale()),
                 ),
                 style = MaterialTheme.typography.bodySmall,
                 color = EncreDouce,

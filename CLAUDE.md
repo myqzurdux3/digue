@@ -15,7 +15,7 @@ retour arrière la plupart du temps, ou un appui sur un nœud précis pour Explo
 | Snapchat | `SPOTLIGHT` | `spotlight_container` |
 | Snapchat | `DISCOVER` | la colonne d'actions `context_vertical_actions/...` |
 
-**Statut au 2026-08-17.** 266 tests JVM verts et **24 tests instrumentés passés sur
+**Statut au 2026-08-19.** 276 tests JVM verts et **24 tests instrumentés passés sur
 l'appareil** — une première : ils ne compilaient plus du tout, `BlockEventDaoTest` appelant
 `dao.since(...)`, une requête retirée du DAO quand l'écran est passé aux `Flow`, et personne
 n'ayant relancé `compileDebugAndroidTestKotlin` depuis. Un `@Test` qui ne compile pas se compte
@@ -148,11 +148,46 @@ bleu-vert, filets d'un pixel à la place des cartes. Verrouillée en clair.
   `colors.xml` : il y est la moitié XML de `Theme.kt`, ce qui est sa raison d'être. Ne pas le
   balayer comme ressource morte.
 
+### Deux langues
+
+L'app est en **français et en anglais** depuis le 2026-08-19. Vérifié sur émulateur dans les
+deux sens avec `cmd locale set-app-locales`, écran complet en copie d'écran.
+
+- **`values/strings.xml` est l'anglais, `values-fr/strings.xml` le français.** Le dossier par
+  défaut est le repli de toute langue sans dossier à elle : un téléphone en espagnol tombe
+  dessus. L'anglais y est donc à sa place et le français non — c'est la seule raison de ce
+  choix, pas une hiérarchie.
+- **`res/xml/locales_config.xml` met Digue dans le sélecteur de langue par app** d'Android 13+,
+  ce qui permet de changer la langue de l'app seule. Ignoré sous l'API 33, où l'app suit la
+  langue du système. Le `tools:ignore="UnusedAttribute"` du manifeste ne masque que ça.
+- **Quatre chaînes sont des `<plurals>`** — `capture_running`, `capture_done`,
+  `captures_on_disk`, `today_total` — parce que l'anglais accorde là où le français n'accorde
+  pas : « Retenu 1 fois » est correct, « Held back 1 times » ne l'est pas. Leur quantité est le
+  **nombre de choses**, pas forcément le premier argument : `capture_running` se décide sur ses
+  instantanés alors que ses secondes occupent `%1$d`.
+- **`Format.kt` garde du texte, et c'est assumé.** Ses fonctions sont pures et testées sur JVM
+  contre leur sortie exacte ; prendre un `Context` mettrait fin à ça. Le jeu est tenu minuscule
+  exprès : `h`, `min` et `s` s'écrivent pareil dans les deux langues, donc seuls le séparateur
+  d'heure (`20 h 00` contre `20:00`) et les unités d'octets (`o/ko/Mo` contre `B/kB/MB`) y
+  figurent. Une troisième langue demande une branche dans `unitsFor` **en plus** d'un
+  `values-xx/`.
+- **Le nombre suit la langue du lecteur, le mot suit le repli.** En espagnol, `formatBytes`
+  rend `1,0 kB` : virgule espagnole, unité anglaise. C'est voulu, et un test l'affirme — la
+  première version du test attendait `1.0 kB` et c'est le test qui avait tort.
+- **`currentLocale()` lit la configuration, pas `Locale.getDefault()`**, sinon le choix « langue
+  de cette app » d'Android 13+ ne serait pas vu. Tout `uppercase()` et le nom abrégé du jour
+  dans le graphique passent par lui.
+- **`TranslationsTest` interdit la dérive** : mêmes clés des deux côtés, mêmes arguments
+  positionnels par clé, aucune valeur identique hors noms de marque, et chaque langue du
+  sélecteur a bien un dossier. Une clé oubliée d'un côté ne plante pas et ne casse pas le
+  build — elle affiche une ligne anglaise au milieu d'un écran français. Un argument qui passe
+  de `%1$s` à `%2$s` d'un seul côté, lui, plante, et seulement dans cette langue-là.
+
 ## Commandes
 
 ```bash
 ./gradlew build                                   # tout
-./gradlew :detection:test :app:testDebugUnitTest  # 266 tests JVM
+./gradlew :detection:test :app:testDebugUnitTest  # 276 tests JVM
 ./gradlew :app:installDebug                       # installe sur l'appareil
 # tests instrumentés : --tests ne marche PAS sur cette version d'AGP, utiliser :
 ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=<fqcn>
@@ -186,8 +221,9 @@ bleu-vert, filets d'un pixel à la place des cartes. Verrouillée en clair.
              ui/       MainActivity, HomeScreen, HomeViewModel, ServiceStatus, Theme,
                        CaptureProgress, SurfaceGroups, TodayBreakdown, HistoryChart,
                        MaintenancePanel, AllowanceUiState, AllowancePanel,
-                       AllowanceEditors, Format (formatDuration, formatChoice,
-                       formatMinuteOfDay)
+                       AllowanceEditors, Format (currentLocale, formatDuration,
+                       formatChoice, formatMinuteOfDay, formatBytes)
+             res/      values/ EN + repli, values-fr/ FR, xml/locales_config.xml
 ```
 
 **Le service ne s'appelle plus que par habitude `InstagramWatcherService`** — il couvre
@@ -228,7 +264,9 @@ fasse mûrir un délai.
    Android peut désactiver définitivement un service qui plante — l'utilisateur se croit alors
    protégé sans l'être. C'est le pire résultat possible, pire qu'un blocage qui ne marche pas.
 5. **Versions dans `gradle/libs.versions.toml`**, jamais de coordonnée en dur.
-6. Textes d'interface en français ; code, symboles et commits en anglais.
+6. Textes d'interface en **français et en anglais**, jamais dans le code ; code, symboles,
+   commentaires et commits en anglais. Voir « Deux langues » plus haut : `values/` est
+   l'anglais **et** le repli, `values-fr/` le français.
 
 ## Règles de détection
 

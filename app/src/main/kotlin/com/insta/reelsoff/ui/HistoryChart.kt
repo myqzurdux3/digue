@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.sp
 import com.insta.reelsoff.R
 import com.insta.reelsoff.data.DailyCount
 import com.insta.reelsoff.data.DailyWatched
-import java.util.Locale
 import java.time.format.TextStyle as JavaTextStyle
 
 private val COLUMN_GAP = 5.dp
@@ -82,7 +81,7 @@ fun HistoryChart(
 @Composable
 private fun BandLabel(text: String) {
     Text(
-        text = text.uppercase(Locale.FRENCH),
+        text = text.uppercase(currentLocale()),
         style = MaterialTheme.typography.labelSmall,
         color = EncreDouce,
     )
@@ -138,7 +137,7 @@ private fun DayLabels(history: List<DailyCount>) {
     ) {
         history.forEachIndexed { index, day ->
             Text(
-                text = day.date.dayOfWeek.getDisplayName(JavaTextStyle.NARROW, Locale.FRENCH),
+                text = day.date.dayOfWeek.getDisplayName(JavaTextStyle.NARROW, currentLocale()),
                 modifier = Modifier.weight(1f),
                 textAlign = TextAlign.Center,
                 // Letter spacing is dropped here: on a single glyph it only shifts

@@ -25,6 +25,10 @@ bouge pas.
 | Snapchat | Spotlight | oui |
 | Snapchat | Discover | oui |
 
+L'interface est en **français et en anglais**. Le français est choisi automatiquement sur un
+téléphone en français, l'anglais partout ailleurs, et Android 13+ laisse changer la langue de
+l'app seule sans toucher à celle du système.
+
 Plus un **quota quotidien** — quelques minutes par jour, ouvrables seulement dans une plage
 horaire choisie — et un **verrou** qui rend tout assouplissement lent au lieu d'instantané.
 
@@ -68,7 +72,7 @@ avant d'atterrir.
 
 ```bash
 ./gradlew build                                   # tout, y compris le lint
-./gradlew :detection:test :app:testDebugUnitTest  # 266 tests JVM
+./gradlew :detection:test :app:testDebugUnitTest  # 276 tests JVM
 ./gradlew :app:installDebug                       # installe sur un appareil branché
 ./gradlew :app:connectedDebugAndroidTest          # 24 tests instrumentés — DÉSINSTALLE l'app
 ```

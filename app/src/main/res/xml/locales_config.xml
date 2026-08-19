@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Lets Android 13+ offer Digue in the per-app language picker, so the language
+  can be changed without changing the whole phone's. Ignored below API 33, where
+  the app simply follows the system locale.
+
+  en first: it is the default resource folder, hence the fallback for every
+  locale that has no folder of its own.
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="fr" />
+</locale-config>

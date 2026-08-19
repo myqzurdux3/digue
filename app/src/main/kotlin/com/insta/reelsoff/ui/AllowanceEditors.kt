@@ -21,7 +21,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.insta.reelsoff.R
 import com.insta.reelsoff.service.AllowanceSettings
-import java.util.Locale
 
 /** Offered daily budgets. Five minutes is the default and the middle choice. */
 val QUOTA_CHOICES: List<Long> = listOf(60_000, 300_000, 600_000, 900_000, 1_800_000)
@@ -98,12 +97,12 @@ fun AllowanceEditors(
         Label(stringResource(R.string.allowance_window_label))
         Spacer(Modifier.height(8.dp))
         MinuteStepper(
-            text = stringResource(R.string.allowance_window_from, formatMinuteOfDay(state.windowStartMinutes)),
+            text = stringResource(R.string.allowance_window_from, formatMinuteOfDay(state.windowStartMinutes, currentLocale())),
             onStep = { onPropose(current.copy(windowStartMinutes = stepMinute(state.windowStartMinutes, it))) },
         )
         Spacer(Modifier.height(6.dp))
         MinuteStepper(
-            text = stringResource(R.string.allowance_window_to, formatMinuteOfDay(state.windowEndMinutes)),
+            text = stringResource(R.string.allowance_window_to, formatMinuteOfDay(state.windowEndMinutes, currentLocale())),
             onStep = { onPropose(current.copy(windowEndMinutes = stepMinute(state.windowEndMinutes, it))) },
         )
 
@@ -120,7 +119,7 @@ fun AllowanceEditors(
 @Composable
 private fun Label(text: String) {
     Text(
-        text = text.uppercase(Locale.FRENCH),
+        text = text.uppercase(currentLocale()),
         style = MaterialTheme.typography.labelSmall,
         color = EncreDouce,
     )
