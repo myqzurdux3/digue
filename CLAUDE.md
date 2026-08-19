@@ -244,6 +244,11 @@ changé entre les deux prises. Quinze mois de Compose n'ont rien déplacé visue
 - **Ce dernier, lint a tort, et c'est mesuré.** Suivre son conseil — renommer en
   `mipmap-anydpi` — fait échouer le lien des ressources : « resource mipmap/ic_launcher not
   found », les deux icônes de lanceur disparaissent. Essayé, cassé, remis. **Ne pas refaire.**
+- **La montée a été éprouvée par un blocage réel, pas seulement par le build.** Room passant de
+  2.6.1 à 2.8.4, le risque était l'ouverture de la base existante en version 2 : elle s'ouvre,
+  les 73 lignes se lisent, le graphique se dessine, rien dans logcat. Puis Instagram ouvert sur
+  l'appareil : **trois épisodes `EXPLORE`/HIGH** — la signature exacte du budget de trois appuis
+  sur la barre de recherche. La détection et la redirection marchent sur la nouvelle chaîne.
 
 ## Architecture
 
@@ -686,8 +691,20 @@ délai s'applique **sans attente** et n'arme rien ; augmenter le quota avec un d
 est **retenu** dans `pending_change` avec la bonne échéance ; « Annuler » retire l'attente
 immédiatement ; l'affichage correspond au protobuf au millième près.
 
-**Non vérifié sur appareil**, couvert seulement par les tests purs : le resserrement pendant
-qu'un changement est en attente, et la maturation réelle d'un délai.
+**Les deux derniers trous du quota ont été fermés sur l'appareil le 2026-08-19**, par
+l'interface et non par le protobuf, pour que ce soit le vrai chemin d'écriture qui soit
+éprouvé :
+
+- **Resserrement pendant qu'un changement attend.** Délai d'1 h posé, plage élargie (retenue,
+  `pending_change` armé à +1 h avec le délai **en vigueur** facturé), puis quota resserré de
+  30 à 15 min : appliqué **immédiatement**, `pending_change` **effacé**, et la plage n'avait
+  pas bougé. C'est le cas qui, laissé passer, aurait fait déferler l'assouplissement une heure
+  plus tard par-dessus le resserrement.
+- **Maturation réelle d'un délai d'une heure.** Un assouplissement armé, une heure d'attente
+  réelle — pas d'horloge avancée, les deux horloges d'accord. À l'échéance, le magasin porte
+  encore l'ancienne valeur : c'est voulu, les lecteurs dérivent l'effectif à chaque lecture.
+  L'ouverture de l'écran a écrit la valeur mûre (`quotaMillis` 900000 → 1800000) et effacé
+  l'attente.
 
 ### Le temps regardé
 
@@ -808,8 +825,8 @@ regardé quand même — c'est le chiffre que le quota existe pour faire baisser
    plutôt que de croire ce que le ViewModel dit de lui-même. Ce qui reste sans test : le reste
    de la classe, notamment `openPass`/`closePass` et la composition des `uiState`.
 5. **Non vérifié** : la persistance sur 24 h — l'utilisateur doit la constater
-   lui-même et la rapporter, aucune manipulation à faire d'ici là ; côté quota, le resserrement pendant qu'un
-   changement est en attente, et la maturation réelle d'un délai d'une heure.
+   lui-même et la rapporter, aucune manipulation à faire d'ici là. C'est le dernier point de
+   cette liste qui ne dépend que du temps qui passe.
 
 **Deux points fermés par la mesure le 2026-08-17 :**
 
