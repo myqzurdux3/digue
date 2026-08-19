@@ -15,12 +15,17 @@ retour arrière la plupart du temps, ou un appui sur un nœud précis pour Explo
 | Snapchat | `SPOTLIGHT` | `spotlight_container`, ou le cœur `favorite` du rail droit |
 | Snapchat | `DISCOVER` | la colonne d'actions `context_vertical_actions/...`, ou le bouton d'abonnement |
 
-**Statut au 2026-08-19.** 283 tests JVM verts et **24 tests instrumentés passés sur
+**Statut au 2026-08-19.** 283 tests JVM verts, arbre propre, `main` et `origin/main` au même
+point. **Les 24 tests instrumentés n'ont pas été rejoués depuis le 2026-08-17** : ils
+compilent — vérifié le 2026-08-19 par `compileDebugAndroidTestKotlin`, ce qui est le minimum et
+pas une preuve — et aucun ne touche aux chaînes traduites, mais les lancer désinstalle l'app et
+efface la base, donc la passe attend une sauvegarde et un feu vert. Leur dernier passage réel,
+le 2026-08-17, était **24 tests instrumentés passés sur
 l'appareil** — une première : ils ne compilaient plus du tout, `BlockEventDaoTest` appelant
 `dao.since(...)`, une requête retirée du DAO quand l'écran est passé aux `Flow`, et personne
 n'ayant relancé `compileDebugAndroidTestKotlin` depuis. Un `@Test` qui ne compile pas se compte
-exactement comme un `@Test` qui passe. Arbre propre. Dépôt distant : `github.com/myqzurdux3/digue`, **public depuis le
-2026-08-18**, sous licence MIT.
+exactement comme un `@Test` qui passe. Dépôt distant : `github.com/myqzurdux3/digue`, **public
+depuis le 2026-08-18**, sous licence MIT.
 
 **Ce qu'il a fallu faire pour l'ouvrir, et ce qu'il ne faut plus refaire.** Les commits
 antérieurs au 2026-08-17 portaient le numéro de série du téléphone dans `CLAUDE.md` et dans
