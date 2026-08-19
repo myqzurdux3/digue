@@ -6,6 +6,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.insta.detection.Surface
 import com.insta.reelsoff.data.SettingsStore
 import com.insta.reelsoff.service.AllowanceSettings
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -58,10 +59,14 @@ class HomeViewModelTest {
         }
         // viewModelScope dispatches on the main thread; building it anywhere else
         // leaves every launched write pending for good.
-        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+        onMainThread {
             viewModel = HomeViewModel(application)
         }
     }
+
+    /** Every ViewModel call below has to start on the main thread; say it once. */
+    private fun onMainThread(block: () -> Unit) =
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(block)
 
     /**
      * The writes are launched into `viewModelScope`, so nothing is synchronous
@@ -71,14 +76,14 @@ class HomeViewModelTest {
     private fun awaitStore(what: String, predicate: suspend () -> Boolean) = runBlocking {
         repeat(100) {
             if (predicate()) return@runBlocking
-            kotlinx.coroutines.delay(50)
+            delay(50)
         }
         throw AssertionError("timed out waiting for $what")
     }
 
     @Test
     fun aLooseningIsHeldRatherThanApplied() {
-        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+        onMainThread {
             viewModel.proposeAllowanceSettings(locked.copy(quotaMillis = 30 * 60_000))
         }
 
@@ -96,12 +101,12 @@ class HomeViewModelTest {
 
     @Test
     fun aTighteningAppliesAtOnceAndClearsWhatWasHeld() {
-        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+        onMainThread {
             viewModel.proposeAllowanceSettings(locked.copy(quotaMillis = 30 * 60_000))
         }
         awaitStore("the loosening to be armed") { store.pendingChange.first() != null }
 
-        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+        onMainThread {
             viewModel.proposeAllowanceSettings(locked.copy(quotaMillis = 5 * 60_000))
         }
 
@@ -121,7 +126,7 @@ class HomeViewModelTest {
         // The bypass this exists to close: a lock that held only the quota would
         // be worth nothing, because switching REELS off would unblock the feed
         // outright and immediately.
-        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+        onMainThread {
             viewModel.setSurfaceBlocked(Surface.REELS, false)
         }
 
@@ -137,7 +142,7 @@ class HomeViewModelTest {
 
     @Test
     fun blockingOneMoreSurfaceIsATighteningAndAppliesAtOnce() {
-        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+        onMainThread {
             viewModel.setSurfaceBlocked(Surface.SHORTS, true)
         }
 
@@ -152,12 +157,12 @@ class HomeViewModelTest {
 
     @Test
     fun cancellingDropsWhatWasHeldWithoutApplyingIt() {
-        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+        onMainThread {
             viewModel.proposeAllowanceSettings(locked.copy(quotaMillis = 30 * 60_000))
         }
         awaitStore("the loosening to be armed") { store.pendingChange.first() != null }
 
-        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+        onMainThread {
             viewModel.cancelPendingChange()
         }
 
@@ -173,7 +178,7 @@ class HomeViewModelTest {
         // scope that lets them interleave at every suspension point. Before the
         // mutex, two taps in quick succession both read the pre-change value and
         // both armed a change; the first vanished without a trace.
-        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+        onMainThread {
             viewModel.proposeAllowanceSettings(locked.copy(quotaMillis = 20 * 60_000))
             viewModel.proposeAllowanceSettings(locked.copy(quotaMillis = 30 * 60_000))
         }
