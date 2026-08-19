@@ -6,6 +6,18 @@
 
 <p align="center"><em>Les fils de vidéos courtes, retenus</em></p>
 
+<p align="center">
+  <strong>Français</strong> · <a href="README.en.md">English</a>
+</p>
+
+<p align="center">
+  <img alt="Licence MIT" src="https://img.shields.io/badge/licence-MIT-2E6F6A">
+  <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-2E6F6A">
+  <img alt="Kotlin, 100% Compose" src="https://img.shields.io/badge/Kotlin-100%25%20Compose-2E6F6A">
+  <img alt="283 tests JVM" src="https://img.shields.io/badge/tests%20JVM-283-2E6F6A">
+  <img alt="Aucun réseau" src="https://img.shields.io/badge/r%C3%A9seau-aucun-14100C">
+</p>
+
 ---
 
 App Android qui **bloque les fils de vidéos courtes dans plusieurs apps officielles**.
@@ -17,32 +29,72 @@ arrière la plupart du temps, ou un appui sur un nœud précis pour Explore.
 La marque dit la même chose en quatre rectangles : trois vagues qui montent, une digue qui ne
 bouge pas.
 
-| App | Surface | Interrupteur |
+## Cinq surfaces, cinq interrupteurs
+
+| App | Surface | Ce qui la reconnaît |
 |---|---|---|
-| Instagram | Reels | oui |
-| Instagram | Explore | oui — **redirige** vers la recherche au lieu de sortir |
-| YouTube | Shorts | oui |
-| Snapchat | Spotlight | oui |
-| Snapchat | Discover | oui |
+| Instagram | Reels | l'onglet `clips_tab`, et le lecteur `clips_viewer_view_pager` |
+| Instagram | Explore | l'onglet `search_tab` — **redirige** vers la recherche au lieu de sortir |
+| YouTube | Shorts | le conteneur `reel_player_page_container` |
+| Snapchat | Spotlight | `spotlight_container`, ou le cœur du rail droit |
+| Snapchat | Discover | la colonne d'actions verticale, ou le bouton d'abonnement |
+
+Chaque interrupteur est indépendant, et **les surfaces nouvelles arrivent éteintes**.
+
+## À quoi ça ressemble
+
+| Le quota et son verrou | Ce que l'app retient |
+|---|---|
+| <img src="docs/screenshots/quota.png" alt="Écran d'accueil : service actif, quota de 5 minutes ouvrable de 20 h à 22 h, verrou de 24 h" width="380"> | <img src="docs/screenshots/historique.png" alt="Compteur du jour, répartition par surface, et graphique des quatorze derniers jours" width="380"> |
+
+> Chiffres de démonstration, produits sur un émulateur. Aucune donnée d'usage réelle ne figure
+> dans ce dépôt.
 
 L'interface est en **français et en anglais**. Le français est choisi automatiquement sur un
 téléphone en français, l'anglais partout ailleurs, et Android 13+ laisse changer la langue de
 l'app seule sans toucher à celle du système.
 
-Plus un **quota quotidien** — quelques minutes par jour, ouvrables seulement dans une plage
-horaire choisie — et un **verrou** qui rend tout assouplissement lent au lieu d'instantané.
+## Le quota, et pourquoi il est lent
+
+Bloquer sans exception ne tient pas : on finit par tout éteindre. Digue accorde donc quelques
+minutes par jour, **ouvrables seulement dans une plage horaire choisie**, et rend tout
+assouplissement lent.
+
+- **Un resserrement s'applique tout de suite. Un assouplissement attend le délai en vigueur.**
+  Réduire le quota, raccourcir la plage, éteindre le quota : immédiat. L'inverse : différé, et
+  visible à l'écran pendant l'attente.
+- **Le délai facturé est celui en vigueur, jamais celui qu'on propose.** Sinon il suffirait de
+  mettre le délai à zéro pour tout débloquer sur-le-champ.
+- **Le temps se compte à l'horloge murale depuis un déblocage explicite**, pas en temps d'écran.
+  Compter l'écran permettrait de mettre le compteur en pause en quittant l'app trois secondes.
+- **Un resserrement annule aussi tout changement en attente**, sans quoi l'assouplissement
+  encore armé déferait le resserrement plus tard, en silence.
+
+Le verrou protège les réglages *de Digue*, et rien d'autre — voir « Limites connues ».
+
+## Ce que l'app ne fait pas, par construction
+
+- **Aucun appel réseau, aucune dépendance réseau.** Rien ne quitte l'appareil, jamais. Pas de
+  télémétrie, pas de police téléchargée, pas de règles récupérées à l'exécution.
+- **Le champ `text` des vues n'est jamais lu, ni journalisé, ni persisté.** Un service
+  d'accessibilité voit tout le texte à l'écran ; celui-ci ne lit que l'identifiant de
+  ressource, la description d'accessibilité, la classe, l'état sélectionné, la cliquabilité
+  et les bornes.
+- **Le service ne voit que les applications dont une surface est allumée.** La liste des
+  paquets est redéclarée à l'exécution depuis les réglages, et elle est appliquée par Android,
+  pas par l'app : Snapchat éteint, Snapchat est *incapable* d'atteindre le service.
+- **Aucun compte, aucune permission au-delà de l'accessibilité.**
+
+## Trois comportements fins, tenus exprès
+
+1. **Un reel qu'un contact envoie en message reste regardable** — il porte une barre de
+   réponse ; les reels suggérés qui suivent ne l'ont pas et sont bloqués.
+2. **Ouvrir l'onglet Explore appuie sur la barre de recherche** au lieu de sortir de l'onglet,
+   parce que bloquer Explore bloquait aussi la seule recherche d'Instagram.
+3. **Une story d'ami sur Snapchat reste regardable**, les vidéos Discover non. On s'abonne à un
+   publieur, jamais à un ami : c'est ce qui sépare les deux.
 
 ## Vie privée, et ce qu'il ne faut jamais commiter ici
-
-Ce dépôt a été privé jusqu'au 2026-08-18, pour deux raisons dont une seule demandait un
-travail réel. Les deux sont traitées :
-
-- Les commits antérieurs au 2026-08-17 portaient le **numéro de série du téléphone de test**.
-  L'historique a été réécrit le 2026-08-18 et le dépôt distant recréé, pour qu'aucun objet de
-  l'ancienne histoire ne survive côté serveur.
-- Le dépôt décrit des mesures faites sur un appareil réel — des lignes de logcat horodatées
-  d'une séance de recette. Aucune donnée d'usage n'a été exportée ici : ni base, ni journal de
-  visionnage, ni capture d'écran.
 
 **Un incident de confidentialité a déjà eu lieu**, et c'est la raison de la règle qui suit :
 des captures d'arbres de vues contenant des noms de contacts et des extraits de conversations
@@ -57,28 +109,24 @@ Les fixtures de test versionnées ici sont nettoyées — toutes leurs `contentD
 test le vérifie à chaque exécution, pour qu'une fixture ajoutée sans précaution soit attrapée
 avant d'atterrir.
 
-## Ce que l'app ne fait pas, par construction
-
-- **Aucun appel réseau, aucune dépendance réseau.** Rien ne quitte l'appareil, jamais.
-- **Le champ `text` des vues n'est jamais lu, ni journalisé, ni persisté.** Un service
-  d'accessibilité voit tout le texte à l'écran ; celui-ci ne lit que l'identifiant de
-  ressource, la description d'accessibilité, la classe, l'état sélectionné, la cliquabilité
-  et les bornes.
-- **Le service ne voit que les applications dont une surface est allumée.** La liste des
-  paquets est redéclarée à l'exécution depuis les réglages, et elle est appliquée par Android,
-  pas par l'app : Snapchat éteint, Snapchat est *incapable* d'atteindre le service.
+Le dépôt a par ailleurs été privé jusqu'au 2026-08-18 : les commits antérieurs portaient le
+numéro de série du téléphone de test. L'historique a été réécrit et le dépôt distant recréé,
+pour qu'aucun objet de l'ancienne histoire ne survive côté serveur.
 
 ## Construire et tester
 
 ```bash
 ./gradlew build                                   # tout, y compris le lint
-./gradlew :detection:test :app:testDebugUnitTest  # 276 tests JVM
+./gradlew :detection:test :app:testDebugUnitTest  # 283 tests JVM
 ./gradlew :app:installDebug                       # installe sur un appareil branché
 ./gradlew :app:connectedDebugAndroidTest          # 24 tests instrumentés — DÉSINSTALLE l'app
 ```
 
 La dernière commande efface la base de l'app en fin de course : sauvegarder avant si l'appareil
 porte un historique qui compte.
+
+Activer le service demande un geste que l'app n'a pas le droit de faire elle-même — le bouton
+« Ouvrir les réglages d'accessibilité » y mène.
 
 ## Structure
 
@@ -90,6 +138,11 @@ porte un historique qui compte.
 
 Le service traduit l'arbre Android en instantané neutre, puis appelle une fonction pure. C'est
 ce qui rend la détection testable sur JVM contre de vrais arbres capturés, sans appareil.
+
+Les règles vivent dans `app/src/main/assets/rules.json`, en trois paliers de confiance —
+identifiant de ressource, description d'accessibilité, position dans la barre du bas — et un
+fichier posé dans `filesDir` les surcharge, ce qui permet de réparer une détection sur le
+téléphone sans recompiler.
 
 ## Où est la vraie documentation
 
@@ -112,6 +165,8 @@ les deux corrections qu'il a fallu lui annuler.
 - Les règles reposent sur des identifiants de ressources internes. Le jour où une de ces apps
   en renomme un, la surface concernée cesse d'être bloquée ; l'app le signale en affichant une
   détection dégradée, mais la réparation demande une nouvelle capture.
+- **Un seul appareil de test**, un Pixel 9a. Les heuristiques géométriques n'ont jamais été
+  éprouvées sur une autre taille d'écran.
 
 ## Licence
 

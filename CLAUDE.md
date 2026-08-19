@@ -177,6 +177,13 @@ deux sens avec `cmd locale set-app-locales`, écran complet en copie d'écran.
 - **`currentLocale()` lit la configuration, pas `Locale.getDefault()`**, sinon le choix « langue
   de cette app » d'Android 13+ ne serait pas vu. Tout `uppercase()` et le nom abrégé du jour
   dans le graphique passent par lui.
+- **Le dépôt a deux README**, et rien ne les tient synchronisés : `README.md` est le français,
+  celui que GitHub affiche par défaut, `README.en.md` l'anglais. Les deux se renvoient l'un à
+  l'autre en tête de page. Aucun test ne les compare — c'est de la prose, pas des clés — donc
+  **toute retouche de l'un doit être portée à la main dans l'autre**. Les copies d'écran
+  (`docs/screenshots/`) existent aussi en double, `*.png` et `*.en.png`, prises sur l'émulateur
+  avec des **données de démonstration insérées à la main** dans la base : aucun chiffre d'usage
+  réel n'est publié, et la légende le dit sous l'image.
 - **`TranslationsTest` interdit la dérive** : mêmes clés des deux côtés, mêmes arguments
   positionnels par clé, aucune valeur identique hors noms de marque, et chaque langue du
   sélecteur a bien un dossier. Une clé oubliée d'un côté ne plante pas et ne casse pas le
