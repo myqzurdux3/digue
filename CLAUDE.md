@@ -481,6 +481,15 @@ aucun paquet.
   ```bash
   adb shell appops set com.insta.reelsoff ACCESS_RESTRICTED_SETTINGS allow
   ```
+- **Un blocage ne laisse AUCUNE trace dans logcat, et ce fichier a affirmé le contraire.** Il a
+  longtemps porté « le tag `ReelsOff` remonte de nouveau dans logcat » en tête des chantiers,
+  ce qui laissait croire qu'on pouvait y observer la détection. Vérifié dans le code le
+  2026-08-19 : le service n'écrit que trois choses — « service connected », « capture session
+  armed », et les erreurs. Le chemin de blocage n'appelle `Log` nulle part. Un logcat vide ne
+  prouve donc **rien** sur le blocage, et l'y chercher fait perdre du temps ; c'est arrivé le
+  jour même où la ligne a été corrigée. **La seule observation d'un blocage est la table
+  `block_event`** : `adb exec-out run-as com.insta.reelsoff cat databases/reelsoff.db > x.sqlite`,
+  et **prendre aussi le `-wal`**, sinon les dernières lignes manquent.
 - **La source de vérité est `dumpsys`, pas `settings get`.** Le service tourne réellement
   quand cette commande renvoie une ligne :
   ```bash
@@ -732,11 +741,7 @@ regardé quand même — c'est le chiffre que le quota existe pour faire baisser
 
 ## Chantiers de suite, par priorité
 
-1. **Le tag `ReelsOff` remonte de nouveau dans logcat** sur cet appareil, contrairement à ce
-   que ce fichier a longtemps dit. La base `block_event` reste l'autre preuve, à lire ainsi :
-   `adb exec-out run-as com.insta.reelsoff cat databases/reelsoff.db > x.sqlite` — et **prendre
-   aussi le `-wal`**, sinon les dernières lignes manquent.
-2. **Les nœuds d'accessibilité ne sont pas recyclés, et c'est une décision, pas un oubli.**
+1. **Les nœuds d'accessibilité ne sont pas recyclés, et c'est une décision, pas un oubli.**
    `recycle()` est un no-op à partir de l'API 33 ; `minSdk` vaut 26, donc la fuite n'existe
    que de l'API 26 à 32 — précisément les versions dont ce projet n'a aucun appareil. Le
    recyclage a été écrit puis **retiré** : il n'aurait jamais tourné là où on peut l'observer,
@@ -747,7 +752,7 @@ regardé quand même — c'est le chiffre que le quota existe pour faire baisser
    **Deux sorties, toutes deux à ton choix** : un appareil sous Android 8-12 pour éprouver le
    mécanisme, ou remonter `minSdk` à 33 — ce qui supprime la classe entière de problème sans
    une ligne de code, au prix d'Android 8 à 12.
-3. **Heuristique de la barre de navigation (F9, différée — et l'utilisateur l'a
+2. **Heuristique de la barre de navigation (F9, différée — et l'utilisateur l'a
    explicitement dépriorisée le 2026-08-17 : « c'est pas important pour l'instant »).** `ScreenClassifier.findNavBar`
    retient « ≥4 frères cliquables, la rangée la plus basse ». Sur les captures réelles cela
    laisse 3-4 rangées candidates par écran, départagées par la seule géométrie. Un panneau ou
@@ -755,12 +760,12 @@ regardé quand même — c'est le chiffre que le quota existe pour faire baisser
    REELS après la suppression du palier MEDIUM. Resserrer demande des seuils qui pourraient
    casser sur d'autres géométries d'écran : à faire avec des captures sur plus d'un appareil,
    plus un départage déterministe en cas d'égalité.
-4. **Résiduels connus, non bloquants** : la cause interpolée dans le bandeau de règles est du
+3. **Résiduels connus, non bloquants** : la cause interpolée dans le bandeau de règles est du
    texte anglais dans une phrase française ; `isServiceEnabled` n'a pas de test car le code n'a
    pas de couture pure pour `Settings.Secure` ; et `HomeViewModel` n'a aucun test du tout — ses
    fonctions pures le sont, mais le fait qu'il les appelle dans le bon ordre ne l'est pas, ce
    qui est précisément par où un défaut de comptage du temps regardé était passé.
-5. **Non vérifié** : la persistance sur 24 h — l'utilisateur doit la constater
+4. **Non vérifié** : la persistance sur 24 h — l'utilisateur doit la constater
    lui-même et la rapporter, aucune manipulation à faire d'ici là ; côté quota, le resserrement pendant qu'un
    changement est en attente, et la maturation réelle d'un délai d'une heure.
 
