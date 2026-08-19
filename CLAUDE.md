@@ -280,7 +280,9 @@ changé entre les deux prises. Quinze mois de Compose n'ont rien déplacé visue
                        MaintenancePanel, AllowanceUiState, AllowancePanel,
                        AllowanceEditors, Format (currentLocale, formatDuration,
                        formatChoice, formatMinuteOfDay, formatBytes)
-             res/      values/ EN + repli, values-fr/ FR, xml/locales_config.xml
+             res/      values/ EN + repli, values-fr/ FR
+                       xml/ accessibility_service_config, locales_config,
+                            data_extraction_rules, full_backup_content
 ```
 
 **Le service ne s'appelle plus que par habitude `InstagramWatcherService`** — il couvre
@@ -624,6 +626,15 @@ Trois choses à ne jamais casser là-dedans :
    tableau vide (`packageNamesFor`).
 3. **`applyDeclaredPackages` ne doit rien laisser échapper** : elle tourne dans le collecteur
    de réglages, et l'invariant 4 s'applique.
+
+**Les deux sorties qu'Android ouvre tout seul sont refusées explicitement**, depuis le
+2026-08-19 : `data_extraction_rules.xml` pour la sauvegarde cloud et le transfert
+d'appareil à appareil d'Android 12+, `full_backup_content.xml` pour les versions
+antérieures. `allowBackup="false"` fermait déjà la première ; ces deux fichiers ferment aussi
+la seconde, domaine par domaine. Ce qui est en jeu n'est pas les réglages mais `block_event` et
+`pass_event` — un relevé horodaté des moments où l'utilisateur a tendu la main vers un fil, et
+du temps regardé. Rien de tout ça ne doit se retrouver sur un serveur ni sur un autre téléphone
+sans qu'on l'ait décidé.
 
 **Cette propriété n'est PAS vérifiée par la mesure.** `dumpsys accessibility` n'expose pas la
 liste de paquets d'un service sur l'appareil de test, et un test par le comportement ne peut
