@@ -51,17 +51,25 @@ class TranslationsTest {
 
     @Test
     fun `both languages define exactly the same keys`() {
-        assertEquals(stringsIn("values").keys.sorted(), stringsIn("values-fr").keys.sorted())
+        // Compared on the bare names: the quantities a plural needs are a property
+        // of the language, not of the string, and French needs one English does
+        // not. Those are checked on their own below.
+        fun names(folder: String) = stringsIn(folder).keys.map { it.substringBefore("/") }.distinct().sorted()
+
+        assertEquals(names("values"), names("values-fr"))
     }
 
     @Test
     fun `a string takes the same arguments in both languages`() {
+        // A plural quantity that exists on one side only is compared against its
+        // "other" form, which is what Android falls back to anyway.
         val french = stringsIn("values-fr")
-        for ((name, english) in stringsIn("values")) {
+        for ((key, english) in stringsIn("values")) {
+            val counterpart = french[key] ?: french.getValue(key.substringBefore("/") + "/other")
             assertEquals(
-                "$name binds different arguments in the two languages",
+                "$key binds different arguments in the two languages",
                 placeholders(english),
-                placeholders(french.getValue(name)),
+                placeholders(counterpart),
             )
         }
     }
@@ -74,30 +82,35 @@ class TranslationsTest {
         val sameInBoth = setOf(
             "app_name", "reels", "explore", "shorts", "spotlight", "discover",
             "app_instagram", "app_youtube", "app_snapchat", "maintenance_title",
-            // French does not inflect "fois", so both quantities read alike; the
-            // plural exists for English, which inflects "time".
-            "today_total/one", "today_total/other",
+            // French does not inflect "fois", so all its quantities read alike;
+            // the plural exists for English, which inflects "time".
+            "today_total/one", "today_total/other", "today_total/many",
         )
         val french = stringsIn("values-fr")
         val untranslated = stringsIn("values")
             .filterKeys { it !in sameInBoth }
-            .filter { (name, english) -> english == french.getValue(name) }
+            .filter { (key, english) -> english == french[key] }
             .keys
         assertEquals(emptySet<String>(), untranslated)
     }
 
     @Test
     fun `a plural offers every quantity its language needs`() {
-        // Both languages need exactly "one" and "other" — the CLDR rule set for
-        // French and English alike. A quantity added for one and not the other
-        // is already caught by the key comparison; this catches a plural that
-        // was declared with neither.
-        for (folder in listOf("values", "values-fr")) {
-            val quantities = stringsIn(folder).keys.filter { "/" in it }
+        // The quantities are CLDR's, not ours. English inflects on one and other;
+        // French adds "many", which is what it uses from a million upward — the
+        // form that takes "de", as in "1000000 d'instantanés". None of these
+        // counters will ever get there, but a resource missing a quantity its
+        // language defines is incomplete, and lint says so.
+        val needed = mapOf(
+            "values" to listOf("one", "other"),
+            "values-fr" to listOf("many", "one", "other"),
+        )
+        for ((folder, quantities) in needed) {
+            val declared = stringsIn(folder).keys.filter { "/" in it }
                 .groupBy({ it.substringBefore("/") }, { it.substringAfter("/") })
-            assertTrue("$folder declares no plural at all", quantities.isNotEmpty())
-            for ((name, offered) in quantities) {
-                assertEquals("$folder/$name", listOf("one", "other"), offered.sorted())
+            assertTrue("$folder declares no plural at all", declared.isNotEmpty())
+            for ((name, offered) in declared) {
+                assertEquals("$folder/$name", quantities, offered.sorted())
             }
         }
     }

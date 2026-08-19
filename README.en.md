@@ -121,7 +121,7 @@ history survives server-side.
 ./gradlew build                                   # everything, lint included
 ./gradlew :detection:test :app:testDebugUnitTest  # 283 JVM tests
 ./gradlew :app:installDebug                       # installs on a connected device
-./gradlew :app:connectedDebugAndroidTest          # 24 instrumented tests — UNINSTALLS the app
+./gradlew :app:connectedDebugAndroidTest          # 30 instrumented tests — UNINSTALLS the app
 ```
 
 That last command wipes the app's database on its way out: back it up first if the device

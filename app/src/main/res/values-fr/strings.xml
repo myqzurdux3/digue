@@ -70,18 +70,22 @@
 
     <!-- French counts 0 and 1 as "one"; "fois" simply does not inflect. -->
     <plurals name="capture_running">
+        <item quantity="many">Capture en cours — %1$d s restantes, %2$d d\'instantanés</item>
         <item quantity="one">Capture en cours — %1$d s restantes, %2$d instantané</item>
         <item quantity="other">Capture en cours — %1$d s restantes, %2$d instantanés</item>
     </plurals>
     <plurals name="capture_done">
+        <item quantity="many">Terminé : %1$d d\'instantanés enregistrés.</item>
         <item quantity="one">Terminé : %1$d instantané enregistré.</item>
         <item quantity="other">Terminé : %1$d instantanés enregistrés.</item>
     </plurals>
     <plurals name="captures_on_disk">
+        <item quantity="many">%1$d d\'instantanés sur le disque — %2$s</item>
         <item quantity="one">%1$d instantané sur le disque — %2$s</item>
         <item quantity="other">%1$d instantanés sur le disque — %2$s</item>
     </plurals>
     <plurals name="today_total">
+        <item quantity="many">Retenu %1$d fois</item>
         <item quantity="one">Retenu %1$d fois</item>
         <item quantity="other">Retenu %1$d fois</item>
     </plurals>

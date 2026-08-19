@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.insta.reelsoff"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.insta.reelsoff"

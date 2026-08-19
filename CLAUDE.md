@@ -15,13 +15,12 @@ retour arrière la plupart du temps, ou un appui sur un nœud précis pour Explo
 | Snapchat | `SPOTLIGHT` | `spotlight_container`, ou le cœur `favorite` du rail droit |
 | Snapchat | `DISCOVER` | la colonne d'actions `context_vertical_actions/...`, ou le bouton d'abonnement |
 
-**Statut au 2026-08-19.** 283 tests JVM verts, arbre propre, `main` et `origin/main` au même
-point. **Les 24 tests instrumentés n'ont pas été rejoués depuis le 2026-08-17** : ils
-compilent — vérifié le 2026-08-19 par `compileDebugAndroidTestKotlin`, ce qui est le minimum et
-pas une preuve — et aucun ne touche aux chaînes traduites, mais les lancer désinstalle l'app et
-efface la base, donc la passe attend une sauvegarde et un feu vert. Leur dernier passage réel,
-le 2026-08-17, était **24 tests instrumentés passés sur
-l'appareil** — une première : ils ne compilaient plus du tout, `BlockEventDaoTest` appelant
+**Statut au 2026-08-19.** 283 tests JVM et **30 tests instrumentés passés sur l'appareil**,
+arbre propre, `main` et `origin/main` au même point. Les instrumentés étaient 24 ; les six
+nouveaux couvrent `HomeViewModel`, qui n'en avait aucun. Les lancer **désinstalle l'app et
+efface la base** — sauvegarder d'abord, la recette est plus bas. Historiquement, la passe du
+2026-08-17 était la première à tourner : ils ne compilaient plus du tout, `BlockEventDaoTest`
+appelant
 `dao.since(...)`, une requête retirée du DAO quand l'écran est passé aux `Flow`, et personne
 n'ayant relancé `compileDebugAndroidTestKotlin` depuis. Un `@Test` qui ne compile pas se compte
 exactement comme un `@Test` qui passe. Dépôt distant : `github.com/myqzurdux3/digue`, **public
@@ -170,6 +169,14 @@ deux sens avec `cmd locale set-app-locales`, écran complet en copie d'écran.
   pas : « Retenu 1 fois » est correct, « Held back 1 times » ne l'est pas. Leur quantité est le
   **nombre de choses**, pas forcément le premier argument : `capture_running` se décide sur ses
   instantanés alors que ses secondes occupent `%1$d`.
+- **Les catégories de quantité sont celles de CLDR, pas les nôtres** : l'anglais a `one` et
+  `other`, le français a en plus **`many`**, sa forme à partir du million — celle qui prend
+  « de », comme « 1000000 d'instantanés ». Aucun de ces compteurs n'y arrivera jamais, mais une
+  ressource à qui manque une quantité que sa langue définit est incomplète, et lint le dit
+  (`MissingQuantity`). `TranslationsTest` exige donc **des jeux de quantités différents par
+  langue**, et compare les clés sur leur nom nu.
+- **Une apostrophe non échappée dans un `strings.xml` casse la compilation des ressources**, et
+  le message ne le dit pas : « NullPointerException ... getAttributeByName ». Écrire `\'`.
 - **`Format.kt` garde du texte, et c'est assumé.** Ses fonctions sont pures et testées sur JVM
   contre leur sortie exacte ; prendre un `Context` mettrait fin à ça. Le jeu est tenu minuscule
   exprès : `h`, `min` et `s` s'écrivent pareil dans les deux langues, donc seuls le séparateur
@@ -212,6 +219,31 @@ deux sens avec `cmd locale set-app-locales`, écran complet en copie d'écran.
 # tests instrumentés : --tests ne marche PAS sur cette version d'AGP, utiliser :
 ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=<fqcn>
 ```
+
+## Chaîne de construction
+
+Montée de versions du 2026-08-19, **build complet et 283 tests verts après**, et l'écran
+comparé au pixel avant/après sur l'appareil : les seuls écarts étaient des données qui avaient
+changé entre les deux prises. Quinze mois de Compose n'ont rien déplacé visuellement.
+
+- Gradle 8.11.1 → **8.13**, AGP 8.7.3 → **8.13.2**, Kotlin 2.1.0 → **2.1.20**, KSP accordé,
+  Room 2.6.1 → **2.8.4**, DataStore → **1.2.1**, Compose BOM 2024.12 → **2026.03.01**,
+  activity → 1.12.4, lifecycle → 2.9.4, core-ktx → 1.17.0, `compileSdk` 35 → **36**.
+- **`targetSdk` reste à 35, exprès.** Le relever opte l'app dans de nouveaux comportements
+  d'exécution ; elle est vérifiée sur appareil à 35. C'est un changement à faire seul, avec une
+  passe d'appareil derrière, pas en passant. D'où l'avertissement `OldTargetApi` qui subsiste.
+- **AGP 9 / Gradle 9 / `compileSdk` 37 : délibérément pas fait.** Les toutes dernières versions
+  d'AndroidX (core 1.19, Compose 1.12, lifecycle 2.11) les exigent — le build le dit
+  explicitement, dépendance par dépendance. C'est une migration à part entière, à bénéfice
+  fonctionnel nul sur une app qui marche et qui est éprouvée sur appareil. Les versions
+  retenues sont **les plus récentes qui tiennent sous AGP 8.13.2 et `compileSdk` 36**, trouvées
+  en redescendant une par une d'après ce que le build reprochait.
+- **Lint : 47 avertissements → 3.** Les trois qui restent sont des décisions, pas des oublis :
+  `OldTargetApi` (ci-dessus) ; `UnusedResources` sur `accent`, qui est la moitié XML de
+  `Theme.kt` et que `colors.xml` explique ; et `ObsoleteSdkInt` sur `mipmap-anydpi-v26`.
+- **Ce dernier, lint a tort, et c'est mesuré.** Suivre son conseil — renommer en
+  `mipmap-anydpi` — fait échouer le lien des ressources : « resource mipmap/ic_launcher not
+  found », les deux icônes de lanceur disparaissent. Essayé, cassé, remis. **Ne pas refaire.**
 
 ## Architecture
 
@@ -761,10 +793,14 @@ regardé quand même — c'est le chiffre que le quota existe pour faire baisser
    casser sur d'autres géométries d'écran : à faire avec des captures sur plus d'un appareil,
    plus un départage déterministe en cas d'égalité.
 3. **Résiduels connus, non bloquants** : la cause interpolée dans le bandeau de règles est du
-   texte anglais dans une phrase française ; `isServiceEnabled` n'a pas de test car le code n'a
-   pas de couture pure pour `Settings.Secure` ; et `HomeViewModel` n'a aucun test du tout — ses
-   fonctions pures le sont, mais le fait qu'il les appelle dans le bon ordre ne l'est pas, ce
-   qui est précisément par où un défaut de comptage du temps regardé était passé.
+   texte anglais dans une phrase française — et le restera en partie, la moitié de ces messages
+   venant de kotlinx.serialization ; `isServiceEnabled` n'a pas de test car le code n'a pas de
+   couture pure pour `Settings.Secure`. **`HomeViewModel` a maintenant six tests instrumentés**
+   (`HomeViewModelTest`) qui éprouvent l'ordre dans lequel il appelle ses fonctions pures —
+   c'est-à-dire précisément par où un défaut de comptage du temps regardé était passé. Ils
+   pilotent le vrai ViewModel contre le vrai DataStore et relisent le résultat dans le magasin,
+   plutôt que de croire ce que le ViewModel dit de lui-même. Ce qui reste sans test : le reste
+   de la classe, notamment `openPass`/`closePass` et la composition des `uiState`.
 4. **Non vérifié** : la persistance sur 24 h — l'utilisateur doit la constater
    lui-même et la rapporter, aucune manipulation à faire d'ici là ; côté quota, le resserrement pendant qu'un
    changement est en attente, et la maturation réelle d'un délai d'une heure.

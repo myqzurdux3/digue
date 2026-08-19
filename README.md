@@ -122,7 +122,7 @@ pour qu'aucun objet de l'ancienne histoire ne survive côté serveur.
 ./gradlew build                                   # tout, y compris le lint
 ./gradlew :detection:test :app:testDebugUnitTest  # 283 tests JVM
 ./gradlew :app:installDebug                       # installe sur un appareil branché
-./gradlew :app:connectedDebugAndroidTest          # 24 tests instrumentés — DÉSINSTALLE l'app
+./gradlew :app:connectedDebugAndroidTest          # 30 tests instrumentés — DÉSINSTALLE l'app
 ```
 
 La dernière commande efface la base de l'app en fin de course : sauvegarder avant si l'appareil

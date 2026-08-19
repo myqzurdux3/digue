@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Nothing about this app leaves the device, and that includes the two paths
+  Android opens on its own: cloud backup, and the phone-to-phone transfer of
+  Android 12+. `allowBackup="false"` only closes the first; this file closes
+  both, explicitly, one domain at a time.
+
+  What is at stake is not the settings but `block_event` and `pass_event` — a
+  timestamped record of when the user reached for a short-video feed and how
+  long they watched. That belongs on one device or none.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>
