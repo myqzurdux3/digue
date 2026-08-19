@@ -792,16 +792,22 @@ regardé quand même — c'est le chiffre que le quota existe pour faire baisser
    REELS après la suppression du palier MEDIUM. Resserrer demande des seuils qui pourraient
    casser sur d'autres géométries d'écran : à faire avec des captures sur plus d'un appareil,
    plus un départage déterministe en cas d'égalité.
-3. **Résiduels connus, non bloquants** : la cause interpolée dans le bandeau de règles est du
-   texte anglais dans une phrase française — et le restera en partie, la moitié de ces messages
-   venant de kotlinx.serialization ; `isServiceEnabled` n'a pas de test car le code n'a pas de
-   couture pure pour `Settings.Secure`. **`HomeViewModel` a maintenant six tests instrumentés**
+3. **La cause interpolée dans le bandeau de règles reste en anglais, et c'est un choix.** Elle
+   a longtemps figuré ici comme un résiduel à corriger. Examinée le 2026-08-19 : la traduire
+   demanderait un code d'erreur dans `ParseResult.Failure` — `:detection` étant pur, il ne peut
+   pas lire une ressource — et **la moitié de ces messages viennent de kotlinx.serialization**,
+   donc resteraient anglais quoi qu'on fasse. Surtout, la seule personne qui voit ce bandeau est
+   celle qui vient d'éditer `rules.json` à la main sur son téléphone : le texte brut du parseur
+   est ce qu'elle peut chercher dans le code, une traduction le lui retirerait. La phrase qui
+   l'entoure est traduite et annoncée comme « Détail technique », ce qui est le bon partage.
+4. **Résiduel restant** : `isServiceEnabled` n'a pas de test, le code n'ayant pas de couture
+   pure pour `Settings.Secure`. **`HomeViewModel` a maintenant six tests instrumentés**
    (`HomeViewModelTest`) qui éprouvent l'ordre dans lequel il appelle ses fonctions pures —
    c'est-à-dire précisément par où un défaut de comptage du temps regardé était passé. Ils
    pilotent le vrai ViewModel contre le vrai DataStore et relisent le résultat dans le magasin,
    plutôt que de croire ce que le ViewModel dit de lui-même. Ce qui reste sans test : le reste
    de la classe, notamment `openPass`/`closePass` et la composition des `uiState`.
-4. **Non vérifié** : la persistance sur 24 h — l'utilisateur doit la constater
+5. **Non vérifié** : la persistance sur 24 h — l'utilisateur doit la constater
    lui-même et la rapporter, aucune manipulation à faire d'ici là ; côté quota, le resserrement pendant qu'un
    changement est en attente, et la maturation réelle d'un délai d'une heure.
 
